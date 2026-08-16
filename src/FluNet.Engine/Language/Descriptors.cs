@@ -105,3 +105,11 @@ public sealed record VerbDescriptor(
     string Name,
     IReadOnlyList<string> Aliases,
     IReadOnlyList<VerbImplementationDescriptor> Implementations);
+
+public sealed record QualifierDescriptor(
+    string Name,
+    Type? TargetType = null,
+    IReadOnlyList<string>? Aliases = null)
+{
+    public IReadOnlyList<string> AllAliases { get; } = Aliases ?? Array.Empty<string>();
+}
