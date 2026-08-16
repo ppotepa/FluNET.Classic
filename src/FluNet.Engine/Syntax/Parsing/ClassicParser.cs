@@ -114,9 +114,11 @@ public sealed class ClassicParser
         string? qualifier = null;
         if (hasWhat && Current.Kind == ClassicTokenKind.Word &&
             !explicitRoles.Contains(Current.Value) && !IsThen(Current) &&
+            _language.TryGetQualifier(Current.Value, out QualifierDescriptor qualifierDescriptor) &&
             Peek(1).Kind is ClassicTokenKind.Variable or ClassicTokenKind.Reference)
         {
-            qualifier = Advance().Value.ToUpperInvariant();
+            qualifier = qualifierDescriptor.Name;
+            Advance();
         }
 
         var clauses = new List<ClauseNode>();
