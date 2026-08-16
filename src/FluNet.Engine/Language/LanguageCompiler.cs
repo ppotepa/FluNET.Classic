@@ -190,10 +190,17 @@ public sealed class LanguageCompiler
 
     private static Type? ResolveResultType(Type type)
     {
-        Type? currentContract = type.GetInterfaces()
+        Type? generalized = type.GetInterfaces()
+            .FirstOrDefault(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IVerb<>));
+        if (generalized is not null)
+        {
+            return generalized.GetGenericArguments()[0];
+        }
+
+        Type? twoRoleContract = type.GetInterfaces()
             .FirstOrDefault(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IVerb<,>));
 
-        return currentContract?.GetGenericArguments()[0];
+        return twoRoleContract?.GetGenericArguments()[0];
     }
 
     private static string? InferRoleName(string? parameterName)
