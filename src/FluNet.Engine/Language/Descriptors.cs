@@ -89,6 +89,7 @@ public sealed record RoleSlotDescriptor(
     bool Required);
 
 public sealed record SentencePattern(
+    ConstructorDescriptor Constructor,
     IReadOnlyList<RoleSlotDescriptor> Roles);
 
 public sealed record VerbImplementationDescriptor(
