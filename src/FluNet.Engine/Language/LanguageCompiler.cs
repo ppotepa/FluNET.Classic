@@ -98,18 +98,20 @@ public sealed class LanguageCompiler
             .ToArray();
 
         SentencePattern[] patterns = constructors
-            .Select(c => new SentencePattern(c.Parameters
-                .Where(p => !p.IsService && p.RoleName is not null)
-                .Select(p => new RoleSlotDescriptor(
-                    p.RoleName!,
-                    p.ParameterType,
-                    p.TypeShape,
-                    p.RoleDirection,
-                    p.Cardinality,
-                    p.Position,
-                    p.Name,
-                    !p.IsOptional))
-                .ToArray()))
+            .Select(c => new SentencePattern(
+                c,
+                c.Parameters
+                    .Where(p => !p.IsService && p.RoleName is not null)
+                    .Select(p => new RoleSlotDescriptor(
+                        p.RoleName!,
+                        p.ParameterType,
+                        p.TypeShape,
+                        p.RoleDirection,
+                        p.Cardinality,
+                        p.Position,
+                        p.Name,
+                        !p.IsOptional))
+                    .ToArray()))
             .Where(p => p.Roles.Count > 0)
             .ToArray();
 
