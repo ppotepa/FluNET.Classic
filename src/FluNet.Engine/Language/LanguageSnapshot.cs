@@ -5,26 +5,44 @@ namespace FluNET.Language;
 public sealed class LanguageSnapshot
 {
     private readonly IReadOnlyDictionary<string, VerbDescriptor> _verbs;
+    private readonly IReadOnlyDictionary<string, QualifierDescriptor> _qualifiers;
 
-    public LanguageSnapshot(IEnumerable<VerbDescriptor> verbs)
+    public LanguageSnapshot(
+        IEnumerable<VerbDescriptor> verbs,
+        IEnumerable<QualifierDescriptor>? qualifiers = null)
     {
         ArgumentNullException.ThrowIfNull(verbs);
 
-        Dictionary<string, VerbDescriptor> lookup = new(StringComparer.OrdinalIgnoreCase);
+        Dictionary<string, VerbDescriptor> verbLookup = new(StringComparer.OrdinalIgnoreCase);
         foreach (VerbDescriptor verb in verbs)
         {
-            lookup[verb.Name] = verb;
+            verbLookup[verb.Name] = verb;
             foreach (string alias in verb.Aliases)
             {
-                lookup[alias] = verb;
+                verbLookup[alias] = verb;
             }
         }
 
-        _verbs = new ReadOnlyDictionary<string, VerbDescriptor>(lookup);
-        Verbs = lookup.Values.Distinct().OrderBy(v => v.Name, StringComparer.OrdinalIgnoreCase).ToArray();
+        _verbs = new ReadOnlyDictionary<string, VerbDescriptor>(verbLookup);
+        Verbs = verbLookup.Values.Distinct().OrderBy(v => v.Name, StringComparer.OrdinalIgnoreCase).ToArray();
+
+        Dictionary<string, QualifierDescriptor> qualifierLookup = new(StringComparer.OrdinalIgnoreCase);
+        foreach (QualifierDescriptor qualifier in qualifiers ?? StandardQualifiers.All)
+        {
+            qualifierLookup[qualifier.Name] = qualifier;
+            foreach (string alias in qualifier.AllAliases)
+            {
+                qualifierLookup[alias] = qualifier;
+            }
+        }
+
+        _qualifiers = new ReadOnlyDictionary<string, QualifierDescriptor>(qualifierLookup);
+        Qualifiers = qualifierLookup.Values.Distinct().OrderBy(q => q.Name, StringComparer.OrdinalIgnoreCase).ToArray();
     }
 
     public IReadOnlyList<VerbDescriptor> Verbs { get; }
+
+    public IReadOnlyList<QualifierDescriptor> Qualifiers { get; }
 
     public bool TryGetVerb(string name, out VerbDescriptor descriptor) =>
         _verbs.TryGetValue(name, out descriptor!);
@@ -33,4 +51,7 @@ public sealed class LanguageSnapshot
         TryGetVerb(name, out VerbDescriptor descriptor)
             ? descriptor
             : throw new KeyNotFoundException($"Unknown verb '{name}'.");
+
+    public bool TryGetQualifier(string name, out QualifierDescriptor descriptor) =>
+        _qualifiers.TryGetValue(name, out descriptor!);
 }
