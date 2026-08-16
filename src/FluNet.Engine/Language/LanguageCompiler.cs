@@ -9,17 +9,45 @@ public sealed class LanguageCompiler
 
     public LanguageSnapshot Compile(IEnumerable<Assembly>? assemblies = null)
     {
+        LanguageBuildResult result = Build(assemblies);
+        result.ThrowIfFailed();
+        return result.Snapshot!;
+    }
+
+    public LanguageBuildResult Build(IEnumerable<Assembly>? assemblies = null)
+    {
         Assembly[] sourceAssemblies = (assemblies ?? AppDomain.CurrentDomain.GetAssemblies())
             .Distinct()
             .ToArray();
 
-        List<VerbImplementationDescriptor> implementations = sourceAssemblies
-            .SelectMany(GetLoadableTypes)
-            .Where(t => !t.IsAbstract && !t.IsInterface && typeof(IVerb).IsAssignableFrom(t))
-            .Select(CompileVerb)
-            .Where(x => x is not null)
-            .Cast<VerbImplementationDescriptor>()
-            .ToList();
+        var diagnostics = new List<LanguageDiagnostic>();
+        var implementations = new List<VerbImplementationDescriptor>();
+
+        foreach (Type type in sourceAssemblies.SelectMany(GetLoadableTypes)
+                     .Where(t => !t.IsAbstract && !t.IsInterface && typeof(IVerb).IsAssignableFrom(t)))
+        {
+            VerbImplementationDescriptor? descriptor = CompileVerb(type);
+            if (descriptor is null)
+            {
+                diagnostics.Add(new LanguageDiagnostic(
+                    "FLU-LANG-001",
+                    $"Could not infer a verb family for '{type.FullName}'. Use [Verb] or an IVerbFamily marker.",
+                    LanguageDiagnosticSeverity.Error,
+                    type));
+                continue;
+            }
+
+            if (descriptor.Patterns.Count == 0)
+            {
+                diagnostics.Add(new LanguageDiagnostic(
+                    "FLU-LANG-014",
+                    $"Verb implementation '{type.FullName}' has no bindable constructor pattern.",
+                    LanguageDiagnosticSeverity.Error,
+                    type));
+            }
+
+            implementations.Add(descriptor);
+        }
 
         VerbDescriptor[] verbs = implementations
             .GroupBy(x => x.Name, StringComparer.OrdinalIgnoreCase)
@@ -32,7 +60,15 @@ public sealed class LanguageCompiler
             .OrderBy(x => x.Name, StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
-        return new LanguageSnapshot(verbs);
+        ValidateNames(verbs, diagnostics);
+        ValidatePatterns(implementations, diagnostics);
+
+        if (diagnostics.Any(d => d.Severity == LanguageDiagnosticSeverity.Error))
+        {
+            return new LanguageBuildResult(null, diagnostics);
+        }
+
+        return new LanguageBuildResult(new LanguageSnapshot(verbs), diagnostics);
     }
 
     public VerbImplementationDescriptor? CompileVerb(Type type)
@@ -140,6 +176,60 @@ public sealed class LanguageCompiler
             direction,
             cardinality,
             parameter.Position);
+    }
+
+    private static void ValidateNames(
+        IReadOnlyList<VerbDescriptor> verbs,
+        ICollection<LanguageDiagnostic> diagnostics)
+    {
+        var owners = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (VerbDescriptor verb in verbs)
+        {
+            RegisterName(verb.Name, verb.Name);
+            foreach (string alias in verb.Aliases)
+            {
+                RegisterName(alias, verb.Name);
+            }
+        }
+
+        void RegisterName(string name, string owner)
+        {
+            if (owners.TryGetValue(name, out string? existing) &&
+                !string.Equals(existing, owner, StringComparison.OrdinalIgnoreCase))
+            {
+                diagnostics.Add(new LanguageDiagnostic(
+                    "FLU-LANG-002",
+                    $"Language name '{name}' is claimed by both '{existing}' and '{owner}'.",
+                    LanguageDiagnosticSeverity.Error));
+                return;
+            }
+
+            owners[name] = owner;
+        }
+    }
+
+    private static void ValidatePatterns(
+        IEnumerable<VerbImplementationDescriptor> implementations,
+        ICollection<LanguageDiagnostic> diagnostics)
+    {
+        foreach (VerbImplementationDescriptor implementation in implementations)
+        {
+            foreach (SentencePattern pattern in implementation.Patterns)
+            {
+                RoleSlotDescriptor? variadic = pattern.Roles
+                    .FirstOrDefault(r => r.Cardinality is RoleCardinality.ZeroOrMore or RoleCardinality.OneOrMore);
+
+                if (variadic is not null && variadic.Position != pattern.Roles.Max(r => r.Position))
+                {
+                    diagnostics.Add(new LanguageDiagnostic(
+                        "FLU-LANG-015",
+                        $"Variadic role '{variadic.Name}' in '{implementation.ImplementationType.FullName}' must be the last language role in its constructor.",
+                        LanguageDiagnosticSeverity.Error,
+                        implementation.ImplementationType));
+                }
+            }
+        }
     }
 
     private static string? ResolveVerbName(Type type)
