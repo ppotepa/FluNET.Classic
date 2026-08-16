@@ -2,9 +2,7 @@ using FluNET.Syntax.Core;
 
 namespace FluNET.Language;
 
-public interface IVerbFamily : IVerb, ILanguageElement
-{
-}
+public interface IVerbFamily : IVerb;
 
 public interface IGet : IVerbFamily;
 public interface ISave : IVerbFamily;
