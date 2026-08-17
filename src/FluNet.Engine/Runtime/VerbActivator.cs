@@ -45,7 +45,7 @@ public sealed class VerbActivator
             arguments[parameter.Position] = MaterializeRole(role, parameter, state);
         }
 
-        return constructor.Constructor.Invoke(arguments);
+        return constructor.Activator(arguments);
     }
 
     private static object? MaterializeRole(
