@@ -15,8 +15,8 @@ public sealed class ProjectionFixtureModule : LanguageModule
 public sealed class ProjectPair : IVerb<PairResult>
 {
     public ProjectPair(
-        [What(Direction = RoleDirection.Output), OutputMember("First")] string first,
-        [With(Direction = RoleDirection.Output), OutputMember("Second")] int second)
+        [What, RoleDirection(RoleDirection.Output), OutputMember("First")] string first,
+        [With, RoleDirection(RoleDirection.Output), OutputMember("Second")] int second)
     {
     }
 
@@ -28,8 +28,8 @@ public sealed class ProjectPair : IVerb<PairResult>
 public sealed class ProjectTuple : IVerb<(string Text, int Number)>
 {
     public ProjectTuple(
-        [What(Direction = RoleDirection.Output), OutputIndex(0)] string text,
-        [With(Direction = RoleDirection.Output), OutputIndex(1)] int number)
+        [What, RoleDirection(RoleDirection.Output), OutputIndex(0)] string text,
+        [With, RoleDirection(RoleDirection.Output), OutputIndex(1)] int number)
     {
     }
 
