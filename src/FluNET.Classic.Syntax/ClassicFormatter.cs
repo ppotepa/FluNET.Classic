@@ -27,6 +27,7 @@ public sealed class ClassicFormatter
             case "DISTINCT": if (node.Source is not null) sb.Append(' ').Append(FormatExpression(node.Source)); if (node.Argument is not null) sb.Append(" BY ").Append(FormatExpression(node.Argument)); break;
             case "COUNT": if (node.Source is not null) sb.Append(' ').Append(FormatExpression(node.Source)); break;
         }
+        if (node.Strategy is not null) sb.Append(" USING ").Append(FormatExpression(node.Strategy));
         if (!string.IsNullOrWhiteSpace(node.ResultAlias)) sb.Append(" INTO [").Append(node.ResultAlias).Append(']'); return sb.ToString();
     }
     private string FormatIf(IfNode conditional) { var sb = new StringBuilder("IF ").Append(FormatExpression(conditional.Condition)).AppendLine(" THEN {"); sb.Append(Indent(FormatBlock(conditional.Then))).AppendLine().Append('}'); if (conditional.Else is not null) { sb.AppendLine(" ELSE {"); sb.Append(Indent(FormatBlock(conditional.Else))).AppendLine().Append('}'); } return sb.ToString(); }
