@@ -4,7 +4,15 @@ using FluNET.Classic.Core;
 namespace FluNET.Classic.Runtime;
 
 public sealed record ExecutionPlanDiagnostic(string Source, string Code, string Message);
-public sealed record ExecutionPlanValue(string Kind, string Type, string? Detail = null, string? Conversion = null, int Cost = 0, bool Sensitive = false);
+public sealed record ExecutionPlanConversionStep(string SourceType, string TargetType, string Kind, int Cost);
+public sealed record ExecutionPlanValue(
+    string Kind,
+    string Type,
+    string? Detail = null,
+    string? Conversion = null,
+    int Cost = 0,
+    bool Sensitive = false,
+    IReadOnlyList<ExecutionPlanConversionStep>? ConversionSteps = null);
 public sealed record ExecutionPlanRole(string Name, string Direction, string Cardinality, string ValueType, IReadOnlyList<ExecutionPlanValue> Values, bool Sensitive = false);
 public sealed record ExecutionPlanStep(string Kind, string? Verb, string? Implementation, string? Pattern, string? ResultType, string? ResultAlias, int? BindingCost, string? ExecutionMode, IReadOnlyList<string> Capabilities, IReadOnlyList<ExecutionTrait> Traits, IReadOnlyList<ExecutionPlanRole> Roles, IReadOnlyList<ExecutionPlanStep> Children, bool Sensitive = false);
 public sealed record ExecutionPlan(bool Success, IReadOnlyList<ExecutionPlanDiagnostic> Diagnostics, IReadOnlyList<ExecutionPlanStep> Steps, IReadOnlyList<string> RequiredCapabilities, IReadOnlyList<ExecutionTrait> Traits, string? ResultType);
@@ -78,7 +86,18 @@ public sealed class ExecutionPlanner
         BoundPropertyValue property => new("property", TypeName(property.Type)!, property.Property, Sensitive: property.IsSensitive),
         BoundInterpolatedValue interpolation => new("interpolation", TypeName(interpolation.Type)!, $"{interpolation.Parts.Count} part(s)", Sensitive: interpolation.IsSensitive),
         BoundExpressionValue expression => new("expression", TypeName(expression.Type)!, Sensitive: expression.IsSensitive),
-        BoundConversionValue conversion => new("conversion", TypeName(conversion.Type)!, $"{TypeName(conversion.Source.Type)} -> {TypeName(conversion.TargetType)}", conversion.Kind.ToString(), conversion.Cost, conversion.IsSensitive),
+        BoundConversionValue conversion => new(
+            "conversion",
+            TypeName(conversion.Type)!,
+            $"{TypeName(conversion.Source.Type)} -> {TypeName(conversion.TargetType)}",
+            conversion.Kind.ToString(),
+            conversion.Cost,
+            conversion.IsSensitive,
+            conversion.Steps.Select(step => new ExecutionPlanConversionStep(
+                TypeName(step.SourceType)!,
+                TypeName(step.TargetType)!,
+                step.Kind.ToString(),
+                step.Cost)).ToArray()),
         _ => new(value.GetType().Name, TypeName(value.Type)!, Sensitive: value.IsSensitive)
     };
     private static string[] ExpressionCapabilities(BoundExpression expression) => EnumerateExpressionCapabilities(expression).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
