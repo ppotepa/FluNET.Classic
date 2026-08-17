@@ -24,4 +24,8 @@ For transformations, keep target, method, and result separate. `TransformTo<...>
 
 Create an `ILanguageModule`/`LanguageModule` and expose the assembly. Modules may declare dependencies and qualifiers. `ModuleDiscovery.Discover(...)` can discover parameterless module types from assemblies loaded from NuGet packages or host plugins.
 
+Use `FluNET.Classic.SDK` while authoring modules. `FluNetModuleTestHarness` validates the dependency graph, stable IDs, surface-role collisions, example parsing/binding, and format round-trips; `ModuleArtifactGenerator` emits module JSON and Markdown from the compiled language snapshot. See `docs/SDK.md`.
+
+Prefer semantic CLR resource types over raw strings where a value has domain meaning. For example, `FilePattern` and `FileMetadata` let overload resolution and tooling reason about file semantics rather than treating every argument as text.
+
 Custom string-to-CLR resolution is registered through `IValueResolver<T>`. CLR-to-CLR conversion is registered through `IValueConverter<TSource,TTarget>`. Named boolean predicates can be added through `PredicateRegistry`/`IValuePredicate`. Host capabilities are enforced by `ICapabilityPolicy`.

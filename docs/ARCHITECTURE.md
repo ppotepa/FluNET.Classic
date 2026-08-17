@@ -14,8 +14,10 @@ source -> ClassicLexer -> ClassicParser -> immutable AST
                   SemanticBinder + predicates
                                |
                           BoundScript
-                               |
-                         BoundExecutor
+                         /          \
+                ExecutionPlanner   BoundExecutor
+                         |              |
+                    static plan       runtime
 ```
 
 CLR types describe value shape. Semantic interfaces describe language families and stable semantic roles. Constructors describe role occurrences, ordering, optionality and variadicity. Attributes refine inferred metadata; `[RoleAlias]` adds pattern-scoped surface spellings without changing the semantic role. Reflection runs while compiling a `LanguageSnapshot`; activators, invokers and property accessors are compiled delegates.
@@ -24,4 +26,8 @@ The parser owns sentence punctuation and controlled-natural-language surface syn
 
 `THEN`/`AND THEN` form a typed pipeline: the binder may inject the previous stage result into one compatible missing required input role. A semicolon starts a separate statement and therefore does not carry a pipeline value. Output-only CLR roles do not require a source-level variable; without `INTO`, their result remains available as the pipeline value.
 
+`ExecutionPlanner` projects a bound script into a non-executing plan containing selected implementations, patterns, typed role values, resolution/conversion information, capabilities and execution traits. Planning is intentionally downstream of binding: it describes what the compiler actually selected instead of re-interpreting source text.
+
 `FILTER ... WHERE`, `IF ... THEN`, `CHECK IF`, and `FOR EACH` are compiler nodes rather than ad-hoc verb rules. `IF`, `CHECK IF`, and `FILTER ... WHERE` share one typed expression tree. Named predicates such as `EXISTS`, `OK`, and `VALID` bind through `PredicateRegistry`, so modules can extend boolean language without adding parser-specific special cases.
+
+`FluNET.Classic.SDK` sits above Core/Syntax/Binding/Runtime as the module-authoring surface. It validates compiled module contracts and generates manifests/documentation from `LanguageSnapshot`; it does not define a second language model.

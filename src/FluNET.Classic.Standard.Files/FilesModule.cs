@@ -5,13 +5,35 @@ namespace FluNET.Classic.Standard.Files;
 public enum TextFileRepresentation { TEXT }
 public enum BinaryFileRepresentation { BINARY }
 
+public sealed record PathSpec(string Value)
+{
+    public string FullPath => Path.GetFullPath(Value);
+    public override string ToString() => Value;
+}
+
+public sealed record FilePattern(string Value)
+{
+    public string Pattern => string.IsNullOrWhiteSpace(Value) ? "*" : Value;
+    public override string ToString() => Pattern;
+}
+
+public sealed record FileMetadata(
+    string Name,
+    string FullName,
+    long Length,
+    string Extension,
+    DateTimeOffset Created,
+    DateTimeOffset Modified,
+    bool ReadOnly);
+
 public sealed class FilesModule : LanguageModule
 {
     public override string Name => "files";
     public override IReadOnlyCollection<QualifierDescriptor> Qualifiers => new QualifierDescriptor[]
     {
         new("qualifier:files", "FILES", typeof(FileInfo[])),
-        new("qualifier:directory", "DIRECTORY", typeof(DirectoryInfo))
+        new("qualifier:directory", "DIRECTORY", typeof(DirectoryInfo)),
+        new("qualifier:file-metadata", "METADATA", typeof(FileMetadata))
     };
 }
 
@@ -39,6 +61,24 @@ public sealed class GetBinary : Get<byte[], FileInfo>, IAs<BinaryFileRepresentat
 {
     public GetBinary([What] byte[] what, [From] FileInfo from, [As] BinaryFileRepresentation @as = BinaryFileRepresentation.BINARY) : base(what, from) { }
     protected override async ValueTask<byte[]> ActAsync(FileInfo from, CancellationToken cancellationToken) => await File.ReadAllBytesAsync(from.FullName, cancellationToken).ConfigureAwait(false);
+}
+
+[Qualifier("METADATA")]
+public sealed class GetFileMetadata : Get<FileMetadata, FileInfo>
+{
+    public GetFileMetadata([What] FileMetadata what, [From] FileInfo from) : base(what, from) { }
+    protected override ValueTask<FileMetadata> ActAsync(FileInfo from, CancellationToken cancellationToken)
+    {
+        from.Refresh();
+        return ValueTask.FromResult(new FileMetadata(
+            from.Name,
+            from.FullName,
+            from.Exists ? from.Length : 0,
+            from.Extension,
+            new DateTimeOffset(from.CreationTimeUtc, TimeSpan.Zero),
+            new DateTimeOffset(from.LastWriteTimeUtc, TimeSpan.Zero),
+            from.IsReadOnly));
+    }
 }
 
 [Qualifier("TEXT")]
@@ -74,12 +114,13 @@ public sealed class SaveBinary : Save<byte[], FileInfo>
 
 [Verb("LIST")]
 [Qualifier("FILES")]
-public sealed class ListFiles : IVerb<FileInfo[]>, IListVerb, IIn<DirectoryInfo>, IPipelineProducer<FileInfo[]>
+public sealed class ListFiles : IVerb<FileInfo[]>, IListVerb, IIn<DirectoryInfo>, IWith<FilePattern>, IPipelineProducer<FileInfo[]>
 {
     private readonly DirectoryInfo _directory;
-    public ListFiles([In, RoleAlias("FROM")] DirectoryInfo directory) => _directory = directory;
+    private readonly FilePattern? _pattern;
+    public ListFiles([In, RoleAlias("FROM")] DirectoryInfo directory, [With] FilePattern? pattern = null) { _directory = directory; _pattern = pattern; }
     public ValueTask<FileInfo[]> ExecuteAsync(VerbExecutionContext context, CancellationToken cancellationToken = default) =>
-        ValueTask.FromResult(_directory.Exists ? _directory.GetFiles() : Array.Empty<FileInfo>());
+        ValueTask.FromResult(_directory.Exists ? _directory.GetFiles(_pattern?.Pattern ?? "*") : Array.Empty<FileInfo>());
 }
 
 [Verb("CREATE")]

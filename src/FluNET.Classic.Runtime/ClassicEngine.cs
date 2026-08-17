@@ -16,13 +16,15 @@ public sealed class ClassicEngine
     private readonly SemanticBinder _binder;
     private readonly BoundExecutor _executor;
     private readonly ClassicFormatter _formatter;
+    private readonly ExecutionPlanner _planner;
 
-    public ClassicEngine(ClassicParser parser, SemanticBinder binder, BoundExecutor executor, ClassicFormatter formatter)
+    public ClassicEngine(ClassicParser parser, SemanticBinder binder, BoundExecutor executor, ClassicFormatter formatter, ExecutionPlanner planner)
     {
         _parser = parser;
         _binder = binder;
         _executor = executor;
         _formatter = formatter;
+        _planner = planner;
     }
 
     public ParseResult Parse(string source) => _parser.Parse(source);
@@ -41,6 +43,8 @@ public sealed class ClassicEngine
         return new(parse, _binder.Bind(parse.Script, variableTypes));
     }
 
+    public ExecutionPlan Plan(string source, IReadOnlyDictionary<string, Type>? variableTypes = null) => _planner.Build(Check(source, variableTypes));
+
     public async ValueTask<RuntimeResult> RunAsync(string source, RuntimeState? state = null, CancellationToken cancellationToken = default)
     {
         state ??= new RuntimeState();
@@ -54,28 +58,12 @@ public sealed class ClassicEngine
     public string Explain(string source)
     {
         CheckResult check = Check(source);
+        ExecutionPlan plan = _planner.Build(check);
         object result = new
         {
-            parseDiagnostics = check.Parse.Diagnostics,
-            bindingDiagnostics = check.Bound?.Diagnostics,
-            statements = check.Bound?.Statements.Select(DescribeStatement)
+            canonicalSource = check.Parse.Success ? _formatter.Format(check.Parse.Script) : null,
+            plan
         };
         return JsonSerializer.Serialize(result, new JsonSerializerOptions { WriteIndented = true });
     }
-
-    private static object DescribeStatement(BoundStatement statement) => statement switch
-    {
-        BoundPipeline pipeline => new { kind = "pipeline", resultType = pipeline.ResultType?.FullName, stages = pipeline.Stages.Select(DescribeStage) },
-        BoundIf conditional => new { kind = "if", conditionType = conditional.Condition.Type.FullName, thenStatements = conditional.Then.Statements.Count, elseStatements = conditional.Else?.Statements.Count ?? 0 },
-        BoundForEach loop => new { kind = "forEach", variable = loop.Variable, elementType = loop.ElementType.FullName, bodyStatements = loop.Body.Statements.Count },
-        _ => new { kind = statement.GetType().Name }
-    };
-
-    private static object DescribeStage(BoundStage stage) => stage switch
-    {
-        BoundSentence sentence => new { kind = "sentence", verb = sentence.Verb.Name, implementation = sentence.Implementation.ImplementationType.FullName, pattern = sentence.Pattern.StableId, cost = sentence.Cost, resultType = sentence.ResultType.FullName, capabilities = sentence.Implementation.Capabilities },
-        BoundFilter filter => new { kind = "filter", elementType = filter.ElementType.FullName, resultType = filter.ResultType.FullName },
-        BoundCheck => new { kind = "check", resultType = typeof(bool).FullName },
-        _ => new { kind = stage.GetType().Name }
-    };
 }

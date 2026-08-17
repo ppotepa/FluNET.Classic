@@ -44,6 +44,7 @@ public static class FluNetHostingExtensions
         services.AddSingleton<IEmailSender, MissingEmailSender>();
         services.AddSingleton<ClassicLexer>();
         services.AddSingleton<ClassicFormatter>();
+        services.AddSingleton<ExecutionPlanner>();
         services.AddTransient(sp => new ClassicParser(sp.GetRequiredService<LanguageSnapshot>(), sp.GetRequiredService<ClassicLexer>()));
         services.AddTransient(sp => new SemanticBinder(sp.GetRequiredService<LanguageSnapshot>(), sp.GetRequiredService<ValueResolverRegistry>(), sp.GetRequiredService<ValueConversionRegistry>(), sp.GetRequiredService<PredicateRegistry>(), sp));
         services.AddTransient(sp => new BoundExecutor(sp.GetRequiredService<ValueConversionRegistry>(), sp.GetRequiredService<PredicateRegistry>(), sp.GetRequiredService<ICapabilityPolicy>(), sp));

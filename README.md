@@ -22,7 +22,12 @@ FOR EACH [user] IN [users] THEN SAY "Processing [user.name]"
 
 Sentence punctuation is semantic but small: `.` ends a complete statement, `;` separates independent statements, `,` is a soft separator, and `THEN`/`AND THEN` continues a typed pipeline. `INTO [name]` binds a result; `TO`, `USING`, `AS`, `FROM`, `WITH`, `IN`, `AT`, `FOR`, and `UNTIL` are contextual roles selected by the verb pattern.
 
-The first standard wave now includes `Text`, `Files`, `DateTime`, `OS`, `Process`, `Json`, `Http`, and typed collection filtering. Examples include `GET NOW`, `GET OS`, `RUN {dotnet} WITH "--info"`, `CHECK IF [result] IS OK`, and `LIST FILES IN {./logs}`.
+The first standard wave includes `Text`, `Files`, `DateTime`, `OS`, `Process`, `Json`, `Http`, and typed collection filtering. Files now also exposes semantic `FilePattern` and `FileMetadata` values, for example:
+
+```text
+LIST FILES IN {./logs} WITH "*.log" INTO [files].
+GET METADATA FROM {config.json} INTO [metadata].
+```
 
 ```text
 CLR types + interfaces + constructors + attributes
@@ -32,12 +37,21 @@ CLR types + interfaces + constructors + attributes
              LanguageSnapshot
                     ↓
 source → lexer → parser → AST → binder → bound program → runtime
+                                      ↓
+                                execution plan
 ```
 
-The CLI also exposes the canonical formatter:
+The CLI exposes canonical formatting, static checking, planning and explanation:
 
 ```text
+flu check script.flu
 flu format script.flu
+flu plan script.flu
+flu explain script.flu
 ```
+
+`flu plan` does not execute the script. It exposes selected overloads, typed role bindings, resolution/conversion information, result types, required capabilities, and execution traits so a program can be inspected before runtime.
+
+Module authors should reference `FluNET.Classic.SDK`. `FluNetModuleTestHarness` validates modules and their example sentences, while `ModuleArtifactGenerator` generates module manifests and Markdown documentation directly from `LanguageSnapshot` metadata. See `docs/SDK.md`.
 
 `main` is the only development line for FluNET.Classic. The project does not maintain a legacy runtime compatibility layer; the parser does, however, accept the former `AS [variable]` result-binding spelling while `INTO [variable]` is the canonical form.
