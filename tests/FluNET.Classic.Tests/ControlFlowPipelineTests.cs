@@ -30,6 +30,26 @@ public class ControlFlowPipelineTests
     }
 
     [Test]
+    public async Task Variable_created_in_only_one_if_branch_is_removed_at_runtime()
+    {
+        using ServiceProvider host = FluNetHost.Create();
+        ClassicEngine engine = host.GetRequiredService<ClassicEngine>();
+        var state = new RuntimeState();
+        state.SetVariable("flag", true);
+
+        RuntimeResult result = await engine.RunAsync("""
+            IF [flag] IS true THEN {
+                CHECK IF true INTO [temporary].
+            } ELSE {
+                CHECK IF false.
+            }
+            """, state);
+
+        Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics.Select(x => x.Message)));
+        Assert.That(result.State.TryGetVariable("temporary", out _), Is.False);
+    }
+
+    [Test]
     public async Task For_each_does_not_leak_last_iteration_pipeline_value()
     {
         using ServiceProvider host = FluNetHost.Create();
