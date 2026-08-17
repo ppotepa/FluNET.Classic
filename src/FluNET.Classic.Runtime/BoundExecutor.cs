@@ -132,8 +132,8 @@ public sealed class BoundExecutor
             object? asyncResult = operation.Operation switch
             {
                 "COUNT" => await AsyncSequenceAdapter.CountAsync(source, ct).ConfigureAwait(false),
-                "TAKE" => AsyncSequenceAdapter.Take(source, Convert.ToInt32(EvaluateExpression(operation.Argument!, captured, null), CultureInfo.InvariantCulture)),
-                "SKIP" => AsyncSequenceAdapter.Skip(source, Convert.ToInt32(EvaluateExpression(operation.Argument!, captured, null), CultureInfo.InvariantCulture)),
+                "TAKE" => AsyncSequenceAdapter.Take(source, CollectionAmount(operation, captured)),
+                "SKIP" => AsyncSequenceAdapter.Skip(source, CollectionAmount(operation, captured)),
                 "DISTINCT" => AsyncSequenceAdapter.Distinct(
                     source,
                     item => operation.Argument is null ? item : EvaluateExpression(operation.Argument, captured, item),
@@ -156,13 +156,20 @@ public sealed class BoundExecutor
         return operation.Operation switch
         {
             "COUNT" => items.Count,
-            "TAKE" => ToTypedArray(operation.ElementType, items.Take(Math.Max(0, Convert.ToInt32(EvaluateExpression(operation.Argument!, state, null), CultureInfo.InvariantCulture))).ToList()),
-            "SKIP" => ToTypedArray(operation.ElementType, items.Skip(Math.Max(0, Convert.ToInt32(EvaluateExpression(operation.Argument!, state, null), CultureInfo.InvariantCulture))).ToList()),
+            "TAKE" => ToTypedArray(operation.ElementType, items.Take(CollectionAmount(operation, state)).ToList()),
+            "SKIP" => ToTypedArray(operation.ElementType, items.Skip(CollectionAmount(operation, state)).ToList()),
             "SORT" => Sort(items, operation, state),
             "DISTINCT" => Distinct(items, operation, state),
             "GROUP" => Group(items, operation, state),
             _ => throw new InvalidOperationException($"Unknown collection operation '{operation.Operation}'.")
         };
+    }
+    private int CollectionAmount(BoundCollection operation, RuntimeState state)
+    {
+        if (operation.Argument is null) throw new InvalidOperationException($"{operation.Operation} requires an amount.");
+        int amount = Convert.ToInt32(EvaluateExpression(operation.Argument, state, null), CultureInfo.InvariantCulture);
+        if (amount < 0) throw new InvalidOperationException($"{operation.Operation} requires a non-negative amount, got {amount}.");
+        return amount;
     }
     private object Sort(List<object?> items, BoundCollection operation, RuntimeState state)
     {
