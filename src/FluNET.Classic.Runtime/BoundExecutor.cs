@@ -75,6 +75,7 @@ public sealed class BoundExecutor
             if (parameter.IsService) { args[parameter.Position] = _services?.GetService(parameter.ParameterType) ?? throw new InvalidOperationException($"Service '{parameter.ParameterType.Name}' is not registered."); continue; }
             BoundRole? role = sentence.Roles.FirstOrDefault(x => x.Slot.Position == parameter.Position); args[parameter.Position] = role is null ? parameter.IsOptional ? parameter.DefaultValue : Default(parameter.ParameterType) : MaterializeRole(role, parameter, state);
         }
+        ValidateScopedCapabilities(sentence, args);
 
         int attempts = _policy.AttemptsFor(sentence.Implementation.Traits); int used = 0; Exception? last = null; DateTimeOffset started = DateTimeOffset.UtcNow; var timer = System.Diagnostics.Stopwatch.StartNew();
         for (int attempt = 1; attempt <= attempts; attempt++)
@@ -92,6 +93,31 @@ public sealed class BoundExecutor
             catch (Exception ex) { last = ex; break; }
         }
         timer.Stop(); _trace.Add(new(++_sequence, "sentence", sentence.Verb.Name, sentence.Implementation.ImplementationType.FullName, started, timer.Elapsed, false, used, sentence.ResultType.FullName, sentence.Implementation.Capabilities, sentence.Implementation.Traits, last?.Message)); throw last ?? new InvalidOperationException("Execution failed.");
+    }
+
+    private void ValidateScopedCapabilities(BoundSentence sentence, object?[] args)
+    {
+        if (_capabilities is not IScopedCapabilityPolicy scoped) return;
+        foreach (string capability in sentence.Implementation.Capabilities)
+        {
+            if (scoped.IsAllowed(capability, null)) continue;
+            bool allowed = sentence.Pattern.Constructor.Parameters
+                .Where(parameter => !parameter.IsService)
+                .Select(parameter => args[parameter.Position])
+                .Any(resource => ResourceAllowed(scoped, capability, resource));
+            if (!allowed) throw new UnauthorizedAccessException($"Capability '{capability}' is not allowed for resources used by {sentence.Verb.Name}.");
+        }
+    }
+
+    private static bool ResourceAllowed(IScopedCapabilityPolicy scoped, string capability, object? resource)
+    {
+        if (resource is null) return false;
+        if (scoped.IsAllowed(capability, resource)) return true;
+        if (resource is string or byte[] or ReadOnlyMemory<byte>) return false;
+        if (resource is IEnumerable enumerable)
+            foreach (object? item in enumerable)
+                if (ResourceAllowed(scoped, capability, item)) return true;
+        return false;
     }
 
     private static CancellationTokenSource? CreateTimeout(CancellationToken parent, TimeSpan? duration)
@@ -134,8 +160,7 @@ public sealed class BoundExecutor
             case "COUNT": result = items.Count; break;
             case "TAKE": result = ToTypedArray(operation.ElementType, items.Take(Math.Max(0, Convert.ToInt32(EvaluateExpression(operation.Argument!, state, null), CultureInfo.InvariantCulture))).ToList()); break;
             case "SKIP": result = ToTypedArray(operation.ElementType, items.Skip(Math.Max(0, Convert.ToInt32(EvaluateExpression(operation.Argument!, state, null), CultureInfo.InvariantCulture))).ToList()); break;
-            case "SORT":
-                items.Sort((a, b) => Compare(EvaluateExpression(operation.Argument!, state, a), EvaluateExpression(operation.Argument!, state, b))); result = ToTypedArray(operation.ElementType, items); break;
+            case "SORT": items.Sort((a, b) => Compare(EvaluateExpression(operation.Argument!, state, a), EvaluateExpression(operation.Argument!, state, b))); result = ToTypedArray(operation.ElementType, items); break;
             case "DISTINCT":
                 var distinct = new List<object?>(); var keys = new List<object?>(); foreach (object? item in items) { object? key = operation.Argument is null ? item : EvaluateExpression(operation.Argument, state, item); if (keys.Any(x => EqualsNormalized(x, key))) continue; keys.Add(key); distinct.Add(item); } result = ToTypedArray(operation.ElementType, distinct); break;
             case "GROUP":
@@ -160,8 +185,17 @@ public sealed class BoundExecutor
 
     private bool EvaluatePredicate(BoundPredicateExpression predicate, RuntimeState state, object? item)
     {
-        if (predicate.Predicate.Equals("EXISTS", StringComparison.OrdinalIgnoreCase) && typeof(FileSystemInfo).IsAssignableFrom(predicate.Operand.Type) && !_capabilities.IsAllowed(StandardCapabilities.FileSystemRead)) throw new UnauthorizedAccessException($"Capability '{StandardCapabilities.FileSystemRead}' is required by EXISTS.");
-        return _predicates.Evaluate(predicate.Predicate, EvaluateExpression(predicate.Operand, state, item), new PredicateContext(_services));
+        object? value = EvaluateExpression(predicate.Operand, state, item);
+        if (predicate.Predicate.Equals("EXISTS", StringComparison.OrdinalIgnoreCase) && typeof(FileSystemInfo).IsAssignableFrom(predicate.Operand.Type) && !IsCapabilityAllowed(StandardCapabilities.FileSystemRead, value))
+            throw new UnauthorizedAccessException($"Capability '{StandardCapabilities.FileSystemRead}' is required for the referenced file-system resource.");
+        return _predicates.Evaluate(predicate.Predicate, value, new PredicateContext(_services));
+    }
+
+    private bool IsCapabilityAllowed(string capability, object? resource)
+    {
+        if (_capabilities is IScopedCapabilityPolicy scoped)
+            return scoped.IsAllowed(capability, null) || scoped.IsAllowed(capability, resource);
+        return _capabilities.IsAllowed(capability);
     }
 
     private static object EvaluateBinary(string op, object? left, object? right)
