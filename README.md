@@ -43,8 +43,10 @@ CLR types + interfaces + constructors + attributes
              LanguageSnapshot
                     ↓
 source → lexer → parser → AST → binder → bound program → runtime
-                                      ↓
-                                execution plan
+                    |                 ↓
+                    |           execution plan
+                    ↓
+              document tooling
 ```
 
 The CLI exposes canonical formatting, static checking, planning and explanation:
@@ -59,5 +61,7 @@ flu explain script.flu
 `flu plan` does not execute the script. It exposes selected overloads, typed role bindings, resolution/conversion information, result types, required capabilities, and execution traits so a program can be inspected before runtime.
 
 Module authors should reference `FluNET.Classic.SDK`. `FluNetModuleTestHarness` validates modules and their example sentences, while `ModuleArtifactGenerator` generates module manifests and Markdown documentation directly from `LanguageSnapshot` metadata. See `docs/SDK.md`.
+
+Editor and IDE integrations should build on `FluNET.Classic.Tooling`. `ClassicDocumentService` provides diagnostics, completion, hover, formatting and planning by reusing the production compiler pipeline; a future LSP server can remain a thin protocol adapter. See `docs/TOOLING.md`.
 
 `main` is the only development line for FluNET.Classic. The project does not maintain a legacy runtime compatibility layer; the parser does, however, accept the former `AS [variable]` result-binding spelling while `INTO [variable]` is the canonical form.

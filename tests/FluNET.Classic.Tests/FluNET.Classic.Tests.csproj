@@ -4,5 +4,6 @@
   <ItemGroup>
     <ProjectReference Include="../../src/FluNET.Classic.Hosting/FluNET.Classic.Hosting.csproj" />
     <ProjectReference Include="../../src/FluNET.Classic.SDK/FluNET.Classic.SDK.csproj" />
+    <ProjectReference Include="../../src/FluNET.Classic.Tooling/FluNET.Classic.Tooling.csproj" />
   </ItemGroup>
 </Project>

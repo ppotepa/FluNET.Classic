@@ -4,6 +4,7 @@ using FluNET.Classic.SDK;
 using FluNET.Classic.Standard.Files;
 using FluNET.Classic.Standard.Http;
 using FluNET.Classic.Standard.Text;
+using FluNET.Classic.Tooling;
 using Microsoft.Extensions.DependencyInjection;
 using NUnit.Framework;
 
@@ -55,6 +56,25 @@ public class SdkPlanningTests
         Assert.That(steps.Any(x => x.ResultType == typeof(HttpResponse).FullName), Is.True);
         Assert.That(steps.Any(x => x.ResultType == typeof(HttpStatus).FullName), Is.True);
         Assert.That(steps.Any(x => x.Verb == "CHECK" && x.ResultType == typeof(bool).FullName), Is.True);
+    }
+
+    [Test]
+    public void Tooling_service_reuses_the_compiler_for_analysis_completion_hover_and_planning()
+    {
+        using ServiceProvider host = FluNetHost.Create();
+        ClassicDocumentService tooling = host.GetRequiredService<ClassicDocumentService>();
+
+        Assert.That(tooling.Complete("GET TE", "GET TE".Length).Any(x => x.Label == "TEXT"), Is.True);
+        Assert.That(tooling.Hover("GET TEXT FROM {input.txt}.", 1)?.Label, Is.EqualTo("GET"));
+
+        DocumentAnalysis analysis = tooling.Analyze("GET TEXT FROM {input.txt} INTO [lines].");
+        Assert.That(analysis.Success, Is.True, string.Join("; ", analysis.Diagnostics.Select(x => x.Message)));
+        Assert.That(analysis.CanonicalSource, Does.Contain("INTO [lines]."));
+        Assert.That(analysis.Plan.RequiredCapabilities, Does.Contain("filesystem.read"));
+
+        DocumentAnalysis invalid = tooling.Analyze("BOGUS.");
+        Assert.That(invalid.Success, Is.False);
+        Assert.That(invalid.Diagnostics, Is.Not.Empty);
     }
 
     [Test]

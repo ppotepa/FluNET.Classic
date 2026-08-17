@@ -9,6 +9,7 @@
     <ProjectReference Include="../FluNET.Classic.Syntax/FluNET.Classic.Syntax.csproj" />
     <ProjectReference Include="../FluNET.Classic.Binding/FluNET.Classic.Binding.csproj" />
     <ProjectReference Include="../FluNET.Classic.Runtime/FluNET.Classic.Runtime.csproj" />
+    <ProjectReference Include="../FluNET.Classic.Tooling/FluNET.Classic.Tooling.csproj" />
     <ProjectReference Include="../FluNET.Classic.Standard/FluNET.Classic.Standard.csproj" />
   </ItemGroup>
 </Project>

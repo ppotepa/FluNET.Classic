@@ -5,6 +5,7 @@ using FluNET.Classic.Standard;
 using FluNET.Classic.Standard.Http;
 using FluNET.Classic.Standard.Text;
 using FluNET.Classic.Syntax;
+using FluNET.Classic.Tooling;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace FluNET.Classic.Hosting;
@@ -49,6 +50,7 @@ public static class FluNetHostingExtensions
         services.AddTransient(sp => new SemanticBinder(sp.GetRequiredService<LanguageSnapshot>(), sp.GetRequiredService<ValueResolverRegistry>(), sp.GetRequiredService<ValueConversionRegistry>(), sp.GetRequiredService<PredicateRegistry>(), sp));
         services.AddTransient(sp => new BoundExecutor(sp.GetRequiredService<ValueConversionRegistry>(), sp.GetRequiredService<PredicateRegistry>(), sp.GetRequiredService<ICapabilityPolicy>(), sp));
         services.AddTransient<ClassicEngine>();
+        services.AddTransient<ClassicDocumentService>();
         return services;
     }
 }
