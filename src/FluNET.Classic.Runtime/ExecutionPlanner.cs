@@ -6,41 +6,46 @@ namespace FluNET.Classic.Runtime;
 public sealed record ExecutionPlanDiagnostic(string Source, string Code, string Message);
 public sealed record ExecutionPlanValue(string Kind, string Type, string? Detail = null, string? Conversion = null, int Cost = 0);
 public sealed record ExecutionPlanRole(string Name, string Direction, string Cardinality, string ValueType, IReadOnlyList<ExecutionPlanValue> Values);
-public sealed record ExecutionPlanStep(string Kind, string? Verb, string? Implementation, string? Pattern, string? ResultType, string? ResultAlias, int? BindingCost, IReadOnlyList<string> Capabilities, IReadOnlyList<ExecutionTrait> Traits, IReadOnlyList<ExecutionPlanRole> Roles, IReadOnlyList<ExecutionPlanStep> Children);
+public sealed record ExecutionPlanStep(string Kind, string? Verb, string? Implementation, string? Pattern, string? ResultType, string? ResultAlias, int? BindingCost, string? ExecutionMode, IReadOnlyList<string> Capabilities, IReadOnlyList<ExecutionTrait> Traits, IReadOnlyList<ExecutionPlanRole> Roles, IReadOnlyList<ExecutionPlanStep> Children);
 public sealed record ExecutionPlan(bool Success, IReadOnlyList<ExecutionPlanDiagnostic> Diagnostics, IReadOnlyList<ExecutionPlanStep> Steps, IReadOnlyList<string> RequiredCapabilities, IReadOnlyList<ExecutionTrait> Traits, string? ResultType);
 
 public sealed class ExecutionPlanner
 {
+    private readonly LanguageSnapshot _language;
+
+    public ExecutionPlanner(LanguageSnapshot language) => _language = language;
+
     public ExecutionPlan Build(CheckResult check)
     {
         ArgumentNullException.ThrowIfNull(check); var diagnostics = new List<ExecutionPlanDiagnostic>(); diagnostics.AddRange(check.Parse.Diagnostics.Select(x => new ExecutionPlanDiagnostic("syntax", x.Code, x.Message))); diagnostics.AddRange(check.Bound?.Diagnostics.Select(x => new ExecutionPlanDiagnostic("binding", x.Code, x.Message)) ?? Array.Empty<ExecutionPlanDiagnostic>());
         ExecutionPlanStep[] steps = check.Bound?.Statements.Select(BuildStatement).ToArray() ?? Array.Empty<ExecutionPlanStep>(); ExecutionPlanStep[] all = Flatten(steps).ToArray(); string[] capabilities = all.SelectMany(x => x.Capabilities).Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(x => x, StringComparer.OrdinalIgnoreCase).ToArray(); ExecutionTrait[] traits = all.SelectMany(x => x.Traits).Distinct().OrderBy(x => x).ToArray(); string? resultType = check.Bound?.Statements.LastOrDefault() is BoundPipeline pipeline ? TypeName(pipeline.ResultType) : null; return new(check.Success, diagnostics, steps, capabilities, traits, resultType);
     }
 
-    private static ExecutionPlanStep BuildStatement(BoundStatement statement) => statement switch
+    private ExecutionPlanStep BuildStatement(BoundStatement statement) => statement switch
     {
-        BoundPipeline pipeline => new("pipeline", null, null, null, TypeName(pipeline.ResultType), null, null, Array.Empty<string>(), Array.Empty<ExecutionTrait>(), Array.Empty<ExecutionPlanRole>(), pipeline.Stages.Select(BuildStage).ToArray()),
-        BoundIf conditional => new("if", null, null, null, null, null, null, ExpressionCapabilities(conditional.Condition), Array.Empty<ExecutionTrait>(), Array.Empty<ExecutionPlanRole>(), Branches(conditional)),
-        BoundForEach loop => new("forEach", null, null, null, null, loop.Variable, null, Array.Empty<string>(), Array.Empty<ExecutionTrait>(), new[] { new ExecutionPlanRole("IN", "Input", "One", TypeName(loop.Source.Type)!, new[] { DescribeValue(loop.Source) }) }, loop.Body.Statements.Select(BuildStatement).ToArray()),
+        BoundPipeline pipeline => new("pipeline", null, null, null, TypeName(pipeline.ResultType), null, null, null, Array.Empty<string>(), Array.Empty<ExecutionTrait>(), Array.Empty<ExecutionPlanRole>(), pipeline.Stages.Select(BuildStage).ToArray()),
+        BoundIf conditional => new("if", null, null, null, null, null, null, null, ExpressionCapabilities(conditional.Condition), Array.Empty<ExecutionTrait>(), Array.Empty<ExecutionPlanRole>(), Branches(conditional)),
+        BoundForEach loop => new("forEach", null, null, null, null, loop.Variable, null, ClrTypeShape.IsAsyncEnumerableType(loop.Source.Type) ? "Streaming" : null, Array.Empty<string>(), Array.Empty<ExecutionTrait>(), new[] { new ExecutionPlanRole("IN", "Input", "One", TypeName(loop.Source.Type)!, new[] { DescribeValue(loop.Source) }) }, loop.Body.Statements.Select(BuildStatement).ToArray()),
         _ => Empty(statement.GetType().Name)
     };
 
-    private static IReadOnlyList<ExecutionPlanStep> Branches(BoundIf conditional)
+    private IReadOnlyList<ExecutionPlanStep> Branches(BoundIf conditional)
     {
-        var branches = new List<ExecutionPlanStep> { new("then", null, null, null, null, null, null, Array.Empty<string>(), Array.Empty<ExecutionTrait>(), Array.Empty<ExecutionPlanRole>(), conditional.Then.Statements.Select(BuildStatement).ToArray()) };
-        if (conditional.Else is not null) branches.Add(new("else", null, null, null, null, null, null, Array.Empty<string>(), Array.Empty<ExecutionTrait>(), Array.Empty<ExecutionPlanRole>(), conditional.Else.Statements.Select(BuildStatement).ToArray())); return branches;
+        var branches = new List<ExecutionPlanStep> { new("then", null, null, null, null, null, null, null, Array.Empty<string>(), Array.Empty<ExecutionTrait>(), Array.Empty<ExecutionPlanRole>(), conditional.Then.Statements.Select(BuildStatement).ToArray()) };
+        if (conditional.Else is not null) branches.Add(new("else", null, null, null, null, null, null, null, Array.Empty<string>(), Array.Empty<ExecutionTrait>(), Array.Empty<ExecutionPlanRole>(), conditional.Else.Statements.Select(BuildStatement).ToArray())); return branches;
     }
 
-    private static ExecutionPlanStep BuildStage(BoundStage stage) => stage switch
+    private ExecutionPlanStep BuildStage(BoundStage stage) => stage switch
     {
-        BoundSentence sentence => new("sentence", sentence.Verb.Name, sentence.Implementation.ImplementationType.FullName, sentence.Pattern.StableId, TypeName(sentence.ResultType), sentence.ResultAlias, sentence.Cost, sentence.Implementation.Capabilities, sentence.Implementation.Traits, sentence.Roles.Select(role => new ExecutionPlanRole(role.Slot.Name, role.Slot.Direction.ToString(), role.Slot.Cardinality.ToString(), TypeName(role.Slot.ValueType)!, role.Values.Select(DescribeValue).ToArray())).ToArray(), Array.Empty<ExecutionPlanStep>()),
-        BoundFilter filter => new("filter", "FILTER", null, null, TypeName(filter.ResultType), filter.ResultAlias, null, ExpressionCapabilities(filter.Predicate), new[] { ExecutionTrait.Pure }, new[] { new ExecutionPlanRole("WHAT", "Input", "One", TypeName(filter.Source.Type)!, new[] { DescribeValue(filter.Source) }) }, Array.Empty<ExecutionPlanStep>()),
-        BoundCheck check => new("check", "CHECK", null, null, TypeName(check.ResultType), check.ResultAlias, null, ExpressionCapabilities(check.Condition), new[] { ExecutionTrait.Pure }, Array.Empty<ExecutionPlanRole>(), Array.Empty<ExecutionPlanStep>()),
-        BoundCollection collection => new("collection", collection.Operation, null, null, TypeName(collection.ResultType), collection.ResultAlias, null, Array.Empty<string>(), new[] { ExecutionTrait.Pure }, new[] { new ExecutionPlanRole("WHAT", "Input", "One", TypeName(collection.Source.Type)!, new[] { DescribeValue(collection.Source) }), new ExecutionPlanRole(collection.Operation is "SORT" or "GROUP" or "DISTINCT" ? "BY" : "WITH", "Input", "ZeroOrOne", TypeName(collection.Argument?.Type) ?? "-", Array.Empty<ExecutionPlanValue>()) }, Array.Empty<ExecutionPlanStep>()),
+        BoundSentence sentence => new("sentence", sentence.Verb.Name, sentence.Implementation.ImplementationType.FullName, sentence.Pattern.StableId, TypeName(sentence.ResultType), sentence.ResultAlias, sentence.Cost, sentence.Implementation.Traits.Contains(ExecutionTrait.Streaming) ? "Streaming" : null, sentence.Implementation.Capabilities, sentence.Implementation.Traits, sentence.Roles.Select(role => new ExecutionPlanRole(role.Slot.Name, role.Slot.Direction.ToString(), role.Slot.Cardinality.ToString(), TypeName(role.Slot.ValueType)!, role.Values.Select(DescribeValue).ToArray())).ToArray(), Array.Empty<ExecutionPlanStep>()),
+        BoundFilter filter => new("filter", "FILTER", null, null, TypeName(filter.ResultType), filter.ResultAlias, null, ClrTypeShape.IsAsyncEnumerableType(filter.Source.Type) ? "Streaming" : "Materializing", ExpressionCapabilities(filter.Predicate), new[] { ExecutionTrait.Pure }, new[] { new ExecutionPlanRole("WHAT", "Input", "One", TypeName(filter.Source.Type)!, new[] { DescribeValue(filter.Source) }) }, Array.Empty<ExecutionPlanStep>()),
+        BoundCheck check => new("check", "CHECK", null, null, TypeName(check.ResultType), check.ResultAlias, null, "Scalar", ExpressionCapabilities(check.Condition), new[] { ExecutionTrait.Pure }, Array.Empty<ExecutionPlanRole>(), Array.Empty<ExecutionPlanStep>()),
+        BoundCollection collection => new("collection", collection.Operation, null, null, TypeName(collection.ResultType), collection.ResultAlias, null, IntrinsicExecutionMode(collection.Operation), Array.Empty<string>(), new[] { ExecutionTrait.Pure }, new[] { new ExecutionPlanRole("WHAT", "Input", "One", TypeName(collection.Source.Type)!, new[] { DescribeValue(collection.Source) }), new ExecutionPlanRole(collection.Operation is "SORT" or "GROUP" or "DISTINCT" ? "BY" : "WITH", "Input", "ZeroOrOne", TypeName(collection.Argument?.Type) ?? "-", Array.Empty<ExecutionPlanValue>()) }, Array.Empty<ExecutionPlanStep>()),
         _ => Empty(stage.GetType().Name, TypeName(stage.ResultType))
     };
 
-    private static ExecutionPlanStep Empty(string kind, string? resultType = null) => new(kind, null, null, null, resultType, null, null, Array.Empty<string>(), Array.Empty<ExecutionTrait>(), Array.Empty<ExecutionPlanRole>(), Array.Empty<ExecutionPlanStep>());
+    private string? IntrinsicExecutionMode(string operation) => _language.TryGetIntrinsic(operation, out IntrinsicDescriptor intrinsic) ? intrinsic.Execution.ToString() : null;
+    private static ExecutionPlanStep Empty(string kind, string? resultType = null) => new(kind, null, null, null, resultType, null, null, null, Array.Empty<string>(), Array.Empty<ExecutionTrait>(), Array.Empty<ExecutionPlanRole>(), Array.Empty<ExecutionPlanStep>());
     private static ExecutionPlanValue DescribeValue(BoundValue value) => value switch
     {
         BoundConstantValue constant => new(constant.Kind == ConversionKind.Resolution ? "resolved" : "constant", TypeName(constant.Type)!, constant.Value is ISensitiveValue ? "***" : null, constant.Kind == ConversionKind.Exact ? null : constant.Kind.ToString(), constant.Cost),
@@ -49,8 +54,8 @@ public sealed class ExecutionPlanner
     private static string[] ExpressionCapabilities(BoundExpression expression) => EnumerateExpressionCapabilities(expression).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
     private static IEnumerable<string> EnumerateExpressionCapabilities(BoundExpression expression)
     {
-        if (expression is BoundPredicateExpression predicate && predicate.Predicate.Equals("EXISTS", StringComparison.OrdinalIgnoreCase) && typeof(FileSystemInfo).IsAssignableFrom(predicate.Operand.Type)) yield return StandardCapabilities.FileSystemRead;
-        switch (expression) { case BoundUnaryExpression unary: foreach (string c in EnumerateExpressionCapabilities(unary.Operand)) yield return c; break; case BoundBinaryExpression binary: foreach (string c in EnumerateExpressionCapabilities(binary.Left)) yield return c; foreach (string c in EnumerateExpressionCapabilities(binary.Right)) yield return c; break; case BoundPredicateExpression predicate: foreach (string c in EnumerateExpressionCapabilities(predicate.Operand)) yield return c; break; }
+        if (expression is BoundPredicateExpression predicate) foreach (string capability in predicate.Descriptor.CapabilitiesFor(predicate.Operand.Type)) yield return capability;
+        switch (expression) { case BoundUnaryExpression unary: foreach (string capability in EnumerateExpressionCapabilities(unary.Operand)) yield return capability; break; case BoundBinaryExpression binary: foreach (string capability in EnumerateExpressionCapabilities(binary.Left)) yield return capability; foreach (string capability in EnumerateExpressionCapabilities(binary.Right)) yield return capability; break; case BoundBetweenExpression between: foreach (string capability in EnumerateExpressionCapabilities(between.Operand)) yield return capability; foreach (string capability in EnumerateExpressionCapabilities(between.Lower)) yield return capability; foreach (string capability in EnumerateExpressionCapabilities(between.Upper)) yield return capability; break; case BoundPredicateExpression predicate: foreach (string capability in EnumerateExpressionCapabilities(predicate.Operand)) yield return capability; break; }
     }
     private static IEnumerable<ExecutionPlanStep> Flatten(IEnumerable<ExecutionPlanStep> steps) { foreach (ExecutionPlanStep step in steps) { yield return step; foreach (ExecutionPlanStep child in Flatten(step.Children)) yield return child; } }
     private static string? TypeName(Type? type) => type?.FullName ?? type?.Name;
