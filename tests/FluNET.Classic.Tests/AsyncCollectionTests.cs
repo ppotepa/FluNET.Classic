@@ -31,12 +31,12 @@ public class AsyncCollectionTests
         var state = new RuntimeState();
         state.SetVariable("items", Numbers());
 
-        RuntimeResult result = await engine.RunAsync("FILTER [items] WHERE [item] > 2 INTO [filtered].", state);
+        RuntimeResult result = await engine.RunAsync("FILTER [items] WHERE Value > 2 INTO [filtered].", state);
 
         Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics.Select(x => x.Message)));
         Assert.That(result.State.TryGetVariable("filtered", out object? filtered), Is.True);
-        Assert.That(filtered, Is.TypeOf<int[]>());
-        Assert.That((int[])filtered!, Is.EqualTo(new[] { 3, 4 }));
+        Assert.That(filtered, Is.TypeOf<NumberItem[]>());
+        Assert.That(((NumberItem[])filtered!).Select(x => x.Value), Is.EqualTo(new[] { 3, 4 }));
     }
 
     [Test]
@@ -49,7 +49,7 @@ public class AsyncCollectionTests
 
         RuntimeResult result = await engine.RunAsync("""
             FOR EACH [item] IN [items] THEN {
-                CHECK IF [item] > 0.
+                CHECK IF [item.Value] > 0.
             }
             """, state);
 
@@ -58,13 +58,15 @@ public class AsyncCollectionTests
         Assert.That(result.State.TryGetVariable("item", out _), Is.False);
     }
 
-    private static async IAsyncEnumerable<int> Numbers([EnumeratorCancellation] CancellationToken cancellationToken = default)
+    private static async IAsyncEnumerable<NumberItem> Numbers([EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
         foreach (int value in new[] { 1, 2, 3, 4 })
         {
             cancellationToken.ThrowIfCancellationRequested();
             await Task.Yield();
-            yield return value;
+            yield return new NumberItem(value);
         }
     }
+
+    private sealed record NumberItem(int Value);
 }
