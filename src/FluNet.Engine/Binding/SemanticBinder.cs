@@ -186,7 +186,7 @@ public sealed class SemanticBinder
             if (slot.Cardinality is RoleCardinality.One or RoleCardinality.OneOrMore && take == 0)
             {
                 if (slot.Direction == RoleDirection.Input && pipelineType is not null &&
-                    CanUsePipelineValue(pipelineType, slot.ValueType, out int pipelineCost))
+                    CanUseType(pipelineType, slot.ValueType, out int pipelineCost))
                 {
                     roles.Add(new BoundRole(
                         slot,
@@ -261,16 +261,11 @@ public sealed class SemanticBinder
         switch (expression)
         {
             case VariableExpression variable:
-                if (!variables.TryGetValue(variable.Name, out Type? variableType))
+                if (!variables.TryGetValue(variable.Name, out Type? variableType) ||
+                    !CanUseType(variableType, expectedType, out cost))
                 {
                     bound = null;
                     cost = 0;
-                    return false;
-                }
-
-                if (!CanUsePipelineValue(variableType, expectedType, out cost))
-                {
-                    bound = null;
                     return false;
                 }
 
@@ -279,9 +274,10 @@ public sealed class SemanticBinder
 
             case PropertyExpression property:
                 if (!TryBindProperty(property, variables, out BoundPropertyValue? propertyValue, out Type? propertyType) ||
-                    !CanUsePipelineValue(propertyType!, expectedType, out cost))
+                    !CanUseType(propertyType!, expectedType, out cost))
                 {
                     bound = null;
+                    cost = 0;
                     return false;
                 }
 
@@ -319,26 +315,56 @@ public sealed class SemanticBinder
                 cost = 0;
                 return true;
 
-            case LiteralExpression literal:
-            case ReferenceExpression { Value: var literal }:
-                string text = expression is LiteralExpression le ? le.Value : ((ReferenceExpression)expression).Value;
-                var context = new ResolutionContext(expectedType, slot.Name, verbName, qualifier, _services);
-                if (_resolvers.TryResolve(text, expectedType, context, out object? resolved))
-                {
-                    bound = new BoundConstantValue(resolved, expectedType, expression.Span, ConversionKind.Resolution, 4);
-                    cost = 4;
-                    return true;
-                }
+            case LiteralExpression literalExpression:
+                return TryResolveText(
+                    literalExpression.Value,
+                    literalExpression.Span,
+                    expectedType,
+                    slot,
+                    verbName,
+                    qualifier,
+                    out bound,
+                    out cost);
 
-                bound = null;
-                cost = 0;
-                return false;
+            case ReferenceExpression referenceExpression:
+                return TryResolveText(
+                    referenceExpression.Value,
+                    referenceExpression.Span,
+                    expectedType,
+                    slot,
+                    verbName,
+                    qualifier,
+                    out bound,
+                    out cost);
 
             default:
                 bound = null;
                 cost = 0;
                 return false;
         }
+    }
+
+    private bool TryResolveText(
+        string text,
+        TextSpan span,
+        Type expectedType,
+        RoleSlotDescriptor slot,
+        string verbName,
+        string? qualifier,
+        out BoundValue? bound,
+        out int cost)
+    {
+        var context = new ResolutionContext(expectedType, slot.Name, verbName, qualifier, _services);
+        if (_resolvers.TryResolve(text, expectedType, context, out object? resolved))
+        {
+            bound = new BoundConstantValue(resolved, expectedType, span, ConversionKind.Resolution, 4);
+            cost = 4;
+            return true;
+        }
+
+        bound = null;
+        cost = 0;
+        return false;
     }
 
     private static bool TryBindProperty(
@@ -372,7 +398,7 @@ public sealed class SemanticBinder
         return true;
     }
 
-    private bool CanUsePipelineValue(Type sourceType, Type targetType, out int cost)
+    private bool CanUseType(Type sourceType, Type targetType, out int cost)
     {
         if (sourceType == targetType)
         {
@@ -386,11 +412,14 @@ public sealed class SemanticBinder
             return true;
         }
 
-        object? sample = sourceType.IsValueType ? Activator.CreateInstance(sourceType) : null;
-        if (sample is not null && _conversions.TryConvert(sample, targetType, out ConversionResult? result))
+        if (sourceType.IsValueType)
         {
-            cost = result!.Cost;
-            return true;
+            object? sample = Activator.CreateInstance(sourceType);
+            if (sample is not null && _conversions.TryConvert(sample, targetType, out ConversionResult? result))
+            {
+                cost = result!.Cost;
+                return true;
+            }
         }
 
         cost = 0;
