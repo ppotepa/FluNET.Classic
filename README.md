@@ -22,12 +22,18 @@ FOR EACH [user] IN [users] THEN SAY "Processing [user.name]"
 
 Sentence punctuation is semantic but small: `.` ends a complete statement, `;` separates independent statements, `,` is a soft separator, and `THEN`/`AND THEN` continues a typed pipeline. `INTO [name]` binds a result; `TO`, `USING`, `AS`, `FROM`, `WITH`, `IN`, `AT`, `FOR`, and `UNTIL` are contextual roles selected by the verb pattern.
 
-The first standard wave includes `Text`, `Files`, `DateTime`, `OS`, `Process`, `Json`, `Http`, and typed collection filtering. Files now also exposes semantic `FilePattern` and `FileMetadata` values, for example:
+The first standard wave includes `Text`, `Files`, `DateTime`, `OS`, `Process`, `Json`, `Http`, and typed collection filtering. Domain semantics increasingly live in CLR resource types instead of raw strings:
 
 ```text
 LIST FILES IN {./logs} WITH "*.log" INTO [files].
 GET METADATA FROM {config.json} INTO [metadata].
+
+GET RESPONSE FROM {https://example.com} INTO [response],
+THEN GET STATUS FROM [response] INTO [status];
+CHECK IF [response] IS OK INTO [ok].
 ```
+
+HTTP exposes `HttpEndpoint`, `HttpResponse`, `HttpStatus`, and `HttpHeaders`. A response can be projected as `STATUS`, `HEADERS`, `TEXT`, or `JSON` through ordinary typed `GET` overloads; no HTTP-specific parser syntax is required.
 
 ```text
 CLR types + interfaces + constructors + attributes

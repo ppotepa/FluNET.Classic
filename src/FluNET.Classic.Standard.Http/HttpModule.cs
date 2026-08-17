@@ -1,4 +1,3 @@
-using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json.Nodes;
 using FluNET.Classic.Core;
@@ -6,6 +5,34 @@ using FluNET.Classic.Core;
 namespace FluNET.Classic.Standard.Http;
 
 public enum HttpJsonRepresentation { JSON }
+
+public sealed record HttpEndpoint(Uri Uri)
+{
+    public HttpEndpoint(string value) : this(new Uri(value, UriKind.RelativeOrAbsolute)) { }
+    public override string ToString() => Uri.ToString();
+}
+
+public sealed record HttpStatus(int Code, string? ReasonPhrase) : IOkState
+{
+    public bool IsOk => Code is >= 200 and <= 299;
+    public override string ToString() => ReasonPhrase is { Length: > 0 } ? $"{Code} {ReasonPhrase}" : Code.ToString();
+}
+
+public sealed record HttpHeaders(IReadOnlyDictionary<string, string[]> Values)
+{
+    public bool TryGet(string name, out IReadOnlyList<string> values)
+    {
+        if (Values.TryGetValue(name, out string[]? found)) { values = found; return true; }
+        values = Array.Empty<string>();
+        return false;
+    }
+}
+
+public sealed record HttpResponse(HttpStatus Status, HttpHeaders Headers, byte[] Body, string? ContentType) : IOkState
+{
+    public bool IsOk => Status.IsOk;
+    public string Text => Encoding.UTF8.GetString(Body);
+}
 
 public interface IEmailSender
 {
@@ -16,6 +43,12 @@ public sealed class HttpModule : LanguageModule
 {
     public override string Name => "http";
     public override IReadOnlyCollection<string> Dependencies => new[] { "json" };
+    public override IReadOnlyCollection<QualifierDescriptor> Qualifiers => new QualifierDescriptor[]
+    {
+        new("qualifier:http-response", "RESPONSE", typeof(HttpResponse)),
+        new("qualifier:http-status", "STATUS", typeof(HttpStatus)),
+        new("qualifier:http-headers", "HEADERS", typeof(HttpHeaders))
+    };
 }
 
 [Qualifier("JSON")]
@@ -28,6 +61,60 @@ public sealed class GetJsonHttp : Get<JsonNode, Uri>, IAs<HttpJsonRepresentation
         string text = await _client.GetStringAsync(from, cancellationToken).ConfigureAwait(false);
         return JsonNode.Parse(text) ?? new JsonObject();
     }
+}
+
+[Qualifier("RESPONSE")]
+[RequiresCapability(StandardCapabilities.Network)]
+public sealed class GetHttpResponse : Get<HttpResponse, HttpEndpoint>
+{
+    private readonly HttpClient _client;
+    public GetHttpResponse([What] HttpResponse what, [From, RoleAlias("AT")] HttpEndpoint from, [FromServices] HttpClient client = null!) : base(what, from) => _client = client;
+    protected override async ValueTask<HttpResponse> ActAsync(HttpEndpoint from, CancellationToken cancellationToken)
+    {
+        using HttpResponseMessage response = await _client.GetAsync(from.Uri, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
+        byte[] body = await response.Content.ReadAsByteArrayAsync(cancellationToken).ConfigureAwait(false);
+        var values = response.Headers.Concat(response.Content.Headers)
+            .GroupBy(x => x.Key, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(x => x.Key, x => x.SelectMany(v => v.Value).ToArray(), StringComparer.OrdinalIgnoreCase);
+        return new(
+            new HttpStatus((int)response.StatusCode, response.ReasonPhrase),
+            new HttpHeaders(values),
+            body,
+            response.Content.Headers.ContentType?.MediaType);
+    }
+}
+
+[Qualifier("STATUS")]
+[ExecutionTrait(ExecutionTrait.Pure)]
+public sealed class GetHttpStatus : Get<HttpStatus, HttpResponse>
+{
+    public GetHttpStatus([What] HttpStatus what, [From] HttpResponse from) : base(what, from) { }
+    protected override ValueTask<HttpStatus> ActAsync(HttpResponse from, CancellationToken cancellationToken) => ValueTask.FromResult(from.Status);
+}
+
+[Qualifier("HEADERS")]
+[ExecutionTrait(ExecutionTrait.Pure)]
+public sealed class GetHttpHeaders : Get<HttpHeaders, HttpResponse>
+{
+    public GetHttpHeaders([What] HttpHeaders what, [From] HttpResponse from) : base(what, from) { }
+    protected override ValueTask<HttpHeaders> ActAsync(HttpResponse from, CancellationToken cancellationToken) => ValueTask.FromResult(from.Headers);
+}
+
+[Qualifier("TEXT")]
+[ExecutionTrait(ExecutionTrait.Pure)]
+public sealed class GetHttpText : Get<string, HttpResponse>
+{
+    public GetHttpText([What] string what, [From] HttpResponse from) : base(what, from) { }
+    protected override ValueTask<string> ActAsync(HttpResponse from, CancellationToken cancellationToken) => ValueTask.FromResult(from.Text);
+}
+
+[Qualifier("JSON")]
+[ExecutionTrait(ExecutionTrait.Pure)]
+public sealed class GetHttpJson : Get<JsonNode, HttpResponse>
+{
+    public GetHttpJson([What] JsonNode what, [From] HttpResponse from) : base(what, from) { }
+    protected override ValueTask<JsonNode> ActAsync(HttpResponse from, CancellationToken cancellationToken) =>
+        ValueTask.FromResult(JsonNode.Parse(from.Text) ?? new JsonObject());
 }
 
 [Verb("DOWNLOAD")]

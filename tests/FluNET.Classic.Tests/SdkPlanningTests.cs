@@ -2,6 +2,7 @@ using FluNET.Classic.Hosting;
 using FluNET.Classic.Runtime;
 using FluNET.Classic.SDK;
 using FluNET.Classic.Standard.Files;
+using FluNET.Classic.Standard.Http;
 using FluNET.Classic.Standard.Text;
 using Microsoft.Extensions.DependencyInjection;
 using NUnit.Framework;
@@ -39,6 +40,21 @@ public class SdkPlanningTests
         Assert.That(steps.Any(x => x.Verb == "GET" && x.Implementation?.EndsWith("GetText", StringComparison.Ordinal) == true), Is.True);
         Assert.That(steps.Any(x => x.Verb == "TRANSFORM" && x.Traits.Contains(FluNET.Classic.Core.ExecutionTrait.Pure)), Is.True);
         Assert.That(steps.SelectMany(x => x.Roles).SelectMany(x => x.Values).Any(x => x.Kind == "resolved"), Is.True);
+    }
+
+    [Test]
+    public void Http_response_resources_bind_through_the_same_sentence_grammar()
+    {
+        using ServiceProvider host = FluNetHost.Create();
+        ClassicEngine engine = host.GetRequiredService<ClassicEngine>();
+        ExecutionPlan plan = engine.Plan("GET RESPONSE FROM {https://example.com} INTO [response], THEN GET STATUS FROM [response] INTO [status]; CHECK IF [response] IS OK INTO [ok].");
+
+        Assert.That(plan.Success, Is.True, string.Join("; ", plan.Diagnostics.Select(x => x.Message)));
+        Assert.That(plan.RequiredCapabilities, Does.Contain("network"));
+        ExecutionPlanStep[] steps = Flatten(plan.Steps).ToArray();
+        Assert.That(steps.Any(x => x.ResultType == typeof(HttpResponse).FullName), Is.True);
+        Assert.That(steps.Any(x => x.ResultType == typeof(HttpStatus).FullName), Is.True);
+        Assert.That(steps.Any(x => x.Verb == "CHECK" && x.ResultType == typeof(bool).FullName), Is.True);
     }
 
     [Test]
