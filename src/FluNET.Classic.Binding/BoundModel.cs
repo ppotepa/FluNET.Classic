@@ -19,7 +19,7 @@ public sealed record BoundFilter(BoundValue Source, BoundExpression Predicate, T
             : elementType.MakeArrayType();
 }
 public sealed record BoundCheck(BoundExpression Condition, string? ResultAlias, TextSpan Span) : BoundStage(typeof(bool), Span);
-public sealed record BoundCollection(string Operation, BoundValue Source, Type ElementType, BoundExpression? Argument, string? ResultAlias, Type CollectionResultType, TextSpan Span)
+public sealed record BoundCollection(string Operation, BoundValue Source, Type ElementType, BoundExpression? Argument, string? ResultAlias, Type CollectionResultType, TextSpan Span, BoundValue? Strategy = null)
     : BoundStage(ResolveCollectionResultType(Operation, Source.Type, ElementType, Argument, CollectionResultType), Span)
 {
     private static Type ResolveCollectionResultType(string operation, Type sourceType, Type elementType, BoundExpression? argument, Type fallback)
