@@ -84,7 +84,7 @@ public sealed class BoundExecutor
             try
             {
                 using CancellationTokenSource? timeout = CreateTimeout(ct, _policy.TimeoutFor(sentence.Implementation.Traits)); CancellationToken token = timeout?.Token ?? ct;
-                object verb = sentence.Pattern.Constructor.Activator(args); var context = new VerbExecutionContext(_services, state.Variables, state.PipelineValue); object? result = await sentence.Implementation.Invoker(verb, context, token).ConfigureAwait(false);
+                object? result = await InvokeSentenceAttempt(sentence, args, state, token).ConfigureAwait(false);
                 state.PipelineValue = result; StoreOutputs(sentence, result, state); if (sentence.ResultAlias is { Length: > 0 } alias) state.SetVariable(alias, result);
                 timer.Stop(); _trace.Add(new(++_sequence, "sentence", sentence.Verb.Name, sentence.Implementation.ImplementationType.FullName, started, timer.Elapsed, true, used, sentence.ResultType.FullName, sentence.Implementation.Capabilities, sentence.Implementation.Traits)); return;
             }
@@ -95,16 +95,48 @@ public sealed class BoundExecutor
         timer.Stop(); _trace.Add(new(++_sequence, "sentence", sentence.Verb.Name, sentence.Implementation.ImplementationType.FullName, started, timer.Elapsed, false, used, sentence.ResultType.FullName, sentence.Implementation.Capabilities, sentence.Implementation.Traits, last?.Message)); throw last ?? new InvalidOperationException("Execution failed.");
     }
 
+    private async ValueTask<object?> InvokeSentenceAttempt(BoundSentence sentence, object?[] args, RuntimeState state, CancellationToken token)
+    {
+        IExecutionTransaction? transaction = null;
+        if (sentence.Implementation.Traits.Contains(ExecutionTrait.Transactional))
+        {
+            ITransactionCoordinator? coordinator = _services?.GetService(typeof(ITransactionCoordinator)) as ITransactionCoordinator;
+            if (coordinator is null && _policy.RequireTransactionCoordinatorForTransactional)
+                throw new InvalidOperationException($"Transactional implementation '{sentence.Implementation.ImplementationType.FullName}' requires ITransactionCoordinator.");
+            if (coordinator is not null)
+                transaction = await coordinator.BeginAsync(sentence.Implementation.StableId, token).ConfigureAwait(false);
+        }
+
+        try
+        {
+            object verb = sentence.Pattern.Constructor.Activator(args);
+            var context = new VerbExecutionContext(_services, state.Variables, state.PipelineValue, transaction);
+            object? result = await sentence.Implementation.Invoker(verb, context, token).ConfigureAwait(false);
+            if (transaction is not null) await transaction.CommitAsync(token).ConfigureAwait(false);
+            return result;
+        }
+        catch
+        {
+            if (transaction is not null)
+            {
+                try { await transaction.RollbackAsync(token).ConfigureAwait(false); }
+                catch { /* preserve the original execution failure */ }
+            }
+            throw;
+        }
+        finally
+        {
+            if (transaction is not null) await transaction.DisposeAsync().ConfigureAwait(false);
+        }
+    }
+
     private void ValidateScopedCapabilities(BoundSentence sentence, object?[] args)
     {
         if (_capabilities is not IScopedCapabilityPolicy scoped) return;
         foreach (string capability in sentence.Implementation.Capabilities)
         {
             if (scoped.IsAllowed(capability, null)) continue;
-            bool allowed = sentence.Pattern.Constructor.Parameters
-                .Where(parameter => !parameter.IsService)
-                .Select(parameter => args[parameter.Position])
-                .Any(resource => ResourceAllowed(scoped, capability, resource));
+            bool allowed = sentence.Pattern.Constructor.Parameters.Where(parameter => !parameter.IsService).Select(parameter => args[parameter.Position]).Any(resource => ResourceAllowed(scoped, capability, resource));
             if (!allowed) throw new UnauthorizedAccessException($"Capability '{capability}' is not allowed for resources used by {sentence.Verb.Name}.");
         }
     }
@@ -114,9 +146,7 @@ public sealed class BoundExecutor
         if (resource is null) return false;
         if (scoped.IsAllowed(capability, resource)) return true;
         if (resource is string or byte[] or ReadOnlyMemory<byte>) return false;
-        if (resource is IEnumerable enumerable)
-            foreach (object? item in enumerable)
-                if (ResourceAllowed(scoped, capability, item)) return true;
+        if (resource is IEnumerable enumerable) foreach (object? item in enumerable) if (ResourceAllowed(scoped, capability, item)) return true;
         return false;
     }
 
@@ -193,8 +223,7 @@ public sealed class BoundExecutor
 
     private bool IsCapabilityAllowed(string capability, object? resource)
     {
-        if (_capabilities is IScopedCapabilityPolicy scoped)
-            return scoped.IsAllowed(capability, null) || scoped.IsAllowed(capability, resource);
+        if (_capabilities is IScopedCapabilityPolicy scoped) return scoped.IsAllowed(capability, null) || scoped.IsAllowed(capability, resource);
         return _capabilities.IsAllowed(capability);
     }
 

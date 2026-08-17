@@ -50,12 +50,24 @@ public interface IPipelineConsumer<in TValue> { }
 public interface IExistenceState { bool Exists { get; } }
 public interface IOkState { bool IsOk { get; } }
 public interface IValidState { bool IsValid { get; } }
-public interface ISensitiveValue
+public interface ISensitiveValue { string RedactedText { get; } }
+
+public interface IExecutionTransaction : IAsyncDisposable
 {
-    string RedactedText { get; }
+    ValueTask CommitAsync(CancellationToken cancellationToken = default);
+    ValueTask RollbackAsync(CancellationToken cancellationToken = default);
 }
 
-public sealed record VerbExecutionContext(IServiceProvider? Services, IReadOnlyDictionary<string, object?> Variables, object? PipelineValue);
+public interface ITransactionCoordinator
+{
+    ValueTask<IExecutionTransaction> BeginAsync(string operation, CancellationToken cancellationToken = default);
+}
+
+public sealed record VerbExecutionContext(
+    IServiceProvider? Services,
+    IReadOnlyDictionary<string, object?> Variables,
+    object? PipelineValue,
+    IExecutionTransaction? Transaction = null);
 
 public static class StandardCapabilities
 {
@@ -87,10 +99,7 @@ public static class StandardCapabilities
 }
 
 public interface ICapabilityPolicy { bool IsAllowed(string capability); }
-public interface IScopedCapabilityPolicy : ICapabilityPolicy
-{
-    bool IsAllowed(string capability, object? resource);
-}
+public interface IScopedCapabilityPolicy : ICapabilityPolicy { bool IsAllowed(string capability, object? resource); }
 public sealed class AllowAllCapabilityPolicy : IScopedCapabilityPolicy
 {
     public bool IsAllowed(string capability) => true;

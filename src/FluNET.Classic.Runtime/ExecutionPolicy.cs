@@ -8,6 +8,7 @@ public sealed class ExecutionPolicy
     public TimeSpan RetryDelay { get; set; } = TimeSpan.FromMilliseconds(100);
     public TimeSpan? DefaultTimeout { get; set; }
     public TimeSpan? LongRunningTimeout { get; set; }
+    public bool RequireTransactionCoordinatorForTransactional { get; set; }
 
     public int AttemptsFor(IReadOnlyList<ExecutionTrait> traits) => traits.Contains(ExecutionTrait.Retryable) ? Math.Max(1, RetryAttempts) : 1;
     public TimeSpan? TimeoutFor(IReadOnlyList<ExecutionTrait> traits) => traits.Contains(ExecutionTrait.LongRunning) ? LongRunningTimeout ?? DefaultTimeout : DefaultTimeout;
