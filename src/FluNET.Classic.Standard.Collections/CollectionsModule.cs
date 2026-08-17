@@ -2,12 +2,6 @@ using FluNET.Classic.Core;
 
 namespace FluNET.Classic.Standard.Collections;
 
-public enum SortDirection
-{
-    ASCENDING,
-    DESCENDING
-}
-
 /// <summary>
 /// Owns collection-oriented language semantics. FILTER/WHERE and the collection stages are
 /// compiler intrinsics so they preserve the source element type without reflection-specific
@@ -20,7 +14,7 @@ public sealed class CollectionsModule : LanguageModule
 
     public override IReadOnlyCollection<IntrinsicDescriptor> Intrinsics => new IntrinsicDescriptor[]
     {
-        new("intrinsic:collections:sort", "SORT", IntrinsicSyntaxKind.CollectionBy, Execution: IntrinsicExecutionKind.Materializing, StrategyType: typeof(SortDirection)),
+        new("intrinsic:collections:sort", "SORT", IntrinsicSyntaxKind.CollectionBy, Execution: IntrinsicExecutionKind.Materializing, StrategyType: typeof(CollectionSortDirection)),
         new("intrinsic:collections:group", "GROUP", IntrinsicSyntaxKind.CollectionBy, Execution: IntrinsicExecutionKind.Materializing),
         new("intrinsic:collections:take", "TAKE", IntrinsicSyntaxKind.CollectionAmountFrom, Execution: IntrinsicExecutionKind.Streaming),
         new("intrinsic:collections:skip", "SKIP", IntrinsicSyntaxKind.CollectionAmountFrom, Execution: IntrinsicExecutionKind.Streaming),
