@@ -6,6 +6,9 @@ using FluNET.Classic.Core;
 
 namespace FluNET.Classic.Binding;
 
+public enum ResolutionSourceKind { Unknown, Literal, Reference, Identifier, Interpolation }
+public enum ResolutionStatus { Success, NotFound, Ambiguous }
+
 public sealed record ResolutionContext(
     Type ExpectedType,
     string? RoleName = null,
@@ -13,7 +16,15 @@ public sealed record ResolutionContext(
     string? Qualifier = null,
     IServiceProvider? Services = null,
     IFormatProvider? FormatProvider = null,
-    IReadOnlyDictionary<string, object?>? Variables = null);
+    IReadOnlyDictionary<string, object?>? Variables = null,
+    string? ModuleName = null,
+    ResolutionSourceKind SourceKind = ResolutionSourceKind.Unknown);
+
+public sealed record ResolutionCandidate(string Resolver, int Priority, object? Value);
+public sealed record ResolutionResult(ResolutionStatus Status, object? Value, string? Resolver, int Priority, IReadOnlyList<ResolutionCandidate> Candidates)
+{
+    public bool Success => Status == ResolutionStatus.Success;
+}
 
 public interface IValueResolver
 {
@@ -26,84 +37,133 @@ public interface IValueResolver<T> : IValueResolver
     bool TryResolve(string source, ResolutionContext context, out T? value);
 }
 
+public interface IContextualValueResolver : IValueResolver
+{
+    bool CanResolve(ResolutionContext context);
+}
+
 public sealed class ValueResolverRegistry
 {
     private readonly Dictionary<Type, List<ResolverEntry>> _resolvers = new();
+    private long _sequence;
 
     public void Register<T>(IValueResolver<T> resolver, int priority = 0)
     {
         ArgumentNullException.ThrowIfNull(resolver);
         Type type = typeof(T);
         if (!_resolvers.TryGetValue(type, out List<ResolverEntry>? entries)) _resolvers[type] = entries = [];
-        entries.RemoveAll(x => ReferenceEquals(x.Resolver, resolver));
-        entries.Add(new(resolver, priority));
-        entries.Sort((a, b) => b.Priority.CompareTo(a.Priority));
+        string id = $"{resolver.GetType().AssemblyQualifiedName ?? resolver.GetType().FullName ?? resolver.GetType().Name}#{Interlocked.Increment(ref _sequence)}";
+        entries.Add(new(id, resolver, priority));
+        entries.Sort((a, b) => b.Priority != a.Priority ? b.Priority.CompareTo(a.Priority) : string.Compare(a.Id, b.Id, StringComparison.Ordinal));
     }
 
     public bool TryResolve(string source, Type targetType, ResolutionContext context, out object? value)
     {
+        ResolutionResult result = Resolve(source, targetType, context);
+        value = result.Value;
+        return result.Success;
+    }
+
+    public ResolutionResult Resolve(string source, Type targetType, ResolutionContext context)
+    {
         Type effective = Nullable.GetUnderlyingType(targetType) ?? targetType;
-        if (TryRegistered(source, targetType, context, out value) || (effective != targetType && TryRegistered(source, effective, context, out value))) return true;
-        if (TryResolveCollection(source, targetType, context, out value)) return true;
-        if (effective == typeof(string)) { value = source; return true; }
-        if (effective == typeof(FileInfo)) { value = new FileInfo(source); return true; }
-        if (effective == typeof(DirectoryInfo)) { value = new DirectoryInfo(source); return true; }
-        if (effective == typeof(Uri)) { bool ok = Uri.TryCreate(source, UriKind.RelativeOrAbsolute, out Uri? uri); value = uri; return ok; }
-        if (effective.IsEnum) { bool ok = Enum.TryParse(effective, source, true, out object? parsed); value = parsed; return ok; }
-        if (TryParse(effective, source, context.FormatProvider ?? CultureInfo.InvariantCulture, out value)) return true;
+        ResolutionResult registered = ResolveRegistered(source, targetType, context);
+        if (registered.Status != ResolutionStatus.NotFound) return registered;
+        if (effective != targetType)
+        {
+            registered = ResolveRegistered(source, effective, context);
+            if (registered.Status != ResolutionStatus.NotFound) return registered;
+        }
+
+        ResolutionResult collection = ResolveCollection(source, targetType, context);
+        if (collection.Status != ResolutionStatus.NotFound) return collection;
+        if (effective == typeof(string)) return BuiltIn(source, "builtin:string", source);
+        if (effective == typeof(FileInfo)) return BuiltIn(new FileInfo(source), "builtin:file", source);
+        if (effective == typeof(DirectoryInfo)) return BuiltIn(new DirectoryInfo(source), "builtin:directory", source);
+        if (effective == typeof(Uri))
+        {
+            bool ok = Uri.TryCreate(source, UriKind.RelativeOrAbsolute, out Uri? uri);
+            return ok ? BuiltIn(uri, "builtin:uri", source) : NotFound();
+        }
+        if (effective.IsEnum)
+        {
+            bool ok = Enum.TryParse(effective, source, true, out object? parsed);
+            return ok ? BuiltIn(parsed, "builtin:enum", source) : NotFound();
+        }
+        if (TryParse(effective, source, context.FormatProvider ?? CultureInfo.InvariantCulture, out object? parsedValue)) return BuiltIn(parsedValue, "builtin:parse", source);
 
         TypeConverter converter = TypeDescriptor.GetConverter(effective);
         if (converter.CanConvertFrom(typeof(string)))
         {
-            try { value = converter.ConvertFrom(null, context.FormatProvider as CultureInfo ?? CultureInfo.InvariantCulture, source); return value is not null; }
+            try
+            {
+                object? converted = converter.ConvertFrom(null, context.FormatProvider as CultureInfo ?? CultureInfo.InvariantCulture, source);
+                if (converted is not null) return BuiltIn(converted, $"typeconverter:{effective.FullName}", source);
+            }
             catch { }
         }
 
         ConstructorInfo? ctor = effective.GetConstructor(new[] { typeof(string) });
         if (ctor is not null)
         {
-            try { value = ctor.Invoke(new object?[] { source }); return true; }
+            try { return BuiltIn(ctor.Invoke(new object?[] { source }), $"string-ctor:{effective.FullName}", source); }
             catch { }
         }
-
-        value = null;
-        return false;
+        return NotFound();
     }
 
-    private bool TryRegistered(string source, Type targetType, ResolutionContext context, out object? value)
+    private ResolutionResult ResolveRegistered(string source, Type targetType, ResolutionContext context)
     {
-        if (_resolvers.TryGetValue(targetType, out List<ResolverEntry>? entries))
+        if (!_resolvers.TryGetValue(targetType, out List<ResolverEntry>? entries) || entries.Count == 0) return NotFound();
+        foreach (IGrouping<int, ResolverEntry> priorityGroup in entries.GroupBy(x => x.Priority).OrderByDescending(x => x.Key))
         {
-            foreach (ResolverEntry entry in entries)
-                if (entry.Resolver.TryResolve(source, context with { ExpectedType = targetType }, out value)) return true;
+            var successful = new List<ResolutionCandidate>();
+            foreach (ResolverEntry entry in priorityGroup)
+            {
+                if (entry.Resolver is IContextualValueResolver contextual && !contextual.CanResolve(context with { ExpectedType = targetType })) continue;
+                if (entry.Resolver.TryResolve(source, context with { ExpectedType = targetType }, out object? value))
+                    successful.Add(new(entry.Id, entry.Priority, value));
+            }
+            if (successful.Count == 1)
+            {
+                ResolutionCandidate winner = successful[0];
+                return new(ResolutionStatus.Success, winner.Value, winner.Resolver, winner.Priority, successful);
+            }
+            if (successful.Count > 1)
+                return new(ResolutionStatus.Ambiguous, null, null, priorityGroup.Key, successful.OrderBy(x => x.Resolver, StringComparer.Ordinal).ToArray());
         }
-        value = null;
-        return false;
+        return NotFound();
     }
 
-    private bool TryResolveCollection(string source, Type targetType, ResolutionContext context, out object? value)
+    private ResolutionResult ResolveCollection(string source, Type targetType, ResolutionContext context)
     {
         Type? elementType = ClrTypeShape.GetElementType(targetType);
-        if (elementType is null) { value = null; return false; }
+        if (elementType is null) return NotFound();
         string[] parts = source.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
         var items = new object?[parts.Length];
         for (int i = 0; i < parts.Length; i++)
         {
-            if (!TryResolve(parts[i], elementType, context with { ExpectedType = elementType }, out items[i])) { value = null; return false; }
+            ResolutionResult item = Resolve(parts[i], elementType, context with { ExpectedType = elementType });
+            if (item.Status == ResolutionStatus.Ambiguous) return item;
+            if (!item.Success) return NotFound();
+            items[i] = item.Value;
         }
         Array array = Array.CreateInstance(elementType, items.Length);
         for (int i = 0; i < items.Length; i++) array.SetValue(items[i], i);
-        if (targetType.IsArray || targetType.IsAssignableFrom(array.GetType())) { value = array; return true; }
+        if (targetType.IsArray || targetType.IsAssignableFrom(array.GetType())) return BuiltIn(array, "builtin:collection", source);
         if (targetType.IsGenericType)
         {
             Type listType = typeof(List<>).MakeGenericType(elementType);
             IList list = (IList)Activator.CreateInstance(listType)!;
             foreach (object? item in items) list.Add(item);
-            if (targetType.IsAssignableFrom(listType)) { value = list; return true; }
+            if (targetType.IsAssignableFrom(listType)) return BuiltIn(list, "builtin:collection", source);
         }
-        value = array;
-        return true;
+        return BuiltIn(array, "builtin:collection", source);
     }
+
+    private static ResolutionResult BuiltIn(object? value, string resolver, string source) =>
+        new(ResolutionStatus.Success, value, resolver, int.MinValue, new[] { new ResolutionCandidate(resolver, int.MinValue, value) });
+    private static ResolutionResult NotFound() => new(ResolutionStatus.NotFound, null, null, int.MinValue, Array.Empty<ResolutionCandidate>());
 
     private static bool TryParse(Type type, string source, IFormatProvider provider, out object? value)
     {
@@ -129,5 +189,5 @@ public sealed class ValueResolverRegistry
         return false;
     }
 
-    private sealed record ResolverEntry(IValueResolver Resolver, int Priority);
+    private sealed record ResolverEntry(string Id, IValueResolver Resolver, int Priority);
 }
