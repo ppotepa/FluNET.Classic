@@ -1,11 +1,5 @@
 namespace FluNET.Classic.Core;
 
-[AttributeUsage(AttributeTargets.Class | AttributeTargets.Interface | AttributeTargets.Constructor | AttributeTargets.Parameter, Inherited = true, AllowMultiple = false)]
-public sealed class StableIdAttribute(string id) : Attribute
-{
-    public string Id { get; } = id;
-}
-
 [AttributeUsage(AttributeTargets.Class | AttributeTargets.Interface, Inherited = true, AllowMultiple = false)]
 public sealed class VerbAttribute(string name) : Attribute
 {
@@ -56,6 +50,20 @@ public sealed class RoleDirectionAttribute(RoleDirection direction) : Attribute
     public RoleDirection Direction { get; } = direction;
 }
 
+/// <summary>Projects an output role from a named public property or field of the verb result.</summary>
+[AttributeUsage(AttributeTargets.Parameter, Inherited = false, AllowMultiple = false)]
+public sealed class OutputMemberAttribute(string member) : Attribute
+{
+    public string Member { get; } = member;
+}
+
+/// <summary>Projects an output role from a zero-based tuple/list position of the verb result.</summary>
+[AttributeUsage(AttributeTargets.Parameter, Inherited = false, AllowMultiple = false)]
+public sealed class OutputIndexAttribute(int index) : Attribute
+{
+    public int Index { get; } = index;
+}
+
 [AttributeUsage(AttributeTargets.Parameter, Inherited = false, AllowMultiple = false)]
 public sealed class FromServicesAttribute : Attribute { }
 
@@ -69,4 +77,10 @@ public sealed class RequiresCapabilityAttribute(string capability) : Attribute
 public sealed class ExecutionTraitAttribute(ExecutionTrait trait) : Attribute
 {
     public ExecutionTrait Trait { get; } = trait;
+}
+
+[AttributeUsage(AttributeTargets.Class | AttributeTargets.Constructor | AttributeTargets.Parameter, Inherited = false, AllowMultiple = false)]
+public sealed class StableIdAttribute(string id) : Attribute
+{
+    public string Id { get; } = id;
 }
