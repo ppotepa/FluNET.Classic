@@ -3,11 +3,21 @@ using System.Globalization;
 namespace FluNET.Classic.Binding;
 
 public enum ConversionKind { Exact, Assignable, Registered, Numeric, Resolution }
-public sealed record ConversionResult(object? Value, ConversionKind Kind, int Cost);
-public sealed record ConversionStep(Type SourceType, Type TargetType, ConversionKind Kind, int Cost);
+public enum ConversionSafety { Lossless, PotentiallyLossy }
+public enum ConversionPlanningStatus { Success, NotFound, Ambiguous }
+
+public sealed record ConversionResult(object? Value, ConversionKind Kind, int Cost, ConversionSafety Safety = ConversionSafety.Lossless);
+public sealed record ConversionStep(Type SourceType, Type TargetType, ConversionKind Kind, int Cost, ConversionSafety Safety = ConversionSafety.Lossless, string? ConverterId = null);
 public sealed record ConversionPlan(Type SourceType, Type TargetType, IReadOnlyList<ConversionStep> Steps, int Cost)
 {
     public ConversionKind Kind => Steps.Count == 0 ? ConversionKind.Exact : Steps.Count == 1 ? Steps[0].Kind : ConversionKind.Registered;
+    public ConversionSafety Safety => Steps.Any(x => x.Safety == ConversionSafety.PotentiallyLossy) ? ConversionSafety.PotentiallyLossy : ConversionSafety.Lossless;
+    public string Signature => string.Join(" -> ", new[] { SourceType }.Concat(Steps.Select(x => x.TargetType)).Select(TypeName));
+    private static string TypeName(Type type) => type.FullName ?? type.Name;
+}
+public sealed record ConversionPlanningResult(ConversionPlanningStatus Status, ConversionPlan? Plan, IReadOnlyList<ConversionPlan> Alternatives)
+{
+    public bool Success => Status == ConversionPlanningStatus.Success && Plan is not null;
 }
 
 public interface IValueConverter
@@ -37,22 +47,32 @@ public abstract class ValueConverter<TSource, TTarget> : IValueConverter<TSource
 
 public sealed class ValueConversionRegistry
 {
-    private readonly Dictionary<(Type Source, Type Target), IValueConverter> _converters = new();
-    public int MaxPathLength { get; set; } = 4;
-    public int MaxPathCost { get; set; } = 12;
+    private readonly Dictionary<(Type Source, Type Target), List<ConverterEntry>> _converters = new();
+    private readonly Dictionary<string, ConverterEntry> _byId = new(StringComparer.Ordinal);
+    private long _registrationSequence;
 
-    public void Register(IValueConverter converter)
+    public int MaxPathLength { get; set; } = 4;
+    public int MaxPathCost { get; set; } = 16;
+
+    public void Register(IValueConverter converter, int priority = 0, ConversionSafety safety = ConversionSafety.Lossless)
     {
         ArgumentNullException.ThrowIfNull(converter);
-        _converters[(Normalize(converter.SourceType), Normalize(converter.TargetType))] = converter;
+        Type source = Normalize(converter.SourceType);
+        Type target = Normalize(converter.TargetType);
+        string id = $"{converter.GetType().AssemblyQualifiedName ?? converter.GetType().FullName ?? converter.GetType().Name}#{Interlocked.Increment(ref _registrationSequence)}";
+        var entry = new ConverterEntry(id, converter, source, target, priority, safety);
+        if (!_converters.TryGetValue((source, target), out List<ConverterEntry>? entries)) _converters[(source, target)] = entries = [];
+        entries.Add(entry);
+        _byId[id] = entry;
     }
 
     public bool CanConvert(Type source, Type target, out ConversionKind kind, out int cost)
     {
-        if (TryPlan(source, target, out ConversionPlan? plan))
+        ConversionPlanningResult result = Plan(source, target);
+        if (result.Success)
         {
-            kind = plan!.Kind;
-            cost = plan.Cost;
+            kind = result.Plan!.Kind;
+            cost = result.Plan.Cost;
             return true;
         }
         kind = default;
@@ -62,46 +82,58 @@ public sealed class ValueConversionRegistry
 
     public bool TryPlan(Type source, Type target, out ConversionPlan? plan)
     {
+        ConversionPlanningResult result = Plan(source, target);
+        plan = result.Plan;
+        return result.Success;
+    }
+
+    public ConversionPlanningResult Plan(Type source, Type target)
+    {
         Type s = Normalize(source);
         Type t = Normalize(target);
-        if (s == t) { plan = new(s, t, Array.Empty<ConversionStep>(), 0); return true; }
-        if (t.IsAssignableFrom(s)) { plan = new(s, t, new[] { new ConversionStep(s, t, ConversionKind.Assignable, 1) }, 1); return true; }
-        if (_converters.ContainsKey((s, t))) { plan = new(s, t, new[] { new ConversionStep(s, t, ConversionKind.Registered, 2) }, 2); return true; }
-        if (IsNumeric(s) && IsNumeric(t)) { plan = new(s, t, new[] { new ConversionStep(s, t, ConversionKind.Numeric, 3) }, 3); return true; }
+        if (s == t) return Success(new ConversionPlan(s, t, Array.Empty<ConversionStep>(), 0));
 
         var queue = new PriorityQueue<PathState, int>();
         queue.Enqueue(new PathState(s, Array.Empty<ConversionStep>(), 0), 0);
         var best = new Dictionary<Type, int> { [s] = 0 };
+        var seenPaths = new HashSet<string>(StringComparer.Ordinal) { PathSignature(s, Array.Empty<ConversionStep>()) };
+        var completed = new List<ConversionPlan>();
+        int bestTargetCost = int.MaxValue;
 
-        while (queue.TryDequeue(out PathState? state, out _))
+        while (queue.TryDequeue(out PathState? state, out int priority))
         {
-            if (state.Steps.Count >= MaxPathLength) continue;
-            foreach (((Type from, Type to), _) in _converters)
+            if (priority > bestTargetCost || state.Cost > MaxPathCost) break;
+            if (state.Type == t)
             {
-                if (from != state.Type) continue;
-                int nextCost = state.Cost + 2;
-                if (nextCost > MaxPathCost || (best.TryGetValue(to, out int known) && known <= nextCost)) continue;
-                ConversionStep[] steps = state.Steps.Append(new ConversionStep(from, to, ConversionKind.Registered, 2)).ToArray();
-                if (to == t || t.IsAssignableFrom(to))
-                {
-                    if (to != t) steps = steps.Append(new ConversionStep(to, t, ConversionKind.Assignable, 1)).ToArray();
-                    int total = steps.Sum(x => x.Cost);
-                    plan = new(s, t, steps, total);
-                    return true;
-                }
-                if (IsNumeric(to) && IsNumeric(t))
-                {
-                    steps = steps.Append(new ConversionStep(to, t, ConversionKind.Numeric, 3)).ToArray();
-                    int total = steps.Sum(x => x.Cost);
-                    if (total <= MaxPathCost) { plan = new(s, t, steps, total); return true; }
-                }
-                best[to] = nextCost;
-                queue.Enqueue(new PathState(to, steps, nextCost), nextCost);
+                bestTargetCost = Math.Min(bestTargetCost, state.Cost);
+                if (state.Cost == bestTargetCost) completed.Add(new(s, t, state.Steps, state.Cost));
+                continue;
+            }
+            if (state.Steps.Count >= MaxPathLength) continue;
+
+            foreach (ConversionStep edge in EdgesFrom(state.Type, t))
+            {
+                int nextCost = state.Cost + edge.Cost;
+                if (nextCost > MaxPathCost || nextCost > bestTargetCost) continue;
+                Type nextType = edge.TargetType;
+                if (best.TryGetValue(nextType, out int known) && known < nextCost) continue;
+                if (!best.TryGetValue(nextType, out known) || nextCost < known) best[nextType] = nextCost;
+                ConversionStep[] steps = state.Steps.Append(edge).ToArray();
+                string signature = PathSignature(s, steps);
+                if (!seenPaths.Add(signature)) continue;
+                queue.Enqueue(new PathState(nextType, steps, nextCost), nextCost);
             }
         }
 
-        plan = null;
-        return false;
+        ConversionPlan[] shortest = completed
+            .Where(x => x.Cost == bestTargetCost)
+            .GroupBy(x => PlanSignature(x), StringComparer.Ordinal)
+            .Select(x => x.First())
+            .OrderBy(x => PlanSignature(x), StringComparer.Ordinal)
+            .ToArray();
+        if (shortest.Length == 0) return new(ConversionPlanningStatus.NotFound, null, Array.Empty<ConversionPlan>());
+        if (shortest.Length > 1) return new(ConversionPlanningStatus.Ambiguous, null, shortest);
+        return Success(shortest[0]);
     }
 
     public bool TryConvert(object? source, Type target, out ConversionResult? result)
@@ -112,17 +144,29 @@ public sealed class ValueConversionRegistry
             result = nullable ? new(null, ConversionKind.Assignable, 1) : null;
             return nullable;
         }
+        ConversionPlanningResult planning = Plan(source.GetType(), target);
+        if (!planning.Success) { result = null; return false; }
+        return TryConvert(source, planning.Plan!, out result);
+    }
 
-        if (!TryPlan(source.GetType(), target, out ConversionPlan? plan)) { result = null; return false; }
+    public bool TryConvert(object? source, ConversionPlan plan, out ConversionResult? result)
+    {
+        if (source is null)
+        {
+            bool nullable = !plan.TargetType.IsValueType || Nullable.GetUnderlyingType(plan.TargetType) is not null;
+            result = nullable ? new(null, ConversionKind.Assignable, 1) : null;
+            return nullable;
+        }
+
         object? current = source;
-        foreach (ConversionStep step in plan!.Steps)
+        foreach (ConversionStep step in plan.Steps)
         {
             switch (step.Kind)
             {
                 case ConversionKind.Assignable:
                     break;
                 case ConversionKind.Registered:
-                    if (!_converters.TryGetValue((Normalize(step.SourceType), Normalize(step.TargetType)), out IValueConverter? converter) || !converter.TryConvert(current, out current))
+                    if (step.ConverterId is null || !_byId.TryGetValue(step.ConverterId, out ConverterEntry? entry) || !entry.Converter.TryConvert(current, out current))
                     { result = null; return false; }
                     break;
                 case ConversionKind.Numeric:
@@ -131,11 +175,65 @@ public sealed class ValueConversionRegistry
                     break;
             }
         }
-        result = new(current, plan.Kind, plan.Cost);
+        result = new(current, plan.Kind, plan.Cost, plan.Safety);
         return true;
     }
 
+    private IEnumerable<ConversionStep> EdgesFrom(Type source, Type finalTarget)
+    {
+        Type s = Normalize(source);
+        Type t = Normalize(finalTarget);
+
+        if (t.IsAssignableFrom(s) && s != t)
+            yield return new(s, t, ConversionKind.Assignable, 1);
+
+        foreach (((Type from, Type to), List<ConverterEntry> entries) in _converters.OrderBy(x => TypeName(x.Key.Target), StringComparer.Ordinal))
+        {
+            if (from != s) continue;
+            int maxPriority = entries.Max(x => x.Priority);
+            foreach (ConverterEntry entry in entries.Where(x => x.Priority == maxPriority).OrderBy(x => x.Id, StringComparer.Ordinal))
+                yield return new(s, to, ConversionKind.Registered, 2, entry.Safety, entry.Id);
+        }
+
+        HashSet<Type> usefulTypes = _converters.Keys.SelectMany(x => new[] { x.Source, x.Target }).Append(t).ToHashSet();
+        foreach (Type candidate in usefulTypes.OrderBy(TypeName, StringComparer.Ordinal))
+        {
+            if (candidate == s) continue;
+            if (candidate.IsAssignableFrom(s)) yield return new(s, candidate, ConversionKind.Assignable, 1);
+            else if (IsNumeric(s) && IsNumeric(candidate))
+            {
+                bool widening = IsWideningNumeric(s, candidate);
+                yield return new(s, candidate, ConversionKind.Numeric, widening ? 3 : 6, widening ? ConversionSafety.Lossless : ConversionSafety.PotentiallyLossy);
+            }
+        }
+    }
+
+    private static bool IsWideningNumeric(Type source, Type target)
+    {
+        Type s = Normalize(source); Type t = Normalize(target);
+        if (s == t) return true;
+        if (s == typeof(float) && t == typeof(double)) return true;
+        if (IsInteger(s) && t == typeof(decimal)) return true;
+        if (!IsInteger(s) || !IsInteger(t)) return false;
+        (int Bits, bool Signed) a = IntegerShape(s); (int Bits, bool Signed) b = IntegerShape(t);
+        if (a.Signed == b.Signed) return b.Bits >= a.Bits;
+        if (!a.Signed && b.Signed) return b.Bits > a.Bits;
+        return false;
+    }
+
+    private static bool IsInteger(Type type) => Type.GetTypeCode(Normalize(type)) is TypeCode.Byte or TypeCode.SByte or TypeCode.Int16 or TypeCode.UInt16 or TypeCode.Int32 or TypeCode.UInt32 or TypeCode.Int64 or TypeCode.UInt64;
+    private static (int Bits, bool Signed) IntegerShape(Type type) => Type.GetTypeCode(Normalize(type)) switch
+    {
+        TypeCode.SByte => (8, true), TypeCode.Byte => (8, false), TypeCode.Int16 => (16, true), TypeCode.UInt16 => (16, false), TypeCode.Int32 => (32, true), TypeCode.UInt32 => (32, false), TypeCode.Int64 => (64, true), TypeCode.UInt64 => (64, false), _ => (0, false)
+    };
     private static Type Normalize(Type type) => Nullable.GetUnderlyingType(type) ?? type;
     private static bool IsNumeric(Type type) => Type.GetTypeCode(Normalize(type)) is TypeCode.Byte or TypeCode.SByte or TypeCode.Int16 or TypeCode.UInt16 or TypeCode.Int32 or TypeCode.UInt32 or TypeCode.Int64 or TypeCode.UInt64 or TypeCode.Single or TypeCode.Double or TypeCode.Decimal;
+    private static string TypeName(Type type) => type.FullName ?? type.Name;
+    private static string PathSignature(Type source, IReadOnlyList<ConversionStep> steps) => TypeName(source) + "|" + string.Join("|", steps.Select(StepSignature));
+    private static string PlanSignature(ConversionPlan plan) => PathSignature(plan.SourceType, plan.Steps);
+    private static string StepSignature(ConversionStep step) => $"{TypeName(step.SourceType)}>{TypeName(step.TargetType)}:{step.Kind}:{step.ConverterId ?? "builtin"}";
+    private static ConversionPlanningResult Success(ConversionPlan plan) => new(ConversionPlanningStatus.Success, plan, new[] { plan });
+
+    private sealed record ConverterEntry(string Id, IValueConverter Converter, Type Source, Type Target, int Priority, ConversionSafety Safety);
     private sealed record PathState(Type Type, IReadOnlyList<ConversionStep> Steps, int Cost);
 }
