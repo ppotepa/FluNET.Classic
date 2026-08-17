@@ -1,6 +1,7 @@
 using FluNET.Classic.Binding;
 using FluNET.Classic.Hosting;
 using FluNET.Classic.Runtime;
+using FluNET.Classic.Standard.Text;
 using Microsoft.Extensions.DependencyInjection;
 using NUnit.Framework;
 
@@ -11,14 +12,7 @@ public class ConversionPlanExplainTests
     [Test]
     public void Planner_exposes_exact_multistep_conversion_selected_by_binder()
     {
-        var options = new FluNetOptions
-        {
-            ConfigureConverters = registry =>
-            {
-                registry.Register(new SourceToMiddle());
-                registry.Register(new MiddleToString());
-            }
-        };
+        var options = Options();
         using ServiceProvider host = FluNetHost.Create(options);
         ClassicEngine engine = host.GetRequiredService<ClassicEngine>();
 
@@ -38,6 +32,38 @@ public class ConversionPlanExplainTests
         Assert.That(value.ConversionSteps.Sum(x => x.Cost), Is.EqualTo(value.Cost));
     }
 
+    [Test]
+    public async Task Runtime_executes_the_conversion_plan_selected_at_bind_time()
+    {
+        var writer = new CaptureOutputWriter();
+        using ServiceProvider host = FluNetHost.Create(Options(), services => services.AddSingleton<IOutputWriter>(writer));
+        ClassicEngine engine = host.GetRequiredService<ClassicEngine>();
+        CheckResult check = engine.Check(
+            "SAY [value].",
+            new Dictionary<string, Type>(StringComparer.OrdinalIgnoreCase) { ["value"] = typeof(SourceValue) });
+        Assert.That(check.Success, Is.True, string.Join("; ", check.Bound!.Diagnostics.Select(x => x.Message)));
+
+        ValueConversionRegistry registry = host.GetRequiredService<ValueConversionRegistry>();
+        registry.Register(new LateDirectConversion(), priority: 100);
+
+        var state = new RuntimeState();
+        state.SetVariable("value", new SourceValue("bound-path"));
+        BoundExecutor executor = host.GetRequiredService<BoundExecutor>();
+        RuntimeResult result = await executor.ExecuteAsync(check.Bound!, state);
+
+        Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics.Select(x => x.Message)));
+        Assert.That(writer.Lines, Is.EqualTo(new[] { "bound-path" }));
+    }
+
+    private static FluNetOptions Options() => new()
+    {
+        ConfigureConverters = registry =>
+        {
+            registry.Register(new SourceToMiddle());
+            registry.Register(new MiddleToString());
+        }
+    };
+
     private sealed record SourceValue(string Value);
     private sealed record MiddleValue(string Value);
 
@@ -56,6 +82,25 @@ public class ConversionPlanExplainTests
         {
             result = value.Value;
             return true;
+        }
+    }
+
+    private sealed class LateDirectConversion : ValueConverter<SourceValue, string>
+    {
+        public override bool TryConvert(SourceValue value, out string? result)
+        {
+            result = "late-direct";
+            return true;
+        }
+    }
+
+    private sealed class CaptureOutputWriter : IOutputWriter
+    {
+        public List<string> Lines { get; } = [];
+        public ValueTask WriteLineAsync(string text, CancellationToken cancellationToken = default)
+        {
+            Lines.Add(text);
+            return ValueTask.CompletedTask;
         }
     }
 }
