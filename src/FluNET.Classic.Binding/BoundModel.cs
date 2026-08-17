@@ -23,6 +23,9 @@ public sealed record BoundSentence(
 public sealed record BoundFilter(BoundValue Source, BoundExpression Predicate, Type ElementType, string? ResultAlias, TextSpan Span)
     : BoundStage(ElementType.MakeArrayType(), Span);
 
+public sealed record BoundCheck(BoundExpression Condition, string? ResultAlias, TextSpan Span)
+    : BoundStage(typeof(bool), Span);
+
 public sealed record BoundIf(BoundExpression Condition, BoundBlock Then, BoundBlock? Else, TextSpan Span) : BoundStatement(Span);
 public sealed record BoundForEach(string Variable, BoundValue Source, Type ElementType, BoundBlock Body, TextSpan Span) : BoundStatement(Span);
 
@@ -40,4 +43,5 @@ public abstract record BoundExpression(Type Type, TextSpan Span);
 public sealed record BoundValueExpression(BoundValue Value, TextSpan Span) : BoundExpression(Value.Type, Span);
 public sealed record BoundItemPropertyExpression(string Property, Type PropertyType, Func<object, object?> Accessor, TextSpan Span) : BoundExpression(PropertyType, Span);
 public sealed record BoundUnaryExpression(string Operator, BoundExpression Operand, Type ResultType, TextSpan Span) : BoundExpression(ResultType, Span);
+public sealed record BoundPredicateExpression(string Predicate, BoundExpression Operand, TextSpan Span) : BoundExpression(typeof(bool), Span);
 public sealed record BoundBinaryExpression(BoundExpression Left, string Operator, BoundExpression Right, Type ResultType, TextSpan Span) : BoundExpression(ResultType, Span);

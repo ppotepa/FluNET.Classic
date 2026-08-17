@@ -25,12 +25,16 @@ public class LanguageTests
     {
         using ServiceProvider host = FluNetHost.Create();
         LanguageSnapshot language = host.GetRequiredService<LanguageSnapshot>();
-        Assert.That(language.Modules.Select(x => x.Name), Is.EquivalentTo(new[] { "files", "text", "json", "http" }));
+        Assert.That(language.Modules.Select(x => x.Name), Is.EquivalentTo(new[] { "text", "files", "datetime", "os", "process", "json", "http", "collections" }));
         Assert.That(language.Qualifiers.Any(x => x.Name == "JSON"), Is.True);
+        Assert.That(language.Qualifiers.Any(x => x.Name == "DATETIME"), Is.True);
+        Assert.That(language.TryGetVerb("STOP", out _), Is.True);
         string manifest = host.GetRequiredService<LanguageIntrospectionService>().ToJson();
         Assert.That(manifest, Does.Contain("filesystem.read"));
+        Assert.That(manifest, Does.Contain("surfaceNames"));
         ClassicLanguageService tooling = host.GetRequiredService<ClassicLanguageService>();
         Assert.That(tooling.Complete("GE").Any(x => x.Label == "GET"), Is.True);
+        Assert.That(tooling.Complete("INTO").Any(x => x.Label == "INTO"), Is.True);
         Assert.That(tooling.Hover("GET")?.Detail, Does.Contain("overload"));
     }
 

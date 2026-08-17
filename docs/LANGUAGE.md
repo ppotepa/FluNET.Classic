@@ -1,16 +1,129 @@
 # Language
 
-```text
-GET TEXT FROM {file.txt} AS [lines]
-GET TEXT FROM {a.txt} {b.txt} AS [allLines]
-LOAD JSON FROM {config.json} AS [config]
-SAVE [text] TO {output.txt}
-TRANSFORM [text] USING BASE64 AS [encoded]
-SAY "Hello [user.name]"
+FluNET.Classic is a typed controlled natural language. A sentence follows the general shape:
 
-FILTER [users] WHERE Active IS true AND Age >= 18 AS [active]
-IF [response.status] IS 200 THEN SAY "ok" ELSE SAY "failed"
-FOR EACH [user] IN [users] THEN SAY "Processing [user.name]"
+```text
+VERB [QUALIFIER] [WHAT] [ROLE value]... [INTO result].
 ```
 
-Qualifiers are first-class metadata. Verb overloads are selected by role shape, CLR type compatibility, cardinality, conversion cost and qualifier metadata. `params T[]` means a variadic sentence role; `T[]` without `params` is simply one collection-valued role.
+The exact roles are supplied by CLR sentence patterns rather than a global grammar. The same surface word can therefore be natural in different contexts while still binding to an explicit semantic role.
+
+## Result binding
+
+`INTO` always binds the result of the current stage:
+
+```text
+GET TEXT FROM {file.txt} INTO [lines].
+PARSE [text] AS JSON INTO [data].
+CHECK IF [response.status] IS 200 INTO [ok].
+```
+
+The former `AS [variable]` spelling remains accepted for compatibility, but the formatter normalizes it to `INTO [variable]`.
+
+`AS` is otherwise available as a representation/interpretation role:
+
+```text
+GET {file.txt} AS TEXT INTO [lines].
+PARSE [text] AS JSON INTO [data].
+FORMAT [data] AS JSON INTO [text].
+```
+
+## Contextual roles
+
+The core vocabulary is intentionally small:
+
+- `FROM` — source.
+- `TO` — destination or target state/representation, depending on the verb.
+- `USING` — method, strategy, algorithm, or encoding.
+- `WITH` — additional arguments/options.
+- `AS` — interpretation or presentation.
+- `IN` — collection/container context.
+- `AT` — location/resource point.
+- `FOR` — awaited/target subject where natural, for example processes.
+- `UNTIL` — temporal deadline.
+- `INTO` — result binding only.
+
+For `TRANSFORM`, the distinction is explicit:
+
+```text
+TRANSFORM [text] USING UPPER INTO [upper].
+TRANSFORM [text] TO BINARY USING UTF8 INTO [bytes].
+TRANSFORM [bytes] TO TEXT USING UTF8 INTO [text].
+TRANSFORM [text] TO JSON INTO [json].
+```
+
+`TO` describes what the value becomes, `USING` describes how it happens, and `INTO` names the produced value.
+
+## Pipelines and punctuation
+
+```text
+GET TEXT FROM {input.txt},
+THEN TRANSFORM USING TRIM,
+AND THEN TRANSFORM USING UPPER,
+THEN SAVE TO {output.txt}.
+```
+
+- `THEN` and `AND THEN` pass the typed result of the previous stage into a compatible missing input role of the next stage.
+- `;` begins an independent statement and does **not** pass a pipeline value.
+- `.` ends a complete statement. It may be omitted at EOF.
+- `,` is a soft separator for role values, clauses, and a continued pipeline.
+- A newline normally separates statements, except when the syntax clearly continues with `THEN`/`AND THEN` or follows a comma.
+
+Variadic values can be written naturally:
+
+```text
+GET TEXT FROM {a.txt}, {b.txt}, {c.txt} INTO [allLines].
+```
+
+## Conditions
+
+`IF`, `CHECK IF`, and `FILTER ... WHERE` share the same typed expression grammar:
+
+```text
+IF [response.status] IS 200 THEN SAY "ok" ELSE SAY "failed"
+CHECK IF [status] IS 200 AND [active] IS true INTO [ok].
+FILTER [users] WHERE Active IS true AND Age >= 18 INTO [active].
+```
+
+The expression grammar includes `NOT`, `AND`, `OR`, `IS`, `IS NOT`, `=`, `==`, `!=`, `>`, `<`, `>=`, and `<=`. Named typed predicates currently include `EXISTS`, `OK`, and `VALID`; predicates are extensible through `PredicateRegistry`.
+
+```text
+CHECK IF [file] EXISTS INTO [exists].
+CHECK IF {config.json} EXISTS INTO [exists].
+CHECK IF [operation] IS OK INTO [ok].
+CHECK IF [document] IS VALID INTO [valid].
+```
+
+`EXISTS` supports file-system values and `IExistenceState`; `OK` supports `bool` and `IOkState`; `VALID` supports `bool` and `IValidState`.
+
+## Surface aliases
+
+A CLR role has one stable semantic name, but a parameter may declare contextual surface aliases with `[RoleAlias]`. The parser preserves the explicit surface marker in the AST, and the binder resolves it against each candidate sentence pattern, so an alias is genuinely pattern-scoped rather than globally synonymous.
+
+Qualifiers remain first-class metadata. Verb overloads are selected by role shape, CLR type compatibility, cardinality, conversion cost and qualifier metadata. `params T[]` means a variadic sentence role; `T[]` without `params` is simply one collection-valued role.
+
+## First standard wave
+
+The default host loads eight standard domains: `text`, `files`, `datetime`, `os`, `process`, `json`, `http`, and `collections`. Collection filtering remains a compiler intrinsic so `FILTER ... WHERE` preserves the element type instead of degrading to `object` or relying on reflection-specific generic hacks.
+
+```text
+GET NOW INTO [now].
+GET TODAY INTO [today].
+PARSE DATE FROM "2026-08-17" INTO [date].
+FORMAT [date] USING "yyyy-MM-dd" INTO [text].
+TRANSFORM [now] TO UTC INTO [utc].
+WAIT UNTIL [deadline].
+
+GET ENV {PATH} INTO [path].
+SAVE ENV [value] TO {MY_VARIABLE}.
+GET OS INTO [os].
+GET USER INTO [user].
+GET CWD INTO [cwd].
+
+RUN {dotnet} WITH "--info" INTO [result].
+GET STDOUT FROM [result] INTO [stdout].
+CHECK IF [result] IS OK INTO [ok].
+LIST PROCESSES INTO [processes].
+STOP [process].
+WAIT FOR [process].
+```

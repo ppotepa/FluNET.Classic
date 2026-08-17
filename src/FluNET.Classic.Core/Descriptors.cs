@@ -64,6 +64,7 @@ public sealed record ParameterDescriptor(
     bool IsParamArray,
     bool IsService,
     string? RoleName,
+    IReadOnlyList<string> SurfaceNames,
     RoleDirection Direction,
     RoleCardinality Cardinality,
     int Position);
@@ -83,7 +84,14 @@ public sealed record RoleSlotDescriptor(
     RoleCardinality Cardinality,
     int Position,
     string ParameterName,
-    bool Required);
+    bool Required,
+    IReadOnlyList<string> SurfaceNames)
+{
+    public IReadOnlyList<string> AllSurfaceNames => new[] { Name }
+        .Concat(SurfaceNames)
+        .Distinct(StringComparer.OrdinalIgnoreCase)
+        .ToArray();
+}
 
 public sealed record SentencePattern(
     string StableId,

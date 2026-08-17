@@ -10,6 +10,8 @@ public sealed record ParseResult(ScriptNode Script, IReadOnlyList<SyntaxDiagnost
 
 public sealed class ClassicParser
 {
+    private static readonly HashSet<string> NamedPredicates = new(StringComparer.OrdinalIgnoreCase) { "OK", "VALID" };
+
     private readonly LanguageSnapshot _language;
     private readonly ClassicLexer _lexer;
     private readonly List<SyntaxDiagnostic> _diagnostics = [];
@@ -29,20 +31,22 @@ public sealed class ClassicParser
         _position = 0;
         _diagnostics.Clear();
         List<StatementNode> statements = ParseStatements(stopAtRightBrace: false);
-        TextSpan span = statements.Count == 0 ? new(0, source.Length) : TextSpan.FromBounds(statements[0].Span.Start, statements[^1].Span.End);
+        TextSpan span = statements.Count == 0
+            ? new(0, source.Length)
+            : TextSpan.FromBounds(statements[0].Span.Start, statements[^1].Span.End);
         return new(new ScriptNode(statements, span), _diagnostics.ToArray());
     }
 
     private List<StatementNode> ParseStatements(bool stopAtRightBrace)
     {
         var result = new List<StatementNode>();
-        SkipSeparators();
+        SkipStatementSeparators();
         while (Current.Kind != TokenKind.End && (!stopAtRightBrace || Current.Kind != TokenKind.RightBrace))
         {
             StatementNode? statement = ParseStatement();
             if (statement is not null) result.Add(statement);
             else SkipToBoundary();
-            SkipSeparators();
+            SkipStatementSeparators();
         }
         return result;
     }
@@ -58,7 +62,7 @@ public sealed class ClassicParser
     {
         int start = Advance().Span.Start;
         ExpressionNode condition = ParseExpressionUntil("THEN");
-        ExpectWord("THEN", "FLU-SYN-101", "IF requires THEN.");
+        ConsumeThen("FLU-SYN-101", "IF requires THEN.");
         BlockNode then = ParseBody(stopAtElse: true);
         BlockNode? otherwise = null;
         if (IsWord("ELSE"))
@@ -76,13 +80,13 @@ public sealed class ClassicParser
         ExpectWord("EACH", "FLU-SYN-110", "FOR must be followed by EACH.");
         SyntaxToken variable = Current;
         if (variable.Kind != TokenKind.Variable)
-        {
             _diagnostics.Add(new("FLU-SYN-111", "FOR EACH requires an iterator variable.", variable.Span));
-        }
-        else Advance();
+        else
+            Advance();
+
         ExpectWord("IN", "FLU-SYN-112", "FOR EACH requires IN.");
         ExpressionNode source = ParseExpressionUntil("THEN");
-        ExpectWord("THEN", "FLU-SYN-113", "FOR EACH requires THEN.");
+        ConsumeThen("FLU-SYN-113", "FOR EACH requires THEN.");
         BlockNode body = ParseBody(stopAtElse: false);
         return new(variable.Value?.ToString() ?? string.Empty, source, body, TextSpan.FromBounds(start, body.Span.End));
     }
@@ -111,10 +115,8 @@ public sealed class ClassicParser
         if (first is null) return null;
         stages.Add(first);
 
-        while (IsWord("THEN"))
+        while (TryConsumePipelineContinuation())
         {
-            Advance();
-            SkipNewLines();
             if (stopAtElse && IsWord("ELSE")) break;
             PipelineStageNode? stage = ParseStage();
             if (stage is null) break;
@@ -124,9 +126,34 @@ public sealed class ClassicParser
         return new(stages, TextSpan.FromBounds(start, stages[^1].Span.End));
     }
 
+    private bool TryConsumePipelineContinuation()
+    {
+        int saved = _position;
+        if (Current.Kind == TokenKind.Comma) Advance();
+        SkipNewLines();
+
+        if (IsWord("AND") && IsWord("THEN", 1))
+        {
+            Advance();
+            Advance();
+            SkipNewLines();
+            return true;
+        }
+        if (IsWord("THEN"))
+        {
+            Advance();
+            SkipNewLines();
+            return true;
+        }
+
+        _position = saved;
+        return false;
+    }
+
     private PipelineStageNode? ParseStage()
     {
         if (IsWord("FILTER")) return ParseFilter();
+        if (IsWord("CHECK") && IsWord("IF", 1)) return ParseCheck();
         return ParseSentence();
     }
 
@@ -136,10 +163,20 @@ public sealed class ClassicParser
         ExpressionNode? source = null;
         if (!IsWord("WHERE")) source = ParseAtomic();
         ExpectWord("WHERE", "FLU-SYN-120", "FILTER requires WHERE.");
-        ExpressionNode predicate = ParseExpressionUntil("AS", "THEN", "ELSE");
-        string? alias = ParseOptionalAlias();
+        ExpressionNode predicate = ParseExpressionUntil("INTO", "AS", "THEN", "ELSE");
+        string? alias = ParseOptionalResultAlias(allowLegacyAs: true);
         int end = alias is not null ? Previous.Span.End : predicate.Span.End;
         return new(source, predicate, alias, TextSpan.FromBounds(start, end));
+    }
+
+    private CheckStageNode ParseCheck()
+    {
+        int start = Advance().Span.Start;
+        ExpectWord("IF", "FLU-SYN-125", "CHECK requires IF.");
+        ExpressionNode condition = ParseExpressionUntil("INTO", "AS", "THEN", "ELSE");
+        string? alias = ParseOptionalResultAlias(allowLegacyAs: true);
+        int end = alias is not null ? Previous.Span.End : condition.Span.End;
+        return new(condition, alias, TextSpan.FromBounds(start, end));
     }
 
     private SentenceNode? ParseSentence()
@@ -164,9 +201,8 @@ public sealed class ClassicParser
             Advance();
         }
 
-        HashSet<string> roles = verb.Implementations.SelectMany(x => x.Patterns).SelectMany(x => x.Roles).Select(x => x.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
-        HashSet<string> explicitRoles = roles.Where(x => !x.Equals("WHAT", StringComparison.OrdinalIgnoreCase) && !x.Equals("THEN", StringComparison.OrdinalIgnoreCase)).ToHashSet(StringComparer.OrdinalIgnoreCase);
-        string? currentRole = roles.Contains("WHAT") ? "WHAT" : null;
+        HashSet<string> surfaceRoles = BuildSurfaceRoleSet(verb);
+        string? currentRole = DetermineImplicitRole(verb);
         SyntaxToken? roleToken = null;
         var clauses = new List<ClauseNode>();
         var values = new List<ExpressionNode>();
@@ -174,18 +210,35 @@ public sealed class ClassicParser
 
         while (!IsStageBoundary(Current))
         {
-            if (IsWord("AS"))
+            if (Current.Kind == TokenKind.Comma)
+            {
+                Advance();
+                SkipNewLines();
+                continue;
+            }
+
+            if (IsWord("INTO"))
             {
                 Flush();
-                alias = ParseOptionalAlias();
+                alias = ParseOptionalResultAlias(allowLegacyAs: false);
                 break;
             }
 
-            if (Current.Kind == TokenKind.Word && explicitRoles.Contains(Current.Text))
+            if (IsWord("AS") && Peek(1).Kind == TokenKind.Variable)
+            {
+                Flush();
+                alias = ParseOptionalResultAlias(allowLegacyAs: true);
+                break;
+            }
+
+            if (Current.Kind == TokenKind.Word && surfaceRoles.Contains(Current.Text))
             {
                 Flush();
                 roleToken = Advance();
+                // Keep the explicit surface marker in the AST. The binder resolves it against
+                // each candidate SentencePattern, which makes aliases truly pattern-scoped.
                 currentRole = roleToken.Text.ToUpperInvariant();
+                SkipNewLines();
                 continue;
             }
 
@@ -204,7 +257,12 @@ public sealed class ClassicParser
 
         void Flush()
         {
-            if (currentRole is null || values.Count == 0) { values.Clear(); roleToken = null; return; }
+            if (currentRole is null || values.Count == 0)
+            {
+                values.Clear();
+                roleToken = null;
+                return;
+            }
             int clauseStart = roleToken?.Span.Start ?? values[0].Span.Start;
             clauses.Add(new(currentRole, values.ToArray(), TextSpan.FromBounds(clauseStart, values[^1].Span.End)));
             values.Clear();
@@ -212,12 +270,41 @@ public sealed class ClassicParser
         }
     }
 
-    private string? ParseOptionalAlias()
+    private static HashSet<string> BuildSurfaceRoleSet(VerbDescriptor verb)
     {
-        if (IsWord("AS")) Advance();
+        return verb.Implementations
+            .SelectMany(x => x.Patterns)
+            .SelectMany(x => x.Roles)
+            .Where(x => !x.Name.Equals("WHAT", StringComparison.OrdinalIgnoreCase) && !x.Name.Equals("THEN", StringComparison.OrdinalIgnoreCase))
+            .SelectMany(x => x.AllSurfaceNames)
+            .Where(x => !x.Equals("INTO", StringComparison.OrdinalIgnoreCase) && !x.Equals("THEN", StringComparison.OrdinalIgnoreCase))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+    }
+
+    private static string? DetermineImplicitRole(VerbDescriptor verb)
+    {
+        RoleSlotDescriptor[] roles = verb.Implementations.SelectMany(x => x.Patterns).SelectMany(x => x.Roles).ToArray();
+        if (roles.Any(x => x.Name.Equals("WHAT", StringComparison.OrdinalIgnoreCase) && x.Direction is RoleDirection.Input or RoleDirection.InputOutput))
+            return "WHAT";
+
+        string[] requiredInputs = roles
+            .Where(x => x.Direction != RoleDirection.Output && x.Required && !x.Name.Equals("WHAT", StringComparison.OrdinalIgnoreCase) && !x.Name.Equals("THEN", StringComparison.OrdinalIgnoreCase))
+            .Select(x => x.Name)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        return requiredInputs.Length == 1 ? requiredInputs[0] : null;
+    }
+
+    private string? ParseOptionalResultAlias(bool allowLegacyAs)
+    {
+        if (IsWord("INTO")) Advance();
+        else if (allowLegacyAs && IsWord("AS")) Advance();
+        else return null;
+
+        SkipNewLines();
         if (Current.Kind != TokenKind.Variable)
         {
-            _diagnostics.Add(new("FLU-SYN-130", "AS requires a [variable].", Current.Span));
+            _diagnostics.Add(new("FLU-SYN-130", "INTO requires a [variable].", Current.Span));
             return null;
         }
         string alias = Current.Value?.ToString() ?? string.Empty;
@@ -237,19 +324,56 @@ public sealed class ClassicParser
             ExpressionNode operand = ParseBinary(unary, stopWords);
             left = new UnaryExpression(op.Text.ToUpperInvariant(), operand, TextSpan.FromBounds(op.Span.Start, operand.Span.End));
         }
-        else left = ParsePrimary(stopWords);
+        else
+        {
+            left = ParsePrimary(stopWords);
+        }
 
         while (!AtExpressionBoundary(stopWords))
         {
+            if (TryParsePredicate(ref left)) continue;
+
             int precedence = BinaryPrecedence(Current);
             if (precedence == 0 || precedence <= parentPrecedence) break;
             SyntaxToken op = Advance();
             string operatorText = op.Text.ToUpperInvariant();
-            if (operatorText == "IS" && IsWord("NOT")) { Advance(); operatorText = "IS NOT"; }
+            if (operatorText == "IS" && IsWord("NOT"))
+            {
+                Advance();
+                operatorText = "IS NOT";
+            }
             ExpressionNode right = ParseBinary(precedence, stopWords);
             left = new BinaryExpression(left, operatorText, right, TextSpan.FromBounds(left.Span.Start, right.Span.End));
         }
         return left;
+    }
+
+    private bool TryParsePredicate(ref ExpressionNode left)
+    {
+        if (IsWord("EXISTS"))
+        {
+            SyntaxToken predicate = Advance();
+            left = new PredicateExpression("EXISTS", left, TextSpan.FromBounds(left.Span.Start, predicate.Span.End));
+            return true;
+        }
+
+        if (!IsWord("IS")) return false;
+        int offset = 1;
+        bool negate = false;
+        if (IsWord("NOT", offset)) { negate = true; offset++; }
+        if (Peek(offset).Kind != TokenKind.Word || !NamedPredicates.Contains(Peek(offset).Text)) return false;
+
+        Advance();
+        if (negate) Advance();
+        SyntaxToken predicateToken = Advance();
+        ExpressionNode predicateExpression = new PredicateExpression(
+            predicateToken.Text.ToUpperInvariant(),
+            left,
+            TextSpan.FromBounds(left.Span.Start, predicateToken.Span.End));
+        left = negate
+            ? new UnaryExpression("NOT", predicateExpression, predicateExpression.Span)
+            : predicateExpression;
+        return true;
     }
 
     private ExpressionNode ParsePrimary(string[] stopWords)
@@ -297,10 +421,18 @@ public sealed class ClassicParser
         while (cursor < text.Length)
         {
             int open = text.IndexOf('[', cursor);
-            if (open < 0) { if (cursor < text.Length) parts.Add(new LiteralExpression(text[cursor..], token.Span)); break; }
+            if (open < 0)
+            {
+                if (cursor < text.Length) parts.Add(new LiteralExpression(text[cursor..], token.Span));
+                break;
+            }
             if (open > cursor) parts.Add(new LiteralExpression(text[cursor..open], token.Span));
             int close = text.IndexOf(']', open + 1);
-            if (close < 0) { parts.Add(new LiteralExpression(text[open..], token.Span)); break; }
+            if (close < 0)
+            {
+                parts.Add(new LiteralExpression(text[open..], token.Span));
+                break;
+            }
             string name = text[(open + 1)..close];
             parts.Add(ParseVariable(new(TokenKind.Variable, name, name, token.Span)));
             cursor = close + 1;
@@ -308,8 +440,12 @@ public sealed class ClassicParser
         return parts.Count == 1 && parts[0] is LiteralExpression literal ? literal : new InterpolatedStringExpression(parts, token.Span);
     }
 
-    private bool AtExpressionBoundary(string[] stopWords) => Current.Kind is TokenKind.End or TokenKind.NewLine or TokenKind.Semicolon or TokenKind.RightBrace or TokenKind.RightParen || stopWords.Any(x => IsWord(x));
+    private bool AtExpressionBoundary(string[] stopWords) =>
+        Current.Kind is TokenKind.End or TokenKind.NewLine or TokenKind.Semicolon or TokenKind.Period or TokenKind.Comma or TokenKind.RightBrace or TokenKind.RightParen ||
+        stopWords.Any(x => IsWord(x));
+
     private static int UnaryPrecedence(SyntaxToken token) => token.Kind == TokenKind.Word && token.Text.Equals("NOT", StringComparison.OrdinalIgnoreCase) ? 6 : 0;
+
     private static int BinaryPrecedence(SyntaxToken token)
     {
         if (token.Kind == TokenKind.Operator) return 4;
@@ -317,14 +453,63 @@ public sealed class ClassicParser
         return token.Text.ToUpperInvariant() switch { "OR" => 1, "AND" => 2, "IS" => 4, _ => 0 };
     }
 
-    private bool IsStageBoundary(SyntaxToken token) => token.Kind is TokenKind.End or TokenKind.NewLine or TokenKind.Semicolon or TokenKind.RightBrace || IsWord("THEN") || IsWord("ELSE");
-    private bool IsWord(string word, int offset = 0) => Peek(offset).Kind == TokenKind.Word && Peek(offset).Text.Equals(word, StringComparison.OrdinalIgnoreCase);
-    private void ExpectWord(string word, string code, string message) { if (IsWord(word)) Advance(); else _diagnostics.Add(new(code, message, Current.Span)); }
-    private void SkipSeparators() { while (Current.Kind is TokenKind.NewLine or TokenKind.Semicolon) Advance(); }
-    private void SkipNewLines() { while (Current.Kind == TokenKind.NewLine) Advance(); }
-    private void SkipToBoundary() { while (Current.Kind is not TokenKind.End and not TokenKind.NewLine and not TokenKind.Semicolon and not TokenKind.RightBrace) Advance(); }
+    private bool IsStageBoundary(SyntaxToken token) =>
+        token.Kind is TokenKind.End or TokenKind.NewLine or TokenKind.Semicolon or TokenKind.Period or TokenKind.RightBrace ||
+        IsWord("THEN") || IsWord("ELSE") || (IsWord("AND") && IsWord("THEN", 1)) ||
+        (token.Kind == TokenKind.Comma && CommaStartsPipelineContinuation());
+
+    private bool CommaStartsPipelineContinuation()
+    {
+        if (Current.Kind != TokenKind.Comma) return false;
+        int offset = 1;
+        while (Peek(offset).Kind == TokenKind.NewLine) offset++;
+        return IsWordAt("THEN", offset) || (IsWordAt("AND", offset) && IsWordAt("THEN", offset + 1));
+    }
+
+    private bool IsWord(string word, int offset = 0) => IsWordAt(word, offset);
+    private bool IsWordAt(string word, int offset) => Peek(offset).Kind == TokenKind.Word && Peek(offset).Text.Equals(word, StringComparison.OrdinalIgnoreCase);
+
+    private void ExpectWord(string word, string code, string message)
+    {
+        if (IsWord(word)) Advance();
+        else _diagnostics.Add(new(code, message, Current.Span));
+    }
+
+    private void ConsumeThen(string code, string message)
+    {
+        if (Current.Kind == TokenKind.Comma) Advance();
+        SkipNewLines();
+        ExpectWord("THEN", code, message);
+        SkipNewLines();
+    }
+
+    private void SkipStatementSeparators()
+    {
+        while (Current.Kind is TokenKind.NewLine or TokenKind.Semicolon or TokenKind.Period) Advance();
+    }
+
+    private void SkipNewLines()
+    {
+        while (Current.Kind == TokenKind.NewLine) Advance();
+    }
+
+    private void SkipToBoundary()
+    {
+        while (Current.Kind is not TokenKind.End and not TokenKind.NewLine and not TokenKind.Semicolon and not TokenKind.Period and not TokenKind.RightBrace) Advance();
+    }
+
     private SyntaxToken Current => Peek(0);
     private SyntaxToken Previous => Peek(-1);
-    private SyntaxToken Peek(int offset) { int index = Math.Clamp(_position + offset, 0, _tokens.Count - 1); return _tokens[index]; }
-    private SyntaxToken Advance() { SyntaxToken token = Current; if (_position < _tokens.Count - 1) _position++; return token; }
+    private SyntaxToken Peek(int offset)
+    {
+        int index = Math.Clamp(_position + offset, 0, _tokens.Count - 1);
+        return _tokens[index];
+    }
+
+    private SyntaxToken Advance()
+    {
+        SyntaxToken token = Current;
+        if (_position < _tokens.Count - 1) _position++;
+        return token;
+    }
 }

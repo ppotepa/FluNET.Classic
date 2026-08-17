@@ -3,7 +3,25 @@ using System.Text;
 
 namespace FluNET.Classic.Syntax;
 
-public enum TokenKind { Word, Variable, Reference, String, Number, Operator, LeftParen, RightParen, LeftBrace, RightBrace, NewLine, Semicolon, End }
+public enum TokenKind
+{
+    Word,
+    Variable,
+    Reference,
+    String,
+    Number,
+    Operator,
+    LeftParen,
+    RightParen,
+    LeftBrace,
+    RightBrace,
+    Comma,
+    Period,
+    NewLine,
+    Semicolon,
+    End
+}
+
 public sealed record SyntaxToken(TokenKind Kind, string Text, object? Value, TextSpan Span);
 
 public sealed class ClassicLexer
@@ -19,6 +37,8 @@ public sealed class ClassicLexer
             if (ch is ' ' or '\t' or '\r') { i++; continue; }
             if (ch == '\n') { tokens.Add(new(TokenKind.NewLine, "\n", null, new(i++, 1))); continue; }
             if (ch == ';') { tokens.Add(new(TokenKind.Semicolon, ";", null, new(i++, 1))); continue; }
+            if (ch == ',') { tokens.Add(new(TokenKind.Comma, ",", null, new(i++, 1))); continue; }
+            if (ch == '.') { tokens.Add(new(TokenKind.Period, ".", null, new(i++, 1))); continue; }
             if (ch == '(') { tokens.Add(new(TokenKind.LeftParen, "(", null, new(i++, 1))); continue; }
             if (ch == ')') { tokens.Add(new(TokenKind.RightParen, ")", null, new(i++, 1))); continue; }
             if (ch == '}') { tokens.Add(new(TokenKind.RightBrace, "}", null, new(i++, 1))); continue; }
@@ -53,12 +73,33 @@ public sealed class ClassicLexer
                 var sb = new StringBuilder();
                 while (i < source.Length && source[i] != quote)
                 {
-                    if (source[i] == '\\' && i + 1 < source.Length) { i++; sb.Append(source[i++] switch { 'n' => '\n', 'r' => '\r', 't' => '\t', var c => c }); }
+                    if (source[i] == '\\' && i + 1 < source.Length)
+                    {
+                        i++;
+                        sb.Append(source[i++] switch { 'n' => '\n', 'r' => '\r', 't' => '\t', var c => c });
+                    }
                     else sb.Append(source[i++]);
                 }
                 if (i < source.Length && source[i] == quote) i++;
                 tokens.Add(new(TokenKind.String, source[start..i], sb.ToString(), new(start, i - start)));
                 continue;
+            }
+            if (char.IsDigit(ch))
+            {
+                int start = i;
+                while (i < source.Length && char.IsDigit(source[i])) i++;
+                if (i < source.Length && source[i] == '.' && i + 1 < source.Length && char.IsDigit(source[i + 1]))
+                {
+                    i++;
+                    while (i < source.Length && char.IsDigit(source[i])) i++;
+                }
+                string numberText = source[start..i];
+                if (decimal.TryParse(numberText, NumberStyles.Number, CultureInfo.InvariantCulture, out decimal number))
+                {
+                    tokens.Add(new(TokenKind.Number, numberText, number, new(start, i - start)));
+                    continue;
+                }
+                i = start;
             }
             if (IsOperatorStart(ch))
             {
@@ -68,15 +109,18 @@ public sealed class ClassicLexer
                 tokens.Add(new(TokenKind.Operator, op, op, new(start, i - start)));
                 continue;
             }
+
             int wordStart = i;
-            while (i < source.Length && !char.IsWhiteSpace(source[i]) && source[i] is not ';' and not '(' and not ')' and not '{' and not '}' and not '[' and not ']' and not '"' and not '\'' && !IsOperatorStart(source[i])) i++;
+            while (i < source.Length && !char.IsWhiteSpace(source[i]) &&
+                   source[i] is not ';' and not ',' and not '.' and not '(' and not ')' and not '{' and not '}' and not '[' and not ']' and not '"' and not '\'' &&
+                   !IsOperatorStart(source[i])) i++;
             string word = source[wordStart..i];
             if (word.Length == 0) { i++; continue; }
-            if (decimal.TryParse(word, NumberStyles.Number, CultureInfo.InvariantCulture, out decimal number)) tokens.Add(new(TokenKind.Number, word, number, new(wordStart, i - wordStart)));
-            else tokens.Add(new(TokenKind.Word, word, word, new(wordStart, i - wordStart)));
+            tokens.Add(new(TokenKind.Word, word, word, new(wordStart, i - wordStart)));
         }
         tokens.Add(new(TokenKind.End, string.Empty, null, new(source.Length, 0)));
         return tokens;
     }
+
     private static bool IsOperatorStart(char ch) => ch is '=' or '!' or '>' or '<';
 }

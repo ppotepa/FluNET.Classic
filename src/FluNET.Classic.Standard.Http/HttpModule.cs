@@ -5,6 +5,8 @@ using FluNET.Classic.Core;
 
 namespace FluNET.Classic.Standard.Http;
 
+public enum HttpJsonRepresentation { JSON }
+
 public interface IEmailSender
 {
     ValueTask SendAsync(string to, string message, CancellationToken cancellationToken = default);
@@ -17,10 +19,10 @@ public sealed class HttpModule : LanguageModule
 }
 
 [Qualifier("JSON")]
-public sealed class GetJsonHttp : Get<JsonNode, Uri>
+public sealed class GetJsonHttp : Get<JsonNode, Uri>, IAs<HttpJsonRepresentation>
 {
     private readonly HttpClient _client;
-    public GetJsonHttp([What] JsonNode what, [From] Uri from, [FromServices] HttpClient client) : base(what, from) => _client = client;
+    public GetJsonHttp([What] JsonNode what, [From, RoleAlias("AT")] Uri from, [As] HttpJsonRepresentation @as = HttpJsonRepresentation.JSON, [FromServices] HttpClient client = null!) : base(what, from) => _client = client;
     protected override async ValueTask<JsonNode> ActAsync(Uri from, CancellationToken cancellationToken)
     {
         string text = await _client.GetStringAsync(from, cancellationToken).ConfigureAwait(false);

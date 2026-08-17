@@ -11,7 +11,8 @@ public sealed class ClassicLanguageService(LanguageSnapshot language)
         var items = new List<CompletionItem>();
         items.AddRange(language.Verbs.Where(x => x.Name.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)).Select(x => new CompletionItem(x.Name, "verb", $"{x.Implementations.Count} overload(s)")));
         items.AddRange(language.Qualifiers.Where(x => x.Name.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)).Select(x => new CompletionItem(x.Name, "qualifier", x.TargetType?.Name)));
-        items.AddRange(language.Verbs.SelectMany(v => v.Implementations).SelectMany(i => i.Patterns).SelectMany(p => p.Roles).Select(r => r.Name).Distinct(StringComparer.OrdinalIgnoreCase).Where(x => x.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)).Select(x => new CompletionItem(x, "role")));
+        items.AddRange(language.Verbs.SelectMany(v => v.Implementations).SelectMany(i => i.Patterns).SelectMany(p => p.Roles).SelectMany(r => r.AllSurfaceNames).Distinct(StringComparer.OrdinalIgnoreCase).Where(x => x.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)).Select(x => new CompletionItem(x, "role")));
+        items.AddRange(new[] { "INTO", "IF", "WHERE", "THEN", "AND THEN" }.Where(x => x.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)).Select(x => new CompletionItem(x, "syntax")));
         return items.OrderBy(x => x.Label, StringComparer.OrdinalIgnoreCase).ToArray();
     }
 
@@ -19,6 +20,7 @@ public sealed class ClassicLanguageService(LanguageSnapshot language)
     {
         if (language.TryGetVerb(token, out VerbDescriptor verb)) return new(verb.Name, $"{verb.Implementations.Count} overload(s): {string.Join("; ", verb.Implementations.Select(x => x.ResultType.Name).Distinct())}");
         if (language.TryGetQualifier(token, out QualifierDescriptor qualifier)) return new(qualifier.Name, qualifier.TargetType?.FullName ?? "behavior qualifier");
+        if (token.Equals("INTO", StringComparison.OrdinalIgnoreCase)) return new("INTO", "Binds the result of the sentence or pipeline stage to a [variable].");
         return null;
     }
 }

@@ -16,11 +16,13 @@ public sealed class BoundExecutor
 {
     private readonly IServiceProvider? _services;
     private readonly ValueConversionRegistry _conversions;
+    private readonly PredicateRegistry _predicates;
     private readonly ICapabilityPolicy _capabilities;
 
-    public BoundExecutor(ValueConversionRegistry conversions, ICapabilityPolicy capabilities, IServiceProvider? services = null)
+    public BoundExecutor(ValueConversionRegistry conversions, PredicateRegistry predicates, ICapabilityPolicy capabilities, IServiceProvider? services = null)
     {
         _conversions = conversions;
+        _predicates = predicates;
         _capabilities = capabilities;
         _services = services;
     }
@@ -54,6 +56,7 @@ public sealed class BoundExecutor
                     ct.ThrowIfCancellationRequested();
                     if (stage is BoundSentence sentence) await ExecuteSentence(sentence, state, ct).ConfigureAwait(false);
                     else if (stage is BoundFilter filter) ExecuteFilter(filter, state);
+                    else if (stage is BoundCheck check) ExecuteCheck(check, state);
                 }
                 break;
             case BoundIf conditional:
@@ -153,14 +156,30 @@ public sealed class BoundExecutor
         if (filter.ResultAlias is { Length: > 0 } alias) state.SetVariable(alias, result);
     }
 
+    private void ExecuteCheck(BoundCheck check, RuntimeState state)
+    {
+        bool result = Convert.ToBoolean(EvaluateExpression(check.Condition, state, null), CultureInfo.InvariantCulture);
+        state.PipelineValue = result;
+        if (check.ResultAlias is { Length: > 0 } alias) state.SetVariable(alias, result);
+    }
+
     private object? EvaluateExpression(BoundExpression expression, RuntimeState state, object? item) => expression switch
     {
         BoundValueExpression value => Materialize(value.Value, state),
         BoundItemPropertyExpression property => item is null ? null : property.Accessor(item),
         BoundUnaryExpression unary => unary.Operator == "NOT" ? !Convert.ToBoolean(EvaluateExpression(unary.Operand, state, item), CultureInfo.InvariantCulture) : EvaluateExpression(unary.Operand, state, item),
+        BoundPredicateExpression predicate => EvaluatePredicate(predicate, state, item),
         BoundBinaryExpression binary => EvaluateBinary(binary.Operator, EvaluateExpression(binary.Left, state, item), EvaluateExpression(binary.Right, state, item)),
         _ => null
     };
+
+    private bool EvaluatePredicate(BoundPredicateExpression predicate, RuntimeState state, object? item)
+    {
+        if (predicate.Predicate.Equals("EXISTS", StringComparison.OrdinalIgnoreCase) && typeof(FileSystemInfo).IsAssignableFrom(predicate.Operand.Type) && !_capabilities.IsAllowed(StandardCapabilities.FileSystemRead))
+            throw new UnauthorizedAccessException($"Capability '{StandardCapabilities.FileSystemRead}' is required by EXISTS.");
+        object? value = EvaluateExpression(predicate.Operand, state, item);
+        return _predicates.Evaluate(predicate.Predicate, value, new PredicateContext(_services));
+    }
 
     private static object EvaluateBinary(string op, object? left, object? right)
     {
