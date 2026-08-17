@@ -101,28 +101,32 @@ public sealed class SemanticBinder
         var thenScope = new SymbolScope(symbols);
         BoundBlock thenBlock = BindBlock(node.Then, thenScope);
         BoundBlock? elseBlock = null;
+        IReadOnlyList<BoundFlowVariable> promoted = Array.Empty<BoundFlowVariable>();
         if (node.Else is not null)
         {
             var elseScope = new SymbolScope(symbols);
             elseBlock = BindBlock(node.Else, elseScope);
-            MergeBranchSymbols(symbols, thenScope, elseScope, node.Span);
+            promoted = MergeBranchSymbols(symbols, thenScope, elseScope, node.Span);
         }
 
-        return new(condition, thenBlock, elseBlock, node.Span);
+        return new(condition, thenBlock, elseBlock, promoted, node.Span);
     }
 
-    private void MergeBranchSymbols(SymbolScope parent, SymbolScope thenScope, SymbolScope elseScope, TextSpan span)
+    private IReadOnlyList<BoundFlowVariable> MergeBranchSymbols(SymbolScope parent, SymbolScope thenScope, SymbolScope elseScope, TextSpan span)
     {
+        var promoted = new List<BoundFlowVariable>();
         foreach ((string name, Type thenType) in thenScope.LocalSymbols)
         {
             if (!elseScope.TryGetLocal(name, out Type elseType)) continue;
             if (TryCommonBranchType(thenType, elseType, out Type commonType))
             {
                 parent.Define(name, commonType);
+                promoted.Add(new(name, commonType));
                 continue;
             }
             _diagnostics.Add(new("FLU-BIND-132", $"Variable '[{name}]' has incompatible branch types {Friendly(thenType)} and {Friendly(elseType)}.", span, new[] { Friendly(thenType), Friendly(elseType) }));
         }
+        return promoted;
     }
 
     private static bool TryCommonBranchType(Type left, Type right, out Type common)
