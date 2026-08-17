@@ -35,6 +35,11 @@ public sealed class ClassicLexer
         {
             char ch = source[i];
             if (ch is ' ' or '\t' or '\r') { i++; continue; }
+            if (ch == '#')
+            {
+                while (i < source.Length && source[i] != '\n') i++;
+                continue;
+            }
             if (ch == '\n') { tokens.Add(new(TokenKind.NewLine, "\n", null, new(i++, 1))); continue; }
             if (ch == ';') { tokens.Add(new(TokenKind.Semicolon, ";", null, new(i++, 1))); continue; }
             if (ch == ',') { tokens.Add(new(TokenKind.Comma, ",", null, new(i++, 1))); continue; }
@@ -76,7 +81,7 @@ public sealed class ClassicLexer
                     if (source[i] == '\\' && i + 1 < source.Length)
                     {
                         i++;
-                        sb.Append(source[i++] switch { 'n' => '\n', 'r' => '\r', 't' => '\t', var c => c });
+                        sb.Append(source[i++] switch { 'n' => '\n', 'r' => '\r', 't' => '\t', '\\' => '\\', '"' => '"', '\'' => '\'', var c => c });
                     }
                     else sb.Append(source[i++]);
                 }
@@ -112,7 +117,7 @@ public sealed class ClassicLexer
 
             int wordStart = i;
             while (i < source.Length && !char.IsWhiteSpace(source[i]) &&
-                   source[i] is not ';' and not ',' and not '.' and not '(' and not ')' and not '{' and not '}' and not '[' and not ']' and not '"' and not '\'' &&
+                   source[i] is not ';' and not ',' and not '.' and not '(' and not ')' and not '{' and not '}' and not '[' and not ']' and not '"' and not '\'' and not '#' &&
                    !IsOperatorStart(source[i])) i++;
             string word = source[wordStart..i];
             if (word.Length == 0) { i++; continue; }

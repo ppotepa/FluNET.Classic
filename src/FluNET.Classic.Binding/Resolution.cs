@@ -28,16 +28,22 @@ public interface IValueResolver<T> : IValueResolver
 
 public sealed class ValueResolverRegistry
 {
-    private readonly Dictionary<Type, IValueResolver> _resolvers = new();
+    private readonly Dictionary<Type, List<ResolverEntry>> _resolvers = new();
 
-    public void Register<T>(IValueResolver<T> resolver) => _resolvers[typeof(T)] = resolver;
+    public void Register<T>(IValueResolver<T> resolver, int priority = 0)
+    {
+        ArgumentNullException.ThrowIfNull(resolver);
+        Type type = typeof(T);
+        if (!_resolvers.TryGetValue(type, out List<ResolverEntry>? entries)) _resolvers[type] = entries = [];
+        entries.RemoveAll(x => ReferenceEquals(x.Resolver, resolver));
+        entries.Add(new(resolver, priority));
+        entries.Sort((a, b) => b.Priority.CompareTo(a.Priority));
+    }
 
     public bool TryResolve(string source, Type targetType, ResolutionContext context, out object? value)
     {
         Type effective = Nullable.GetUnderlyingType(targetType) ?? targetType;
-        if (_resolvers.TryGetValue(targetType, out IValueResolver? resolver) || _resolvers.TryGetValue(effective, out resolver))
-            return resolver.TryResolve(source, context, out value);
-
+        if (TryRegistered(source, targetType, context, out value) || (effective != targetType && TryRegistered(source, effective, context, out value))) return true;
         if (TryResolveCollection(source, targetType, context, out value)) return true;
         if (effective == typeof(string)) { value = source; return true; }
         if (effective == typeof(FileInfo)) { value = new FileInfo(source); return true; }
@@ -60,6 +66,17 @@ public sealed class ValueResolverRegistry
             catch { }
         }
 
+        value = null;
+        return false;
+    }
+
+    private bool TryRegistered(string source, Type targetType, ResolutionContext context, out object? value)
+    {
+        if (_resolvers.TryGetValue(targetType, out List<ResolverEntry>? entries))
+        {
+            foreach (ResolverEntry entry in entries)
+                if (entry.Resolver.TryResolve(source, context with { ExpectedType = targetType }, out value)) return true;
+        }
         value = null;
         return false;
     }
@@ -111,4 +128,6 @@ public sealed class ValueResolverRegistry
         value = null;
         return false;
     }
+
+    private sealed record ResolverEntry(IValueResolver Resolver, int Priority);
 }

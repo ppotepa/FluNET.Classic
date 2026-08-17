@@ -35,6 +35,7 @@ public sealed class InAttribute : RoleAttribute { public InAttribute() : base("I
 public sealed class AtAttribute : RoleAttribute { public AtAttribute() : base("AT") { } }
 public sealed class ForAttribute : RoleAttribute { public ForAttribute() : base("FOR") { } }
 public sealed class UntilAttribute : RoleAttribute { public UntilAttribute() : base("UNTIL") { } }
+public sealed class ByAttribute : RoleAttribute { public ByAttribute() : base("BY") { } }
 public sealed class ThenAttribute : RoleAttribute { public ThenAttribute() : base("THEN") { } }
 
 [AttributeUsage(AttributeTargets.Parameter, Inherited = false, AllowMultiple = true)]

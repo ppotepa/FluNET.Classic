@@ -13,11 +13,12 @@ public interface IIn<out TValue> : IRole<TValue> { }
 public interface IAt<out TValue> : IRole<TValue> { }
 public interface IFor<out TValue> : IRole<TValue> { }
 public interface IUntil<out TValue> : IRole<TValue> { }
+public interface IBy<out TValue> : IRole<TValue> { }
 public interface IThen<out TValue> : IRole<TValue> { }
 
 public enum RoleDirection { Input, Output, InputOutput }
 public enum RoleCardinality { One, ZeroOrOne, OneOrMore, ZeroOrMore }
-public enum ExecutionTrait { Pure, Idempotent, Retryable, Transactional, LongRunning, SideEffecting, NonDeterministic }
+public enum ExecutionTrait { Pure, Idempotent, Retryable, Transactional, LongRunning, SideEffecting, NonDeterministic, Streaming }
 
 public interface IVerb { }
 public interface IVerb<TResult> : IVerb { ValueTask<TResult> ExecuteAsync(VerbExecutionContext context, CancellationToken cancellationToken = default); }
@@ -49,6 +50,10 @@ public interface IPipelineConsumer<in TValue> { }
 public interface IExistenceState { bool Exists { get; } }
 public interface IOkState { bool IsOk { get; } }
 public interface IValidState { bool IsValid { get; } }
+public interface ISensitiveValue
+{
+    string RedactedText { get; }
+}
 
 public sealed record VerbExecutionContext(IServiceProvider? Services, IReadOnlyDictionary<string, object?> Variables, object? PipelineValue);
 
@@ -57,6 +62,9 @@ public static class StandardCapabilities
     public const string FileSystemRead = "filesystem.read";
     public const string FileSystemWrite = "filesystem.write";
     public const string Network = "network";
+    public const string NetworkHttp = "network.http";
+    public const string NetworkDns = "network.dns";
+    public const string NetworkConnect = "network.connect";
     public const string EmailSend = "email.send";
     public const string ProcessExecute = "process.execute";
     public const string ProcessInspect = "process.inspect";
@@ -64,13 +72,34 @@ public static class StandardCapabilities
     public const string EnvironmentRead = "os.environment.read";
     public const string EnvironmentWrite = "os.environment.write";
     public const string SystemRead = "os.system.read";
+    public const string StorageRead = "storage.read";
+    public const string StorageWrite = "storage.write";
+    public const string CacheRead = "cache.read";
+    public const string CacheWrite = "cache.write";
+    public const string ArchiveRead = "archive.read";
+    public const string ArchiveWrite = "archive.write";
+    public const string Crypto = "crypto";
+    public const string SecretsRead = "secrets.read";
+    public const string SecretsWrite = "secrets.write";
+    public const string IdentityRead = "identity.read";
+    public const string SqlRead = "sql.read";
+    public const string SqlWrite = "sql.write";
 }
 
 public interface ICapabilityPolicy { bool IsAllowed(string capability); }
-public sealed class AllowAllCapabilityPolicy : ICapabilityPolicy { public bool IsAllowed(string capability) => true; }
-public sealed class CapabilitySetPolicy : ICapabilityPolicy
+public interface IScopedCapabilityPolicy : ICapabilityPolicy
+{
+    bool IsAllowed(string capability, object? resource);
+}
+public sealed class AllowAllCapabilityPolicy : IScopedCapabilityPolicy
+{
+    public bool IsAllowed(string capability) => true;
+    public bool IsAllowed(string capability, object? resource) => true;
+}
+public sealed class CapabilitySetPolicy : IScopedCapabilityPolicy
 {
     private readonly HashSet<string> _allowed;
     public CapabilitySetPolicy(IEnumerable<string> allowed) => _allowed = new(allowed ?? Array.Empty<string>(), StringComparer.OrdinalIgnoreCase);
     public bool IsAllowed(string capability) => _allowed.Contains(capability);
+    public bool IsAllowed(string capability, object? resource) => IsAllowed(capability);
 }
