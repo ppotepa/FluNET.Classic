@@ -13,7 +13,8 @@ public sealed record BoundSentence(VerbDescriptor Verb, VerbImplementationDescri
 public sealed record BoundFilter(BoundValue Source, BoundExpression Predicate, Type ElementType, string? ResultAlias, TextSpan Span) : BoundStage(ElementType.MakeArrayType(), Span);
 public sealed record BoundCheck(BoundExpression Condition, string? ResultAlias, TextSpan Span) : BoundStage(typeof(bool), Span);
 public sealed record BoundCollection(string Operation, BoundValue Source, Type ElementType, BoundExpression? Argument, string? ResultAlias, Type CollectionResultType, TextSpan Span) : BoundStage(CollectionResultType, Span);
-public sealed record BoundIf(BoundExpression Condition, BoundBlock Then, BoundBlock? Else, TextSpan Span) : BoundStatement(Span);
+public sealed record BoundFlowVariable(string Name, Type Type);
+public sealed record BoundIf(BoundExpression Condition, BoundBlock Then, BoundBlock? Else, IReadOnlyList<BoundFlowVariable> PromotedVariables, TextSpan Span) : BoundStatement(Span);
 public sealed record BoundForEach(string Variable, BoundValue Source, Type ElementType, BoundBlock Body, TextSpan Span) : BoundStatement(Span);
 public sealed record BoundRole(RoleSlotDescriptor Slot, IReadOnlyList<BoundValue> Values, TextSpan Span);
 public abstract record BoundValue(Type Type, TextSpan Span);
