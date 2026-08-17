@@ -50,6 +50,32 @@ public class OperatorDescriptorTests
     }
 
     [Test]
+    public void Formatter_uses_module_operator_precedence_from_snapshot()
+    {
+        var options = new FluNetOptions();
+        options.Modules.Add(new TestOperatorModule());
+        using ServiceProvider host = FluNetHost.Create(options);
+        ClassicEngine engine = host.GetRequiredService<ClassicEngine>();
+
+        string formatted = engine.Format("CHECK IF false OR \"alpha\" SAME AS \"alpha\" INTO [same]");
+
+        Assert.That(formatted, Is.EqualTo("CHECK IF false OR \"alpha\" SAME AS \"alpha\" INTO [same]."));
+    }
+
+    [Test]
+    public void Formatter_uses_module_predicate_syntax_from_snapshot()
+    {
+        var options = new FluNetOptions();
+        options.Modules.Add(new TestOperatorModule());
+        using ServiceProvider host = FluNetHost.Create(options);
+        ClassicEngine engine = host.GetRequiredService<ClassicEngine>();
+
+        string formatted = engine.Format("CHECK IF [value] PRESENT INTO [ok]");
+
+        Assert.That(formatted, Is.EqualTo("CHECK IF [value] PRESENT INTO [ok]."));
+    }
+
+    [Test]
     public async Task Between_keeps_descriptor_identity_and_runtime_semantics()
     {
         using ServiceProvider host = FluNetHost.Create();
@@ -74,6 +100,10 @@ public class OperatorDescriptorTests
                 4,
                 Compatibility: OperatorCompatibilityRule.ComparablePair,
                 Evaluation: OperatorEvaluationKind.Equal)
+        };
+        public override IReadOnlyCollection<PredicateDescriptor> Predicates => new[]
+        {
+            new PredicateDescriptor("predicate:test:present", "PRESENT", PredicateSyntaxKind.Postfix)
         };
     }
 }
