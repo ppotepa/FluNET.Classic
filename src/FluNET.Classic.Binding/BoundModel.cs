@@ -51,13 +51,19 @@ public sealed record BoundConversionValue(BoundValue Source, Type TargetType, Co
 public abstract record BoundExpression(Type Type, TextSpan Span);
 public sealed record BoundValueExpression(BoundValue Value, TextSpan Span) : BoundExpression(Value.Type, Span);
 public sealed record BoundItemPropertyExpression(string Property, Type PropertyType, Func<object, object?> Accessor, TextSpan Span) : BoundExpression(PropertyType, Span);
-public sealed record BoundUnaryExpression(string Operator, BoundExpression Operand, Type ResultType, TextSpan Span) : BoundExpression(ResultType, Span);
+public sealed record BoundUnaryExpression(OperatorDescriptor Descriptor, BoundExpression Operand, TextSpan Span) : BoundExpression(Descriptor.EffectiveResultType, Span)
+{
+    public string Operator => Descriptor.Name;
+}
 public sealed record BoundPredicateExpression(PredicateDescriptor Descriptor, BoundExpression Operand, TextSpan Span) : BoundExpression(typeof(bool), Span)
 {
     public string Predicate => Descriptor.Name;
 }
-public sealed record BoundBinaryExpression(BoundExpression Left, OperatorDescriptor Descriptor, BoundExpression Right, Type ResultType, TextSpan Span) : BoundExpression(ResultType, Span)
+public sealed record BoundBinaryExpression(BoundExpression Left, OperatorDescriptor Descriptor, BoundExpression Right, TextSpan Span) : BoundExpression(Descriptor.EffectiveResultType, Span)
 {
     public string Operator => Descriptor.Name;
 }
-public sealed record BoundBetweenExpression(BoundExpression Operand, BoundExpression Lower, BoundExpression Upper, TextSpan Span) : BoundExpression(typeof(bool), Span);
+public sealed record BoundBetweenExpression(OperatorDescriptor Descriptor, BoundExpression Operand, BoundExpression Lower, BoundExpression Upper, TextSpan Span) : BoundExpression(Descriptor.EffectiveResultType, Span)
+{
+    public string Operator => Descriptor.Name;
+}
