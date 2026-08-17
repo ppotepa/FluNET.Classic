@@ -166,7 +166,11 @@ public sealed class BoundExecutor
     }
     private object Sort(List<object?> items, BoundCollection operation, RuntimeState state)
     {
-        items.Sort((a, b) => Compare(EvaluateExpression(operation.Argument!, state, a), EvaluateExpression(operation.Argument!, state, b)));
+        CollectionSortDirection direction = operation.Strategy is null
+            ? CollectionSortDirection.ASCENDING
+            : (CollectionSortDirection)(Materialize(operation.Strategy, state) ?? CollectionSortDirection.ASCENDING);
+        int multiplier = direction == CollectionSortDirection.DESCENDING ? -1 : 1;
+        items.Sort((a, b) => multiplier * Compare(EvaluateExpression(operation.Argument!, state, a), EvaluateExpression(operation.Argument!, state, b)));
         return ToTypedArray(operation.ElementType, items);
     }
     private object Distinct(List<object?> items, BoundCollection operation, RuntimeState state)
