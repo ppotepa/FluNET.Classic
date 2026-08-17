@@ -26,7 +26,8 @@ public sealed record PredicateDescriptor(
     IReadOnlyList<string>? Aliases = null,
     IReadOnlyList<Type>? OperandTypes = null,
     IReadOnlyList<PredicateCapabilityRequirement>? Capabilities = null,
-    Type? ReferenceOperandType = null)
+    Type? ReferenceOperandType = null,
+    int Precedence = 7)
 {
     public IReadOnlyList<string> AllSurfaceNames => new[] { Name }
         .Concat(Aliases ?? Array.Empty<string>())
@@ -83,7 +84,6 @@ public enum OperatorSemanticKind
     Between
 }
 
-/// <summary>Describes the operand relationship required by an operator independently of its spelling.</summary>
 public enum OperatorCompatibilityRule
 {
     Any,
@@ -97,7 +97,6 @@ public enum OperatorCompatibilityRule
     TemporalPair
 }
 
-/// <summary>Canonical runtime operation represented by a surface operator or alias.</summary>
 public enum OperatorEvaluationKind
 {
     Custom,
