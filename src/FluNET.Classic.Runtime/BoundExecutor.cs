@@ -182,14 +182,25 @@ public sealed class BoundExecutor
     }
     private object Group(List<object?> items, BoundCollection operation, RuntimeState state)
     {
+        if (operation.Argument is null) throw new InvalidOperationException("GROUP requires a typed BY selector.");
         var groups = new List<(object? Key, List<object?> Items)>();
         foreach (object? item in items)
         {
-            object? key = EvaluateExpression(operation.Argument!, state, item);
+            object? key = EvaluateExpression(operation.Argument, state, item);
             int index = groups.FindIndex(group => EqualsNormalized(group.Key, key));
             if (index < 0) groups.Add((key, new List<object?> { item })); else groups[index].Items.Add(item);
         }
-        return groups.Select(group => new CollectionGroup(group.Key, ToTypedArray(operation.ElementType, group.Items))).ToArray();
+
+        Type groupType = typeof(CollectionGroup<,>).MakeGenericType(operation.Argument.Type, operation.ElementType);
+        Array result = Array.CreateInstance(groupType, groups.Count);
+        for (int index = 0; index < groups.Count; index++)
+        {
+            Array typedItems = ToTypedArray(operation.ElementType, groups[index].Items);
+            object group = Activator.CreateInstance(groupType, groups[index].Key, typedItems)
+                ?? throw new InvalidOperationException($"Could not construct typed group '{groupType.Name}'.");
+            result.SetValue(group, index);
+        }
+        return result;
     }
     private static RuntimeState SnapshotState(RuntimeState state)
     {
