@@ -83,6 +83,43 @@ public enum OperatorSemanticKind
     Between
 }
 
+/// <summary>Describes the operand relationship required by an operator independently of its spelling.</summary>
+public enum OperatorCompatibilityRule
+{
+    Any,
+    BooleanOperand,
+    BooleanPair,
+    ComparablePair,
+    OrderedPair,
+    ContainerContainsValue,
+    ValueInContainer,
+    StringPair,
+    TemporalPair
+}
+
+/// <summary>Canonical runtime operation represented by a surface operator or alias.</summary>
+public enum OperatorEvaluationKind
+{
+    Custom,
+    LogicalNot,
+    LogicalAnd,
+    LogicalOr,
+    Equal,
+    NotEqual,
+    GreaterThan,
+    LessThan,
+    GreaterThanOrEqual,
+    LessThanOrEqual,
+    Contains,
+    StartsWith,
+    EndsWith,
+    RegexMatch,
+    Membership,
+    Before,
+    After,
+    Between
+}
+
 public sealed record OperatorDescriptor(
     string StableId,
     string Name,
@@ -90,12 +127,17 @@ public sealed record OperatorDescriptor(
     OperatorArity Arity = OperatorArity.Binary,
     OperatorAssociativity Associativity = OperatorAssociativity.Left,
     IReadOnlyList<string>? Aliases = null,
-    OperatorSemanticKind Semantic = OperatorSemanticKind.Custom)
+    OperatorSemanticKind Semantic = OperatorSemanticKind.Custom,
+    OperatorCompatibilityRule Compatibility = OperatorCompatibilityRule.Any,
+    OperatorEvaluationKind Evaluation = OperatorEvaluationKind.Custom,
+    Type? ResultType = null)
 {
     public IReadOnlyList<string> AllSurfaceNames => new[] { Name }
         .Concat(Aliases ?? Array.Empty<string>())
         .Distinct(StringComparer.OrdinalIgnoreCase)
         .ToArray();
+
+    public Type EffectiveResultType => ResultType ?? typeof(bool);
 }
 
 public enum IntrinsicSyntaxKind
@@ -126,6 +168,8 @@ public sealed record IntrinsicDescriptor(
         .Concat(Aliases ?? Array.Empty<string>())
         .Distinct(StringComparer.OrdinalIgnoreCase)
         .ToArray();
+
+    public bool AcceptsStrategy => StrategyType is not null;
 }
 
 public static class StandardLanguageSurface
@@ -146,25 +190,25 @@ public static class StandardLanguageSurface
 
     public static IReadOnlyList<OperatorDescriptor> Operators { get; } = new OperatorDescriptor[]
     {
-        new("operator:not", "NOT", 6, OperatorArity.Unary, OperatorAssociativity.Right, Semantic: OperatorSemanticKind.Logical),
-        new("operator:or", "OR", 1, Semantic: OperatorSemanticKind.Logical),
-        new("operator:and", "AND", 2, Semantic: OperatorSemanticKind.Logical),
-        new("operator:contains", "CONTAINS", 3, Semantic: OperatorSemanticKind.Contains),
-        new("operator:starts-with", "STARTS WITH", 3, Semantic: OperatorSemanticKind.StartsWith),
-        new("operator:ends-with", "ENDS WITH", 3, Semantic: OperatorSemanticKind.EndsWith),
-        new("operator:matches", "MATCHES", 3, Semantic: OperatorSemanticKind.RegexMatch),
-        new("operator:in", "IN", 3, Semantic: OperatorSemanticKind.Membership),
-        new("operator:before", "BEFORE", 3, Semantic: OperatorSemanticKind.Temporal),
-        new("operator:after", "AFTER", 3, Semantic: OperatorSemanticKind.Temporal),
-        new("operator:between", "BETWEEN", 3, OperatorArity.Ternary, Semantic: OperatorSemanticKind.Between),
-        new("operator:is-not", "IS NOT", 4, Semantic: OperatorSemanticKind.Equality),
-        new("operator:is", "IS", 4, Semantic: OperatorSemanticKind.Equality),
-        new("operator:eq", "=", 4, Aliases: new[] { "==" }, Semantic: OperatorSemanticKind.Equality),
-        new("operator:neq", "!=", 4, Semantic: OperatorSemanticKind.Equality),
-        new("operator:gte", ">=", 4, Semantic: OperatorSemanticKind.Ordering),
-        new("operator:lte", "<=", 4, Semantic: OperatorSemanticKind.Ordering),
-        new("operator:gt", ">", 4, Semantic: OperatorSemanticKind.Ordering),
-        new("operator:lt", "<", 4, Semantic: OperatorSemanticKind.Ordering)
+        new("operator:not", "NOT", 6, OperatorArity.Unary, OperatorAssociativity.Right, Semantic: OperatorSemanticKind.Logical, Compatibility: OperatorCompatibilityRule.BooleanOperand, Evaluation: OperatorEvaluationKind.LogicalNot),
+        new("operator:or", "OR", 1, Semantic: OperatorSemanticKind.Logical, Compatibility: OperatorCompatibilityRule.BooleanPair, Evaluation: OperatorEvaluationKind.LogicalOr),
+        new("operator:and", "AND", 2, Semantic: OperatorSemanticKind.Logical, Compatibility: OperatorCompatibilityRule.BooleanPair, Evaluation: OperatorEvaluationKind.LogicalAnd),
+        new("operator:contains", "CONTAINS", 3, Semantic: OperatorSemanticKind.Contains, Compatibility: OperatorCompatibilityRule.ContainerContainsValue, Evaluation: OperatorEvaluationKind.Contains),
+        new("operator:starts-with", "STARTS WITH", 3, Semantic: OperatorSemanticKind.StartsWith, Compatibility: OperatorCompatibilityRule.StringPair, Evaluation: OperatorEvaluationKind.StartsWith),
+        new("operator:ends-with", "ENDS WITH", 3, Semantic: OperatorSemanticKind.EndsWith, Compatibility: OperatorCompatibilityRule.StringPair, Evaluation: OperatorEvaluationKind.EndsWith),
+        new("operator:matches", "MATCHES", 3, Semantic: OperatorSemanticKind.RegexMatch, Compatibility: OperatorCompatibilityRule.StringPair, Evaluation: OperatorEvaluationKind.RegexMatch),
+        new("operator:in", "IN", 3, Semantic: OperatorSemanticKind.Membership, Compatibility: OperatorCompatibilityRule.ValueInContainer, Evaluation: OperatorEvaluationKind.Membership),
+        new("operator:before", "BEFORE", 3, Semantic: OperatorSemanticKind.Temporal, Compatibility: OperatorCompatibilityRule.TemporalPair, Evaluation: OperatorEvaluationKind.Before),
+        new("operator:after", "AFTER", 3, Semantic: OperatorSemanticKind.Temporal, Compatibility: OperatorCompatibilityRule.TemporalPair, Evaluation: OperatorEvaluationKind.After),
+        new("operator:between", "BETWEEN", 3, OperatorArity.Ternary, Semantic: OperatorSemanticKind.Between, Compatibility: OperatorCompatibilityRule.OrderedPair, Evaluation: OperatorEvaluationKind.Between),
+        new("operator:is-not", "IS NOT", 4, Semantic: OperatorSemanticKind.Equality, Compatibility: OperatorCompatibilityRule.ComparablePair, Evaluation: OperatorEvaluationKind.NotEqual),
+        new("operator:is", "IS", 4, Semantic: OperatorSemanticKind.Equality, Compatibility: OperatorCompatibilityRule.ComparablePair, Evaluation: OperatorEvaluationKind.Equal),
+        new("operator:eq", "=", 4, Aliases: new[] { "==" }, Semantic: OperatorSemanticKind.Equality, Compatibility: OperatorCompatibilityRule.ComparablePair, Evaluation: OperatorEvaluationKind.Equal),
+        new("operator:neq", "!=", 4, Semantic: OperatorSemanticKind.Equality, Compatibility: OperatorCompatibilityRule.ComparablePair, Evaluation: OperatorEvaluationKind.NotEqual),
+        new("operator:gte", ">=", 4, Semantic: OperatorSemanticKind.Ordering, Compatibility: OperatorCompatibilityRule.OrderedPair, Evaluation: OperatorEvaluationKind.GreaterThanOrEqual),
+        new("operator:lte", "<=", 4, Semantic: OperatorSemanticKind.Ordering, Compatibility: OperatorCompatibilityRule.OrderedPair, Evaluation: OperatorEvaluationKind.LessThanOrEqual),
+        new("operator:gt", ">", 4, Semantic: OperatorSemanticKind.Ordering, Compatibility: OperatorCompatibilityRule.OrderedPair, Evaluation: OperatorEvaluationKind.GreaterThan),
+        new("operator:lt", "<", 4, Semantic: OperatorSemanticKind.Ordering, Compatibility: OperatorCompatibilityRule.OrderedPair, Evaluation: OperatorEvaluationKind.LessThan)
     };
 
     public static IReadOnlySet<string> ReservedWords { get; } = new HashSet<string>(
