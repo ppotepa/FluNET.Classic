@@ -129,7 +129,7 @@ public sealed class ClassicParser
         while (!AtExpressionBoundary(stopWords))
         {
             if (TryParsePredicate(ref left)) continue; if (!TryPeekBinaryOperator(out OperatorDescriptor descriptor, out int tokenCount)) break; int precedence = descriptor.Precedence; if (precedence <= parentPrecedence) break; AdvanceMany(tokenCount); string operatorText = descriptor.Name.ToUpperInvariant();
-            if (descriptor.Arity == OperatorArity.Ternary) { ExpressionNode low = ParseBinary(precedence, stopWords); if (!IsWord("AND")) { _diagnostics.Add(new("FLU-SYN-170", $"{operatorText} requires AND.", Current.Span)); break; } Advance(); ExpressionNode high = ParseBinary(precedence, stopWords); left = new BetweenExpression(left, low, high, TextSpan.FromBounds(left.Span.Start, high.Span.End)); continue; }
+            if (descriptor.Arity == OperatorArity.Ternary) { ExpressionNode low = ParseBinary(precedence, stopWords); if (!IsWord("AND")) { _diagnostics.Add(new("FLU-SYN-170", $"{operatorText} requires AND.", Current.Span)); break; } Advance(); ExpressionNode high = ParseBinary(precedence, stopWords); left = new BetweenExpression(operatorText, left, low, high, TextSpan.FromBounds(left.Span.Start, high.Span.End)); continue; }
             int rightParent = descriptor.Associativity == OperatorAssociativity.Right ? precedence - 1 : precedence; ExpressionNode right = ParseBinary(rightParent, stopWords); left = new BinaryExpression(left, operatorText, right, TextSpan.FromBounds(left.Span.Start, right.Span.End));
         }
         return left;
