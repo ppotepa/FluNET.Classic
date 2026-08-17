@@ -25,15 +25,35 @@ public sealed class ClassicFormatter
     private string FormatCheck(CheckStageNode check) { var sb = new StringBuilder("CHECK IF ").Append(FormatExpression(check.Condition)); if (!string.IsNullOrWhiteSpace(check.ResultAlias)) sb.Append(" INTO [").Append(check.ResultAlias).Append(']'); return sb.ToString(); }
     private string FormatCollection(CollectionStageNode node)
     {
-        var sb = new StringBuilder(node.Operation.ToUpperInvariant());
-        switch (node.Operation.ToUpperInvariant())
+        IntrinsicDescriptor? intrinsic = ResolveIntrinsic(node.Operation);
+        var sb = new StringBuilder(intrinsic?.Name ?? node.Operation.ToUpperInvariant());
+        switch (intrinsic?.Syntax)
         {
-            case "SORT": case "GROUP": if (node.Source is not null) sb.Append(' ').Append(FormatExpression(node.Source)); sb.Append(" BY ").Append(FormatExpression(node.Argument!)); break;
-            case "TAKE": case "SKIP": sb.Append(' ').Append(FormatExpression(node.Argument!)); if (node.Source is not null) sb.Append(" FROM ").Append(FormatExpression(node.Source)); break;
-            case "DISTINCT": if (node.Source is not null) sb.Append(' ').Append(FormatExpression(node.Source)); if (node.Argument is not null) sb.Append(" BY ").Append(FormatExpression(node.Argument)); break;
-            case "COUNT": if (node.Source is not null) sb.Append(' ').Append(FormatExpression(node.Source)); break;
+            case IntrinsicSyntaxKind.CollectionBy:
+                if (node.Source is not null) sb.Append(' ').Append(FormatExpression(node.Source));
+                sb.Append(" BY ").Append(FormatExpression(node.Argument!));
+                break;
+            case IntrinsicSyntaxKind.CollectionAmountFrom:
+                sb.Append(' ').Append(FormatExpression(node.Argument!));
+                if (node.Source is not null) sb.Append(" FROM ").Append(FormatExpression(node.Source));
+                break;
+            case IntrinsicSyntaxKind.CollectionDistinct:
+                if (node.Source is not null) sb.Append(' ').Append(FormatExpression(node.Source));
+                if (node.Argument is not null) sb.Append(" BY ").Append(FormatExpression(node.Argument));
+                break;
+            case IntrinsicSyntaxKind.CollectionSourceOptional:
+                if (node.Source is not null) sb.Append(' ').Append(FormatExpression(node.Source));
+                break;
+            default:
+                if (node.Source is not null) sb.Append(' ').Append(FormatExpression(node.Source));
+                if (node.Argument is not null) sb.Append(' ').Append(FormatExpression(node.Argument));
+                break;
         }
-        if (node.Strategy is not null) sb.Append(" USING ").Append(FormatExpression(node.Strategy));
+        if (node.Strategy is not null)
+        {
+            string strategyRole = intrinsic?.StrategyRole ?? "USING";
+            sb.Append(' ').Append(strategyRole.ToUpperInvariant()).Append(' ').Append(FormatExpression(node.Strategy));
+        }
         if (!string.IsNullOrWhiteSpace(node.ResultAlias)) sb.Append(" INTO [").Append(node.ResultAlias).Append(']'); return sb.ToString();
     }
     private string FormatIf(IfNode conditional) { var sb = new StringBuilder("IF ").Append(FormatExpression(conditional.Condition)).AppendLine(" THEN {"); sb.Append(Indent(FormatBlock(conditional.Then))).AppendLine().Append('}'); if (conditional.Else is not null) { sb.AppendLine(" ELSE {"); sb.Append(Indent(FormatBlock(conditional.Else))).AppendLine().Append('}'); } return sb.ToString(); }
@@ -85,6 +105,11 @@ public sealed class ClassicFormatter
     {
         if (_language is not null && _language.TryGetPredicate(surface, out PredicateDescriptor descriptor)) return descriptor;
         return StandardLanguageSurface.Predicates.FirstOrDefault(x => x.AllSurfaceNames.Contains(surface, StringComparer.OrdinalIgnoreCase));
+    }
+    private IntrinsicDescriptor? ResolveIntrinsic(string surface)
+    {
+        if (_language is not null && _language.TryGetIntrinsic(surface, out IntrinsicDescriptor descriptor)) return descriptor;
+        return null;
     }
     private static string FormatLiteral(object? value) => value switch { null => "null", bool boolean => boolean ? "true" : "false", string text => $"\"{Escape(text)}\"", IFormattable formattable => formattable.ToString(null, CultureInfo.InvariantCulture) ?? string.Empty, _ => value.ToString() ?? string.Empty };
     private static string Escape(string text) => text.Replace("\\", "\\\\", StringComparison.Ordinal).Replace("\"", "\\\"", StringComparison.Ordinal).Replace("\n", "\\n", StringComparison.Ordinal).Replace("\r", "\\r", StringComparison.Ordinal).Replace("\t", "\\t", StringComparison.Ordinal);
