@@ -1,6 +1,0 @@
-@FluNET.TestWebServer_HostAddress = http://localhost:5056
-
-GET {{FluNET.TestWebServer_HostAddress}}/weatherforecast/
-Accept: application/json
-
-###

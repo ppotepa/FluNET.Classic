@@ -7,15 +7,15 @@ on:
 
 jobs:
   build-test:
-    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '8.0.x'
-      - name: Restore
-        run: dotnet restore FluNET.sln
-      - name: Build
-        run: dotnet build FluNET.sln --configuration Release --no-restore
-      - name: Test
-        run: dotnet test FluNET.sln --configuration Release --no-build --verbosity normal
+      - run: dotnet restore FluNET.sln
+      - run: dotnet build FluNET.sln --configuration Release --no-restore
+      - run: dotnet test FluNET.sln --configuration Release --no-build --verbosity normal

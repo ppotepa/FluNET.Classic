@@ -22,15 +22,15 @@ public sealed class QualifierAttribute(string name) : Attribute
 public abstract class RoleAttribute(string name) : Attribute
 {
     public string Name { get; } = name;
-    public RoleDirection? Direction { get; init; }
+    public RoleDirection? Direction { get; set; }
 }
 
-public sealed class WhatAttribute() : RoleAttribute("WHAT");
-public sealed class FromAttribute() : RoleAttribute("FROM");
-public sealed class ToAttribute() : RoleAttribute("TO");
-public sealed class UsingAttribute() : RoleAttribute("USING");
-public sealed class WithAttribute() : RoleAttribute("WITH");
-public sealed class ThenAttribute() : RoleAttribute("THEN");
+public sealed class WhatAttribute : RoleAttribute { public WhatAttribute() : base("WHAT") { } }
+public sealed class FromAttribute : RoleAttribute { public FromAttribute() : base("FROM") { } }
+public sealed class ToAttribute : RoleAttribute { public ToAttribute() : base("TO") { } }
+public sealed class UsingAttribute : RoleAttribute { public UsingAttribute() : base("USING") { } }
+public sealed class WithAttribute : RoleAttribute { public WithAttribute() : base("WITH") { } }
+public sealed class ThenAttribute : RoleAttribute { public ThenAttribute() : base("THEN") { } }
 
 [AttributeUsage(AttributeTargets.Parameter, Inherited = false, AllowMultiple = false)]
 public sealed class RoleDirectionAttribute(RoleDirection direction) : Attribute
@@ -39,7 +39,7 @@ public sealed class RoleDirectionAttribute(RoleDirection direction) : Attribute
 }
 
 [AttributeUsage(AttributeTargets.Parameter, Inherited = false, AllowMultiple = false)]
-public sealed class FromServicesAttribute : Attribute;
+public sealed class FromServicesAttribute : Attribute { }
 
 [AttributeUsage(AttributeTargets.Class, Inherited = true, AllowMultiple = true)]
 public sealed class RequiresCapabilityAttribute(string capability) : Attribute
