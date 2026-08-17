@@ -38,11 +38,13 @@ internal static class AsyncSequenceAdapter
 
     private static object InvokeSequence(MethodInfo method, object source, params object?[] arguments)
     {
-        Type elementType = ElementType(source);
-        object?[] args = new object?[arguments.Length + 1];
+        MethodInfo generic = method.MakeGenericMethod(ElementType(source));
+        ParameterInfo[] parameters = generic.GetParameters();
+        var args = new object?[parameters.Length];
         args[0] = source;
-        Array.Copy(arguments, 0, args, 1, arguments.Length);
-        return method.MakeGenericMethod(elementType).Invoke(null, args)
+        for (int index = 0; index < arguments.Length; index++) args[index + 1] = arguments[index];
+        for (int index = arguments.Length + 1; index < args.Length; index++) args[index] = Type.Missing;
+        return generic.Invoke(null, args)
             ?? throw new InvalidOperationException("Async sequence operator returned null.");
     }
 
