@@ -1,5 +1,11 @@
 namespace FluNET.Classic.Core;
 
+public enum CollectionSortDirection
+{
+    ASCENDING,
+    DESCENDING
+}
+
 /// <summary>Legacy untyped grouping shape retained for compatibility with early 0.x consumers.</summary>
 public sealed record CollectionGroup(object? Key, Array Items)
 {
