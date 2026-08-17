@@ -83,8 +83,34 @@ public sealed class SemanticBinder
     }
     private BoundCollection? BindCollection(CollectionStageNode node, SymbolScope symbols, Type? pipelineType)
     {
-        BoundValue? source = BindCollectionSource(node.Source, symbols, pipelineType, node.Span, node.Operation, "FLU-BIND-160"); if (source is null) return null; Type? element = ClrTypeShape.GetElementType(source.Type); if (element is null) { _diagnostics.Add(new("FLU-BIND-161", $"{node.Operation} requires a collection, got {source.Type.Name}.", node.Span)); return null; }
-        BoundExpression? argument = null; string op = node.Operation.ToUpperInvariant(); if (node.Argument is not null) argument = op is "SORT" or "GROUP" or "DISTINCT" ? BindExpression(node.Argument, symbols, element) : BindExpression(node.Argument, symbols, null); if (op is "TAKE" or "SKIP" && (argument is null || !IsNumeric(argument.Type))) _diagnostics.Add(new("FLU-BIND-162", $"{op} requires a numeric amount.", node.Argument?.Span ?? node.Span)); if (op is "SORT" or "GROUP" && argument is null) _diagnostics.Add(new("FLU-BIND-163", $"{op} requires BY selector.", node.Span)); Type resultType = op switch { "COUNT" => typeof(int), "GROUP" => typeof(CollectionGroup[]), _ => element.MakeArrayType() }; return new(op, source, element, argument, node.ResultAlias, resultType, node.Span);
+        BoundValue? source = BindCollectionSource(node.Source, symbols, pipelineType, node.Span, node.Operation, "FLU-BIND-160"); if (source is null) return null;
+        Type? element = ClrTypeShape.GetElementType(source.Type); if (element is null) { _diagnostics.Add(new("FLU-BIND-161", $"{node.Operation} requires a collection, got {source.Type.Name}.", node.Span)); return null; }
+
+        string op = node.Operation.ToUpperInvariant();
+        BoundExpression? argument = null;
+        if (node.Argument is not null) argument = op is "SORT" or "GROUP" or "DISTINCT" ? BindExpression(node.Argument, symbols, element) : BindExpression(node.Argument, symbols, null);
+        if (op is "TAKE" or "SKIP" && (argument is null || !IsNumeric(argument.Type))) _diagnostics.Add(new("FLU-BIND-162", $"{op} requires a numeric amount.", node.Argument?.Span ?? node.Span));
+        if (op is "SORT" or "GROUP" && argument is null) _diagnostics.Add(new("FLU-BIND-163", $"{op} requires BY selector.", node.Span));
+
+        BoundValue? strategy = null;
+        if (!_language.TryGetIntrinsic(op, out IntrinsicDescriptor intrinsic))
+        {
+            _diagnostics.Add(new("FLU-BIND-164", $"Unknown intrinsic '{op}'.", node.Span));
+        }
+        else if (node.Strategy is not null)
+        {
+            if (intrinsic.StrategyType is null)
+            {
+                _diagnostics.Add(new("FLU-BIND-164", $"Intrinsic '{op}' does not accept {intrinsic.StrategyRole} strategy.", node.Strategy.Span));
+            }
+            else if (!TryBindValue(node.Strategy, intrinsic.StrategyType, RoleDirection.Input, op, null, symbols, out strategy, out _, intrinsic.StrategyRole))
+            {
+                _diagnostics.Add(new("FLU-BIND-165", $"Cannot bind {intrinsic.StrategyRole} strategy for {op} to {Friendly(intrinsic.StrategyType)}.", node.Strategy.Span));
+            }
+        }
+
+        Type resultType = op switch { "COUNT" => typeof(int), "GROUP" => typeof(CollectionGroup[]), _ => element.MakeArrayType() };
+        return new(op, source, element, argument, node.ResultAlias, resultType, node.Span, strategy);
     }
     private BoundValue? BindCollectionSource(ExpressionNode? sourceExpression, SymbolScope symbols, Type? pipelineType, TextSpan span, string operation, string code)
     {
