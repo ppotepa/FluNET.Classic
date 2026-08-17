@@ -30,7 +30,18 @@ public sealed class FromAttribute : RoleAttribute { public FromAttribute() : bas
 public sealed class ToAttribute : RoleAttribute { public ToAttribute() : base("TO") { } }
 public sealed class UsingAttribute : RoleAttribute { public UsingAttribute() : base("USING") { } }
 public sealed class WithAttribute : RoleAttribute { public WithAttribute() : base("WITH") { } }
+public sealed class AsAttribute : RoleAttribute { public AsAttribute() : base("AS") { } }
+public sealed class InAttribute : RoleAttribute { public InAttribute() : base("IN") { } }
+public sealed class AtAttribute : RoleAttribute { public AtAttribute() : base("AT") { } }
+public sealed class ForAttribute : RoleAttribute { public ForAttribute() : base("FOR") { } }
+public sealed class UntilAttribute : RoleAttribute { public UntilAttribute() : base("UNTIL") { } }
 public sealed class ThenAttribute : RoleAttribute { public ThenAttribute() : base("THEN") { } }
+
+[AttributeUsage(AttributeTargets.Parameter, Inherited = false, AllowMultiple = true)]
+public sealed class RoleAliasAttribute(string alias) : Attribute
+{
+    public string Alias { get; } = alias;
+}
 
 [AttributeUsage(AttributeTargets.Parameter, Inherited = false, AllowMultiple = false)]
 public sealed class RoleDirectionAttribute(RoleDirection direction) : Attribute

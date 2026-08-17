@@ -15,6 +15,7 @@ public sealed class FluNetOptions
     public ISet<string>? AllowedCapabilities { get; set; }
     public Action<ValueResolverRegistry>? ConfigureResolvers { get; set; }
     public Action<ValueConversionRegistry>? ConfigureConverters { get; set; }
+    public Action<PredicateRegistry>? ConfigurePredicates { get; set; }
 }
 
 public static class FluNetHostingExtensions
@@ -36,14 +37,16 @@ public static class FluNetHostingExtensions
         services.AddSingleton<ClassicLanguageService>();
         services.AddSingleton(sp => { var registry = new ValueResolverRegistry(); options.ConfigureResolvers?.Invoke(registry); return registry; });
         services.AddSingleton(sp => { var registry = new ValueConversionRegistry(); options.ConfigureConverters?.Invoke(registry); return registry; });
+        services.AddSingleton(sp => { var registry = new PredicateRegistry(); options.ConfigurePredicates?.Invoke(registry); return registry; });
         services.AddSingleton<ICapabilityPolicy>(_ => options.AllowedCapabilities is null ? new AllowAllCapabilityPolicy() : new CapabilitySetPolicy(options.AllowedCapabilities));
         services.AddSingleton(new HttpClient());
         services.AddSingleton<IOutputWriter, ConsoleOutputWriter>();
         services.AddSingleton<IEmailSender, MissingEmailSender>();
         services.AddSingleton<ClassicLexer>();
+        services.AddSingleton<ClassicFormatter>();
         services.AddTransient(sp => new ClassicParser(sp.GetRequiredService<LanguageSnapshot>(), sp.GetRequiredService<ClassicLexer>()));
-        services.AddTransient(sp => new SemanticBinder(sp.GetRequiredService<LanguageSnapshot>(), sp.GetRequiredService<ValueResolverRegistry>(), sp.GetRequiredService<ValueConversionRegistry>(), sp));
-        services.AddTransient(sp => new BoundExecutor(sp.GetRequiredService<ValueConversionRegistry>(), sp.GetRequiredService<ICapabilityPolicy>(), sp));
+        services.AddTransient(sp => new SemanticBinder(sp.GetRequiredService<LanguageSnapshot>(), sp.GetRequiredService<ValueResolverRegistry>(), sp.GetRequiredService<ValueConversionRegistry>(), sp.GetRequiredService<PredicateRegistry>(), sp));
+        services.AddTransient(sp => new BoundExecutor(sp.GetRequiredService<ValueConversionRegistry>(), sp.GetRequiredService<PredicateRegistry>(), sp.GetRequiredService<ICapabilityPolicy>(), sp));
         services.AddTransient<ClassicEngine>();
         return services;
     }

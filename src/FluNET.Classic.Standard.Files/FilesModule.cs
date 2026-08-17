@@ -2,15 +2,23 @@ using FluNET.Classic.Core;
 
 namespace FluNET.Classic.Standard.Files;
 
+public enum TextFileRepresentation { TEXT }
+public enum BinaryFileRepresentation { BINARY }
+
 public sealed class FilesModule : LanguageModule
 {
     public override string Name => "files";
+    public override IReadOnlyCollection<QualifierDescriptor> Qualifiers => new QualifierDescriptor[]
+    {
+        new("qualifier:files", "FILES", typeof(FileInfo[])),
+        new("qualifier:directory", "DIRECTORY", typeof(DirectoryInfo))
+    };
 }
 
 [Qualifier("TEXT")]
-public sealed class GetText : Get<string[], FileInfo>
+public sealed class GetText : Get<string[], FileInfo>, IAs<TextFileRepresentation>
 {
-    public GetText([What] string[] what, [From] FileInfo from) : base(what, from) { }
+    public GetText([What] string[] what, [From] FileInfo from, [As] TextFileRepresentation @as = TextFileRepresentation.TEXT) : base(what, from) { }
     protected override async ValueTask<string[]> ActAsync(FileInfo from, CancellationToken cancellationToken) => await File.ReadAllLinesAsync(from.FullName, cancellationToken).ConfigureAwait(false);
 }
 
@@ -24,6 +32,13 @@ public sealed class GetTextMany : Get<string[], FileInfo[]>
         foreach (FileInfo file in from) lines.AddRange(await File.ReadAllLinesAsync(file.FullName, cancellationToken).ConfigureAwait(false));
         return lines.ToArray();
     }
+}
+
+[Qualifier("BINARY")]
+public sealed class GetBinary : Get<byte[], FileInfo>, IAs<BinaryFileRepresentation>
+{
+    public GetBinary([What] byte[] what, [From] FileInfo from, [As] BinaryFileRepresentation @as = BinaryFileRepresentation.BINARY) : base(what, from) { }
+    protected override async ValueTask<byte[]> ActAsync(FileInfo from, CancellationToken cancellationToken) => await File.ReadAllBytesAsync(from.FullName, cancellationToken).ConfigureAwait(false);
 }
 
 [Qualifier("TEXT")]
@@ -49,10 +64,92 @@ public sealed class SaveLines : Save<string[], FileInfo>
     protected override ValueTask SaveAsync(string[] what, FileInfo to, CancellationToken cancellationToken) => new(File.WriteAllLinesAsync(to.FullName, what, cancellationToken));
 }
 
-[ExecutionTrait(ExecutionTrait.Idempotent)]
-public sealed class DeleteFile : Delete<FileInfo>
+[Qualifier("BINARY")]
+[ExecutionTrait(ExecutionTrait.SideEffecting)]
+public sealed class SaveBinary : Save<byte[], FileInfo>
 {
-    public DeleteFile([From] FileInfo from) : base(from) { }
+    public SaveBinary([What] byte[] what, [To] FileInfo to) : base(what, to) { }
+    protected override ValueTask SaveAsync(byte[] what, FileInfo to, CancellationToken cancellationToken) => new(File.WriteAllBytesAsync(to.FullName, what, cancellationToken));
+}
+
+[Verb("LIST")]
+[Qualifier("FILES")]
+public sealed class ListFiles : IVerb<FileInfo[]>, IListVerb, IIn<DirectoryInfo>, IPipelineProducer<FileInfo[]>
+{
+    private readonly DirectoryInfo _directory;
+    public ListFiles([In, RoleAlias("FROM")] DirectoryInfo directory) => _directory = directory;
+    public ValueTask<FileInfo[]> ExecuteAsync(VerbExecutionContext context, CancellationToken cancellationToken = default) =>
+        ValueTask.FromResult(_directory.Exists ? _directory.GetFiles() : Array.Empty<FileInfo>());
+}
+
+[Verb("CREATE")]
+[Qualifier("FILE")]
+public sealed class CreateFile : IVerb<FileInfo>, ICreate, IAt<FileInfo>, IPipelineProducer<FileInfo>
+{
+    private readonly FileInfo _file;
+    public CreateFile([At] FileInfo file) => _file = file;
+    public ValueTask<FileInfo> ExecuteAsync(VerbExecutionContext context, CancellationToken cancellationToken = default)
+    {
+        _file.Directory?.Create();
+        if (!_file.Exists)
+        {
+            using (_file.Create()) { }
+            _file.Refresh();
+        }
+        return ValueTask.FromResult(_file);
+    }
+}
+
+[Verb("CREATE")]
+[Qualifier("DIRECTORY")]
+public sealed class CreateDirectory : IVerb<DirectoryInfo>, ICreate, IAt<DirectoryInfo>, IPipelineProducer<DirectoryInfo>
+{
+    private readonly DirectoryInfo _directory;
+    public CreateDirectory([At] DirectoryInfo directory) => _directory = directory;
+    public ValueTask<DirectoryInfo> ExecuteAsync(VerbExecutionContext context, CancellationToken cancellationToken = default)
+    {
+        _directory.Create();
+        _directory.Refresh();
+        return ValueTask.FromResult(_directory);
+    }
+}
+
+[Verb("COPY")]
+[Qualifier("FILE")]
+public sealed class CopyFile : IVerb<FileInfo>, ICopy, IWhat<FileInfo>, ITo<FileInfo>, IPipelineConsumer<FileInfo>, IPipelineProducer<FileInfo>
+{
+    private readonly FileInfo _source;
+    private readonly FileInfo _destination;
+    public CopyFile([What] FileInfo source, [To] FileInfo destination) { _source = source; _destination = destination; }
+    public ValueTask<FileInfo> ExecuteAsync(VerbExecutionContext context, CancellationToken cancellationToken = default)
+    {
+        _destination.Directory?.Create();
+        _source.CopyTo(_destination.FullName, overwrite: true);
+        _destination.Refresh();
+        return ValueTask.FromResult(_destination);
+    }
+}
+
+[Verb("MOVE")]
+[Qualifier("FILE")]
+public sealed class MoveFile : IVerb<FileInfo>, IMove, IWhat<FileInfo>, ITo<FileInfo>, IPipelineConsumer<FileInfo>, IPipelineProducer<FileInfo>
+{
+    private readonly FileInfo _source;
+    private readonly FileInfo _destination;
+    public MoveFile([What] FileInfo source, [To] FileInfo destination) { _source = source; _destination = destination; }
+    public ValueTask<FileInfo> ExecuteAsync(VerbExecutionContext context, CancellationToken cancellationToken = default)
+    {
+        _destination.Directory?.Create();
+        _source.MoveTo(_destination.FullName, overwrite: true);
+        _destination.Refresh();
+        return ValueTask.FromResult(_destination);
+    }
+}
+
+[ExecutionTrait(ExecutionTrait.Idempotent)]
+public sealed class DeleteFile : Delete<FileInfo>, IAt<FileInfo>
+{
+    public DeleteFile([At, RoleAlias("FROM")] FileInfo at) : base(at) { }
     protected override ValueTask<bool> DeleteAsync(FileInfo from, CancellationToken cancellationToken)
     {
         bool existed = from.Exists;

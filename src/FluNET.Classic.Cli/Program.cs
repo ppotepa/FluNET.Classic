@@ -63,6 +63,7 @@ switch (command)
         Console.WriteLine(result.Success ? "OK" : "FAILED");
         return result.Success ? 0 : 1;
     }
+    case "format": Console.WriteLine(engine.Format(await ReadSource(rest))); return 0;
     case "explain": Console.WriteLine(engine.Explain(await ReadSource(rest))); return 0;
     case "verbs": foreach (VerbDescriptor verb in language.Verbs) Console.WriteLine(verb.Name); return 0;
     case "verb": if (rest.Length == 0) return Usage(); Console.WriteLine(introspection.DescribeVerb(rest[0])); return 0;
@@ -83,7 +84,7 @@ static string Format(object value) => value is string text ? text : JsonSerializ
 
 static int Usage()
 {
-    Console.Error.WriteLine("flu run|check|explain <file|script> [--deny-by-default] [--allow capability]");
+    Console.Error.WriteLine("flu run|check|format|explain <file|script> [--deny-by-default] [--allow capability]");
     Console.Error.WriteLine("flu verbs | verb GET | qualifiers | modules | language");
     return 2;
 }

@@ -29,6 +29,7 @@ public sealed class LanguageIntrospectionService(LanguageSnapshot snapshot)
                         roles = p.Roles.Select(r => new
                         {
                             name = r.Name,
+                            surfaceNames = r.AllSurfaceNames,
                             parameter = r.ParameterName,
                             type = r.ValueType.FullName,
                             elementType = r.TypeShape.ElementType?.FullName,

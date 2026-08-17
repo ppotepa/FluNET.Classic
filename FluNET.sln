@@ -18,6 +18,14 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FluNET.Classic.Standard.Jso
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FluNET.Classic.Standard.Http", "src\FluNET.Classic.Standard.Http\FluNET.Classic.Standard.Http.csproj", "{88888888-8888-8888-8888-888888888888}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FluNET.Classic.Standard.DateTime", "src\FluNET.Classic.Standard.DateTime\FluNET.Classic.Standard.DateTime.csproj", "{DDDDDDDD-DDDD-DDDD-DDDD-DDDDDDDDDDDD}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FluNET.Classic.Standard.OS", "src\FluNET.Classic.Standard.OS\FluNET.Classic.Standard.OS.csproj", "{EEEEEEEE-EEEE-EEEE-EEEE-EEEEEEEEEEEE}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FluNET.Classic.Standard.Process", "src\FluNET.Classic.Standard.Process\FluNET.Classic.Standard.Process.csproj", "{FFFFFFFF-FFFF-FFFF-FFFF-FFFFFFFFFFFF}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FluNET.Classic.Standard.Collections", "src\FluNET.Classic.Standard.Collections\FluNET.Classic.Standard.Collections.csproj", "{12121212-1212-1212-1212-121212121212}"
+EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FluNET.Classic.Standard", "src\FluNET.Classic.Standard\FluNET.Classic.Standard.csproj", "{99999999-9999-9999-9999-999999999999}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FluNET.Classic.Hosting", "src\FluNET.Classic.Hosting\FluNET.Classic.Hosting.csproj", "{AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA}"
@@ -64,6 +72,22 @@ Global
     {88888888-8888-8888-8888-888888888888}.Debug|Any CPU.Build.0 = Debug|Any CPU
     {88888888-8888-8888-8888-888888888888}.Release|Any CPU.ActiveCfg = Release|Any CPU
     {88888888-8888-8888-8888-888888888888}.Release|Any CPU.Build.0 = Release|Any CPU
+    {DDDDDDDD-DDDD-DDDD-DDDD-DDDDDDDDDDDD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+    {DDDDDDDD-DDDD-DDDD-DDDD-DDDDDDDDDDDD}.Debug|Any CPU.Build.0 = Debug|Any CPU
+    {DDDDDDDD-DDDD-DDDD-DDDD-DDDDDDDDDDDD}.Release|Any CPU.ActiveCfg = Release|Any CPU
+    {DDDDDDDD-DDDD-DDDD-DDDD-DDDDDDDDDDDD}.Release|Any CPU.Build.0 = Release|Any CPU
+    {EEEEEEEE-EEEE-EEEE-EEEE-EEEEEEEEEEEE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+    {EEEEEEEE-EEEE-EEEE-EEEE-EEEEEEEEEEEE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+    {EEEEEEEE-EEEE-EEEE-EEEE-EEEEEEEEEEEE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+    {EEEEEEEE-EEEE-EEEE-EEEE-EEEEEEEEEEEE}.Release|Any CPU.Build.0 = Release|Any CPU
+    {FFFFFFFF-FFFF-FFFF-FFFF-FFFFFFFFFFFF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+    {FFFFFFFF-FFFF-FFFF-FFFF-FFFFFFFFFFFF}.Debug|Any CPU.Build.0 = Debug|Any CPU
+    {FFFFFFFF-FFFF-FFFF-FFFF-FFFFFFFFFFFF}.Release|Any CPU.ActiveCfg = Release|Any CPU
+    {FFFFFFFF-FFFF-FFFF-FFFF-FFFFFFFFFFFF}.Release|Any CPU.Build.0 = Release|Any CPU
+    {12121212-1212-1212-1212-121212121212}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+    {12121212-1212-1212-1212-121212121212}.Debug|Any CPU.Build.0 = Debug|Any CPU
+    {12121212-1212-1212-1212-121212121212}.Release|Any CPU.ActiveCfg = Release|Any CPU
+    {12121212-1212-1212-1212-121212121212}.Release|Any CPU.Build.0 = Release|Any CPU
     {99999999-9999-9999-9999-999999999999}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
     {99999999-9999-9999-9999-999999999999}.Debug|Any CPU.Build.0 = Debug|Any CPU
     {99999999-9999-9999-9999-999999999999}.Release|Any CPU.ActiveCfg = Release|Any CPU

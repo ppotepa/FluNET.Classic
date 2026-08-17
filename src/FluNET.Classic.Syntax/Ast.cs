@@ -27,6 +27,11 @@ public sealed record FilterStageNode(
     string? ResultAlias,
     TextSpan Span) : PipelineStageNode(Span);
 
+public sealed record CheckStageNode(
+    ExpressionNode Condition,
+    string? ResultAlias,
+    TextSpan Span) : PipelineStageNode(Span);
+
 public sealed record ClauseNode(string RoleName, IReadOnlyList<ExpressionNode> Values, TextSpan Span) : SyntaxNode(Span);
 
 public sealed record IfNode(ExpressionNode Condition, BlockNode Then, BlockNode? Else, TextSpan Span) : StatementNode(Span);
@@ -40,4 +45,5 @@ public sealed record IdentifierExpression(string Name, TextSpan Span) : Expressi
 public sealed record PropertyExpression(ExpressionNode Target, string Property, TextSpan Span) : ExpressionNode(Span);
 public sealed record InterpolatedStringExpression(IReadOnlyList<ExpressionNode> Parts, TextSpan Span) : ExpressionNode(Span);
 public sealed record UnaryExpression(string Operator, ExpressionNode Operand, TextSpan Span) : ExpressionNode(Span);
+public sealed record PredicateExpression(string Predicate, ExpressionNode Operand, TextSpan Span) : ExpressionNode(Span);
 public sealed record BinaryExpression(ExpressionNode Left, string Operator, ExpressionNode Right, TextSpan Span) : ExpressionNode(Span);

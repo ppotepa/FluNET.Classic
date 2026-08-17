@@ -3,6 +3,10 @@ using FluNET.Classic.Core;
 
 namespace FluNET.Classic.Standard.Text;
 
+public enum TextTarget { TEXT }
+public enum BinaryTarget { BINARY }
+public enum TextEncodingKind { UTF8, ASCII }
+
 public interface IOutputWriter
 {
     ValueTask WriteLineAsync(string text, CancellationToken cancellationToken = default);
@@ -36,6 +40,36 @@ public sealed class TransformLines : Transform<string[], string[], string>
 {
     public TransformLines([What] string[] what, [Using] string @using) : base(what, @using) { }
     protected override ValueTask<string[]> TransformAsync(string[] what, string @using, CancellationToken cancellationToken) => ValueTask.FromResult(what.Select(x => TransformText.Apply(x, @using)).ToArray());
+}
+
+[ExecutionTrait(ExecutionTrait.Pure)]
+public sealed class TransformTextToBinary : TransformToUsing<byte[], string, BinaryTarget, TextEncodingKind>
+{
+    public TransformTextToBinary([What] string what, [To] BinaryTarget to, [Using] TextEncodingKind @using) : base(what, to, @using) { }
+    protected override ValueTask<byte[]> TransformAsync(string what, BinaryTarget to, TextEncodingKind @using, CancellationToken cancellationToken) =>
+        ValueTask.FromResult(GetEncoding(@using).GetBytes(what));
+
+    private static Encoding GetEncoding(TextEncodingKind encoding) => encoding switch
+    {
+        TextEncodingKind.UTF8 => Encoding.UTF8,
+        TextEncodingKind.ASCII => Encoding.ASCII,
+        _ => throw new InvalidOperationException($"Unknown text encoding '{encoding}'.")
+    };
+}
+
+[ExecutionTrait(ExecutionTrait.Pure)]
+public sealed class TransformBinaryToText : TransformToUsing<string, byte[], TextTarget, TextEncodingKind>
+{
+    public TransformBinaryToText([What] byte[] what, [To] TextTarget to, [Using] TextEncodingKind @using) : base(what, to, @using) { }
+    protected override ValueTask<string> TransformAsync(byte[] what, TextTarget to, TextEncodingKind @using, CancellationToken cancellationToken) =>
+        ValueTask.FromResult(GetEncoding(@using).GetString(what));
+
+    private static Encoding GetEncoding(TextEncodingKind encoding) => encoding switch
+    {
+        TextEncodingKind.UTF8 => Encoding.UTF8,
+        TextEncodingKind.ASCII => Encoding.ASCII,
+        _ => throw new InvalidOperationException($"Unknown text encoding '{encoding}'.")
+    };
 }
 
 [Qualifier("TEXT")]
