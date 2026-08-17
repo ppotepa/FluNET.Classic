@@ -22,17 +22,17 @@ public sealed record ClrTypeShape(
     bool IsCollection,
     bool IsArray,
     bool IsNullable,
-    bool IsEnum,
-    bool IsAsyncEnumerable = false)
+    bool IsEnum)
 {
+    public bool IsAsyncEnumerable => IsAsyncEnumerableType(EffectiveType);
+
     public static ClrTypeShape From(Type type, NullabilityState nullability = NullabilityState.Unknown)
     {
         ArgumentNullException.ThrowIfNull(type);
         Type effective = Nullable.GetUnderlyingType(type) ?? type;
         Type? element = GetElementType(effective);
         bool nullable = Nullable.GetUnderlyingType(type) is not null || (!type.IsValueType && nullability == NullabilityState.Nullable);
-        bool asyncEnumerable = IsAsyncEnumerableType(effective);
-        return new(type, effective, element, element is not null, effective.IsArray, nullable, effective.IsEnum, asyncEnumerable);
+        return new(type, effective, element, element is not null, effective.IsArray, nullable, effective.IsEnum);
     }
 
     public static Type? GetElementType(Type type)
@@ -43,17 +43,17 @@ public sealed record ClrTypeShape(
         if (type.IsGenericType)
         {
             Type definition = type.GetGenericTypeDefinition();
-            if (definition == typeof(IAsyncEnumerable<>)) return type.GetGenericArguments()[0];
             if (definition == typeof(IEnumerable<>) || definition == typeof(ICollection<>) || definition == typeof(IList<>) ||
-                definition == typeof(IReadOnlyCollection<>) || definition == typeof(IReadOnlyList<>) || definition == typeof(List<>))
+                definition == typeof(IReadOnlyCollection<>) || definition == typeof(IReadOnlyList<>) || definition == typeof(List<>) ||
+                definition == typeof(IAsyncEnumerable<>))
             {
                 return type.GetGenericArguments()[0];
             }
         }
 
-        Type? asyncInterface = type.GetInterfaces()
+        Type? asyncEnumerable = type.GetInterfaces()
             .FirstOrDefault(x => x.IsGenericType && x.GetGenericTypeDefinition() == typeof(IAsyncEnumerable<>));
-        if (asyncInterface is not null) return asyncInterface.GetGenericArguments()[0];
+        if (asyncEnumerable is not null) return asyncEnumerable.GetGenericArguments()[0];
 
         return type.GetInterfaces()
             .FirstOrDefault(x => x.IsGenericType && x.GetGenericTypeDefinition() == typeof(IEnumerable<>))
