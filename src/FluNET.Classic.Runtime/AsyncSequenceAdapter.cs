@@ -24,11 +24,17 @@ internal static class AsyncSequenceAdapter
     public static object Where(object source, Func<object?, bool> predicate) =>
         InvokeSequence(WhereCoreMethod, source, predicate);
 
-    public static object Take(object source, int amount) =>
-        InvokeSequence(TakeCoreMethod, source, Math.Max(0, amount));
+    public static object Take(object source, int amount)
+    {
+        if (amount < 0) throw new ArgumentOutOfRangeException(nameof(amount), amount, "TAKE requires a non-negative amount.");
+        return InvokeSequence(TakeCoreMethod, source, amount);
+    }
 
-    public static object Skip(object source, int amount) =>
-        InvokeSequence(SkipCoreMethod, source, Math.Max(0, amount));
+    public static object Skip(object source, int amount)
+    {
+        if (amount < 0) throw new ArgumentOutOfRangeException(nameof(amount), amount, "SKIP requires a non-negative amount.");
+        return InvokeSequence(SkipCoreMethod, source, amount);
+    }
 
     public static object Distinct(object source, Func<object?, object?> keySelector, Func<object?, object?, bool> equals) =>
         InvokeSequence(DistinctCoreMethod, source, keySelector, equals);
@@ -96,7 +102,7 @@ internal static class AsyncSequenceAdapter
 
     private static async IAsyncEnumerable<T> TakeCore<T>(IAsyncEnumerable<T> source, int amount, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
-        if (amount <= 0) yield break;
+        if (amount == 0) yield break;
         int count = 0;
         await foreach (T item in source.WithCancellation(cancellationToken).ConfigureAwait(false))
         {
