@@ -15,7 +15,8 @@ public sealed class ProjectionFixtureModule : LanguageModule
             "intrinsic:test:top",
             "TOP",
             IntrinsicSyntaxKind.CollectionAmountFrom,
-            Execution: IntrinsicExecutionKind.Streaming)
+            Execution: IntrinsicExecutionKind.Streaming,
+            Semantic: IntrinsicSemanticKind.Take)
     };
 }
 
