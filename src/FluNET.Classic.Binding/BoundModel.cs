@@ -12,7 +12,10 @@ public abstract record BoundStage(Type ResultType, TextSpan Span)
 {
     public virtual bool IsSensitive => SensitiveValueMetadata.IsSensitiveType(ResultType);
 }
-public sealed record BoundSentence(VerbDescriptor Verb, VerbImplementationDescriptor Implementation, SentencePattern Pattern, IReadOnlyList<BoundRole> Roles, string? ResultAlias, int Cost, TextSpan Span) : BoundStage(Implementation.ResultType, Span);
+public sealed record BoundSentence(VerbDescriptor Verb, VerbImplementationDescriptor Implementation, SentencePattern Pattern, IReadOnlyList<BoundRole> Roles, string? ResultAlias, int Cost, TextSpan Span) : BoundStage(Implementation.ResultType, Span)
+{
+    public override bool IsSensitive => base.IsSensitive || Roles.Any(x => x.IsSensitive);
+}
 public sealed record BoundFilter(BoundValue Source, BoundExpression Predicate, Type ElementType, string? ResultAlias, TextSpan Span)
     : BoundStage(SequenceResultType(Source.Type, ElementType), Span)
 {
