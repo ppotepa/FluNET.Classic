@@ -31,8 +31,17 @@ public sealed class BoundExecutor
         ct.ThrowIfCancellationRequested(); switch (statement)
         {
             case BoundPipeline pipeline: foreach (BoundStage stage in pipeline.Stages) { ct.ThrowIfCancellationRequested(); switch (stage) { case BoundSentence sentence: await ExecuteSentence(sentence, state, ct).ConfigureAwait(false); break; case BoundFilter filter: ExecuteFilter(filter, state); break; case BoundCheck check: ExecuteCheck(check, state); break; case BoundCollection collection: ExecuteCollection(collection, state); break; } } break;
-            case BoundIf conditional: if (ToBoolean(EvaluateExpression(conditional.Condition, state, null))) await ExecuteBlock(conditional.Then, state, ct).ConfigureAwait(false); else if (conditional.Else is not null) await ExecuteBlock(conditional.Else, state, ct).ConfigureAwait(false); break;
-            case BoundForEach loop: object? source = Materialize(loop.Source, state); if (source is not IEnumerable enumerable) throw new InvalidOperationException("FOR EACH source is not enumerable."); foreach (object? item in enumerable) { using IDisposable scope = state.PushScope(); state.SetVariable(loop.Variable, item); await ExecuteBlock(loop.Body, state, ct).ConfigureAwait(false); } break;
+            case BoundIf conditional:
+                if (ToBoolean(EvaluateExpression(conditional.Condition, state, null))) await ExecuteBlock(conditional.Then, state, ct).ConfigureAwait(false);
+                else if (conditional.Else is not null) await ExecuteBlock(conditional.Else, state, ct).ConfigureAwait(false);
+                state.PipelineValue = null;
+                break;
+            case BoundForEach loop:
+                object? source = Materialize(loop.Source, state);
+                if (source is not IEnumerable enumerable) throw new InvalidOperationException("FOR EACH source is not enumerable.");
+                foreach (object? item in enumerable) { using IDisposable scope = state.PushScope(); state.SetVariable(loop.Variable, item); await ExecuteBlock(loop.Body, state, ct).ConfigureAwait(false); }
+                state.PipelineValue = null;
+                break;
         }
     }
     private async ValueTask ExecuteBlock(BoundBlock block, RuntimeState state, CancellationToken ct) { foreach (BoundStatement statement in block.Statements) await ExecuteStatement(statement, state, ct).ConfigureAwait(false); }
