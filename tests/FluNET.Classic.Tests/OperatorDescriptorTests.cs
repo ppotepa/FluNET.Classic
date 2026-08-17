@@ -50,6 +50,37 @@ public class OperatorDescriptorTests
     }
 
     [Test]
+    public async Task Host_can_register_new_operator_evaluator_by_stable_id()
+    {
+        var options = new FluNetOptions();
+        options.Modules.Add(new TestOperatorModule());
+        options.ConfigureOperatorEvaluators = registry => registry.Register(
+            "operator:test:same-length-as",
+            (operands, _) => (operands[0]?.ToString()?.Length ?? 0) == (operands[1]?.ToString()?.Length ?? 0));
+        using ServiceProvider host = FluNetHost.Create(options);
+        ClassicEngine engine = host.GetRequiredService<ClassicEngine>();
+
+        RuntimeResult result = await engine.RunAsync("CHECK IF \"abc\" SAME LENGTH AS \"xyz\" INTO [sameLength].");
+
+        Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics.Select(x => x.Message)));
+        Assert.That(result.State.Variables["sameLength"], Is.EqualTo(true));
+    }
+
+    [Test]
+    public async Task Missing_custom_operator_evaluator_fails_explicitly()
+    {
+        var options = new FluNetOptions();
+        options.Modules.Add(new TestOperatorModule());
+        using ServiceProvider host = FluNetHost.Create(options);
+        ClassicEngine engine = host.GetRequiredService<ClassicEngine>();
+
+        RuntimeResult result = await engine.RunAsync("CHECK IF \"abc\" SAME LENGTH AS \"xyz\" INTO [sameLength].");
+
+        Assert.That(result.Success, Is.False);
+        Assert.That(result.Diagnostics.Any(x => x.Message.Contains("no registered evaluator", StringComparison.OrdinalIgnoreCase)), Is.True);
+    }
+
+    [Test]
     public void Formatter_uses_module_operator_precedence_from_snapshot()
     {
         var options = new FluNetOptions();
@@ -99,7 +130,13 @@ public class OperatorDescriptorTests
                 "SAME AS",
                 4,
                 Compatibility: OperatorCompatibilityRule.ComparablePair,
-                Evaluation: OperatorEvaluationKind.Equal)
+                Evaluation: OperatorEvaluationKind.Equal),
+            new OperatorDescriptor(
+                "operator:test:same-length-as",
+                "SAME LENGTH AS",
+                4,
+                Compatibility: OperatorCompatibilityRule.StringPair,
+                Evaluation: OperatorEvaluationKind.Custom)
         };
         public override IReadOnlyCollection<PredicateDescriptor> Predicates => new[]
         {
