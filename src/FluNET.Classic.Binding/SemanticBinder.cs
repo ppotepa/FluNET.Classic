@@ -75,7 +75,13 @@ public sealed class SemanticBinder
             }
             if (expressions.Count == 0) { if (slot.Direction == RoleDirection.Output) continue; if (slot.Required && slot.Cardinality is RoleCardinality.One or RoleCardinality.OneOrMore) return CandidateResult.Fail($"missing {slot.Name}"); continue; }
             var values = new List<BoundValue>(); Type expected = SlotBindingType(slot);
-            foreach (ExpressionNode expression in expressions) { if (!TryBindValue(expression, expected, slot.Direction, verb.Name, qualifier?.Name, symbols, out BoundValue? value, out int valueCost, slot.Name)) return CandidateResult.Fail($"cannot bind {slot.Name} value to {expected.Name}"); values.Add(value!); cost += valueCost; }
+            foreach (ExpressionNode expression in expressions)
+            {
+                if (expression is LiteralExpression { Value: null } && !slot.TypeShape.IsNullable)
+                    return CandidateResult.Fail($"{slot.Name} does not accept null");
+                if (!TryBindValue(expression, expected, slot.Direction, verb.Name, qualifier?.Name, symbols, out BoundValue? value, out int valueCost, slot.Name)) return CandidateResult.Fail($"cannot bind {slot.Name} value to {expected.Name}");
+                values.Add(value!); cost += valueCost;
+            }
             roles.Add(new(slot, values, sentence.Span));
         }
         if (supplied.Values.Any(x => x.Count > 0)) return CandidateResult.Fail("too many role values"); return CandidateResult.Ok(new Candidate(implementation, pattern, roles, cost));
@@ -294,9 +300,16 @@ public sealed class SemanticBinder
             case InterpolatedStringExpression interpolation:
                 var parts = new List<BoundValue>(); foreach (ExpressionNode part in interpolation.Parts) { if (!TryBindValue(part, null, RoleDirection.Input, verb, qualifier, symbols, out BoundValue? partValue, out _)) { bound = null; cost = 0; return false; } parts.Add(partValue!); } bound = new BoundInterpolatedValue(parts, interpolation.Span); return ApplyExpected(ref bound, expected, out cost);
             case LiteralExpression literal:
-                if (expected is null) { Type literalType = literal.Value?.GetType() ?? typeof(object); bound = new BoundConstantValue(literal.Value, literalType, literal.Span); cost = 0; return true; }
-                if (literal.Value is not null && _conversions.TryConvert(literal.Value, expected, out ConversionResult? conversion)) { bound = new BoundConstantValue(conversion!.Value, expected, literal.Span, conversion.Kind, conversion.Cost); cost = conversion.Cost; return true; }
-                return ResolveText(literal.Value?.ToString() ?? string.Empty, expected, literal.Span, verb, qualifier, roleName, ResolutionSourceKind.Literal, out bound, out cost);
+                if (literal.Value is null)
+                {
+                    if (expected is null) { bound = new BoundConstantValue(null, typeof(object), literal.Span); cost = 0; return true; }
+                    bool acceptsNull = !expected.IsValueType || Nullable.GetUnderlyingType(expected) is not null;
+                    if (!acceptsNull) { bound = null; cost = 0; return false; }
+                    bound = new BoundConstantValue(null, expected, literal.Span, ConversionKind.Assignable, 1); cost = 1; return true;
+                }
+                if (expected is null) { Type literalType = literal.Value.GetType(); bound = new BoundConstantValue(literal.Value, literalType, literal.Span); cost = 0; return true; }
+                if (_conversions.TryConvert(literal.Value, expected, out ConversionResult? conversion)) { bound = new BoundConstantValue(conversion!.Value, expected, literal.Span, conversion.Kind, conversion.Cost); cost = conversion.Cost; return true; }
+                return ResolveText(literal.Value.ToString() ?? string.Empty, expected, literal.Span, verb, qualifier, roleName, ResolutionSourceKind.Literal, out bound, out cost);
             case ReferenceExpression reference:
                 if (expected is null) { bound = new BoundConstantValue(reference.Value, typeof(string), reference.Span); cost = 0; return true; } return ResolveText(reference.Value, expected, reference.Span, verb, qualifier, roleName, ResolutionSourceKind.Reference, out bound, out cost);
             case IdentifierExpression identifier:
