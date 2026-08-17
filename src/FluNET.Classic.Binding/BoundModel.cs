@@ -22,6 +22,7 @@ public sealed record BoundVariableValue(string Name, Type VariableType, bool IsO
 public sealed record BoundPipelineValue(Type PipelineType, TextSpan Span) : BoundValue(PipelineType, Span);
 public sealed record BoundPropertyValue(BoundValue Target, string Property, Type PropertyType, Func<object, object?> Accessor, TextSpan Span) : BoundValue(PropertyType, Span);
 public sealed record BoundInterpolatedValue(IReadOnlyList<BoundValue> Parts, TextSpan Span) : BoundValue(typeof(string), Span);
+public sealed record BoundExpressionValue(BoundExpression Expression, TextSpan Span) : BoundValue(Expression.Type, Span);
 public sealed record BoundConversionValue(BoundValue Source, Type TargetType, ConversionKind Kind, int Cost, TextSpan Span) : BoundValue(TargetType, Span);
 public abstract record BoundExpression(Type Type, TextSpan Span);
 public sealed record BoundValueExpression(BoundValue Value, TextSpan Span) : BoundExpression(Value.Type, Span);

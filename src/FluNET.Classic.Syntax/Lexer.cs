@@ -35,11 +35,7 @@ public sealed class ClassicLexer
         {
             char ch = source[i];
             if (ch is ' ' or '\t' or '\r') { i++; continue; }
-            if (ch == '#')
-            {
-                while (i < source.Length && source[i] != '\n') i++;
-                continue;
-            }
+            if (ch == '#') { while (i < source.Length && source[i] != '\n') i++; continue; }
             if (ch == '\n') { tokens.Add(new(TokenKind.NewLine, "\n", null, new(i++, 1))); continue; }
             if (ch == ';') { tokens.Add(new(TokenKind.Semicolon, ";", null, new(i++, 1))); continue; }
             if (ch == ',') { tokens.Add(new(TokenKind.Comma, ",", null, new(i++, 1))); continue; }
@@ -116,9 +112,13 @@ public sealed class ClassicLexer
             }
 
             int wordStart = i;
-            while (i < source.Length && !char.IsWhiteSpace(source[i]) &&
-                   source[i] is not ';' and not ',' and not '.' and not '(' and not ')' and not '{' and not '}' and not '[' and not ']' and not '"' and not '\'' and not '#' &&
-                   !IsOperatorStart(source[i])) i++;
+            while (i < source.Length)
+            {
+                char current = source[i];
+                if (char.IsWhiteSpace(current) || current is ';' or ',' or '(' or ')' or '{' or '}' or '[' or ']' or '"' or '\'' or '#' || IsOperatorStart(current)) break;
+                if (current == '.' && !IsInternalPathDot(source, i, wordStart)) break;
+                i++;
+            }
             string word = source[wordStart..i];
             if (word.Length == 0) { i++; continue; }
             tokens.Add(new(TokenKind.Word, word, word, new(wordStart, i - wordStart)));
@@ -127,5 +127,12 @@ public sealed class ClassicLexer
         return tokens;
     }
 
+    private static bool IsInternalPathDot(string source, int index, int wordStart)
+    {
+        if (source[index] != '.' || index <= wordStart || index + 1 >= source.Length) return false;
+        return IsPathPart(source[index - 1]) && IsPathPart(source[index + 1]);
+    }
+
+    private static bool IsPathPart(char ch) => char.IsLetterOrDigit(ch) || ch is '_' or '-';
     private static bool IsOperatorStart(char ch) => ch is '=' or '!' or '>' or '<';
 }
