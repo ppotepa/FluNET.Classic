@@ -15,8 +15,8 @@ public sealed record RuntimeResult(RuntimeState State, IReadOnlyList<RuntimeDiag
 
 public sealed class BoundExecutor
 {
-    private readonly IServiceProvider? _services; private readonly ValueConversionRegistry _conversions; private readonly PredicateRegistry _predicates; private readonly ICapabilityPolicy _capabilities; private readonly ExecutionPolicy _policy; private readonly List<ExecutionTraceEntry> _trace = []; private int _sequence;
-    public BoundExecutor(ValueConversionRegistry conversions, PredicateRegistry predicates, ICapabilityPolicy capabilities, IServiceProvider? services = null, ExecutionPolicy? policy = null) { _conversions = conversions; _predicates = predicates; _capabilities = capabilities; _services = services; _policy = policy ?? new ExecutionPolicy(); }
+    private readonly IServiceProvider? _services; private readonly ValueConversionRegistry _conversions; private readonly PredicateRegistry _predicates; private readonly ICapabilityPolicy _capabilities; private readonly ExecutionPolicy _policy; private readonly OperatorEvaluatorRegistry _operatorEvaluators; private readonly List<ExecutionTraceEntry> _trace = []; private int _sequence;
+    public BoundExecutor(ValueConversionRegistry conversions, PredicateRegistry predicates, ICapabilityPolicy capabilities, IServiceProvider? services = null, ExecutionPolicy? policy = null, OperatorEvaluatorRegistry? operatorEvaluators = null) { _conversions = conversions; _predicates = predicates; _capabilities = capabilities; _services = services; _policy = policy ?? new ExecutionPolicy(); _operatorEvaluators = operatorEvaluators ?? new OperatorEvaluatorRegistry(); }
 
     public async ValueTask<RuntimeResult> ExecuteAsync(BoundScript script, RuntimeState? state = null, CancellationToken cancellationToken = default)
     {
@@ -238,6 +238,7 @@ public sealed class BoundExecutor
     private object? EvaluateUnaryExpression(BoundUnaryExpression unary, RuntimeState state, object? item)
     {
         object? operand = EvaluateExpression(unary.Operand, state, item);
+        if (unary.Descriptor.Evaluation == OperatorEvaluationKind.Custom) return EvaluateCustom(unary.Descriptor, operand);
         return unary.Descriptor.Evaluation switch
         {
             OperatorEvaluationKind.LogicalNot => !ToBoolean(operand),
@@ -256,12 +257,22 @@ public sealed class BoundExecutor
             object? left = EvaluateExpression(binary.Left, state, item);
             return ToBoolean(left) || ToBoolean(EvaluateExpression(binary.Right, state, item));
         }
-        return EvaluateBinary(binary.Descriptor.Evaluation, EvaluateExpression(binary.Left, state, item), EvaluateExpression(binary.Right, state, item));
+        object? leftValue = EvaluateExpression(binary.Left, state, item);
+        object? rightValue = EvaluateExpression(binary.Right, state, item);
+        if (binary.Descriptor.Evaluation == OperatorEvaluationKind.Custom) return EvaluateCustom(binary.Descriptor, leftValue, rightValue)!;
+        return EvaluateBinary(binary.Descriptor.Evaluation, leftValue, rightValue);
     }
     private object EvaluateBetweenExpression(BoundBetweenExpression between, RuntimeState state, object? item)
     {
+        object? value = EvaluateExpression(between.Operand, state, item); object? lower = EvaluateExpression(between.Lower, state, item); object? upper = EvaluateExpression(between.Upper, state, item);
+        if (between.Descriptor.Evaluation == OperatorEvaluationKind.Custom) return EvaluateCustom(between.Descriptor, value, lower, upper)!;
         if (between.Descriptor.Evaluation != OperatorEvaluationKind.Between) throw new InvalidOperationException($"Operator '{between.Operator}' is not a BETWEEN evaluator.");
-        object? value = EvaluateExpression(between.Operand, state, item); object? lower = EvaluateExpression(between.Lower, state, item); object? upper = EvaluateExpression(between.Upper, state, item); return Compare(value, lower) >= 0 && Compare(value, upper) <= 0;
+        return Compare(value, lower) >= 0 && Compare(value, upper) <= 0;
+    }
+    private object? EvaluateCustom(OperatorDescriptor descriptor, params object?[] operands)
+    {
+        if (_operatorEvaluators.TryEvaluate(descriptor, operands, _services, out object? result)) return result;
+        throw new InvalidOperationException($"Custom operator '{descriptor.Name}' ({descriptor.StableId}) has no registered evaluator.");
     }
     private bool EvaluatePredicate(BoundPredicateExpression predicate, RuntimeState state, object? item) { object? value = EvaluateExpression(predicate.Operand, state, item); foreach (string capability in predicate.Descriptor.CapabilitiesFor(predicate.Operand.Type)) if (!IsCapabilityAllowed(capability, value)) throw new UnauthorizedAccessException($"Capability '{capability}' is required by predicate '{predicate.Predicate}'."); return _predicates.Evaluate(predicate.Predicate, value, new PredicateContext(_services)); }
     private bool IsCapabilityAllowed(string capability, object? resource) { if (_capabilities is IScopedCapabilityPolicy scoped) return scoped.IsAllowed(capability, null) || scoped.IsAllowed(capability, resource); return _capabilities.IsAllowed(capability); }
