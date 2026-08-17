@@ -105,22 +105,97 @@ public sealed class BoundExecutor
     private object? ConvertValue(object? value, Type target) { if (_conversions.TryConvert(value, target, out ConversionResult? converted)) return converted!.Value; throw new InvalidCastException($"Cannot convert {value?.GetType().Name ?? "null"} to {target.Name}."); }
     private async ValueTask ExecuteFilterAsync(BoundFilter filter, RuntimeState state, CancellationToken ct)
     {
-        object? value = Materialize(filter.Source, state);
-        List<object?> items = await MaterializeSequenceAsync(value, "FILTER", ct).ConfigureAwait(false);
+        object? source = Materialize(filter.Source, state);
+        if (source is not null && AsyncSequenceAdapter.CanEnumerate(source))
+        {
+            RuntimeState captured = SnapshotState(state);
+            object result = AsyncSequenceAdapter.Where(source, item => ToBoolean(EvaluateExpression(filter.Predicate, captured, item)));
+            state.PipelineValue = result;
+            if (filter.ResultAlias is { Length: > 0 } alias) state.SetVariable(alias, result);
+            return;
+        }
+
+        List<object?> items = await MaterializeSequenceAsync(source, "FILTER", ct).ConfigureAwait(false);
         var matches = new List<object?>();
         foreach (object? item in items) if (ToBoolean(EvaluateExpression(filter.Predicate, state, item))) matches.Add(item);
-        Array result = ToTypedArray(filter.ElementType, matches);
-        state.PipelineValue = result;
-        if (filter.ResultAlias is { Length: > 0 } alias) state.SetVariable(alias, result);
+        Array array = ToTypedArray(filter.ElementType, matches);
+        state.PipelineValue = array;
+        if (filter.ResultAlias is { Length: > 0 } syncAlias) state.SetVariable(syncAlias, array);
     }
     private void ExecuteCheck(BoundCheck check, RuntimeState state) { bool result = ToBoolean(EvaluateExpression(check.Condition, state, null)); state.PipelineValue = result; if (check.ResultAlias is { Length: > 0 } alias) state.SetVariable(alias, result); }
     private async ValueTask ExecuteCollectionAsync(BoundCollection operation, RuntimeState state, CancellationToken ct)
     {
-        object? sourceValue = Materialize(operation.Source, state);
-        List<object?> items = await MaterializeSequenceAsync(sourceValue, operation.Operation, ct).ConfigureAwait(false);
-        object? result;
-        switch (operation.Operation) { case "COUNT": result = items.Count; break; case "TAKE": result = ToTypedArray(operation.ElementType, items.Take(Math.Max(0, Convert.ToInt32(EvaluateExpression(operation.Argument!, state, null), CultureInfo.InvariantCulture))).ToList()); break; case "SKIP": result = ToTypedArray(operation.ElementType, items.Skip(Math.Max(0, Convert.ToInt32(EvaluateExpression(operation.Argument!, state, null), CultureInfo.InvariantCulture))).ToList()); break; case "SORT": items.Sort((a, b) => Compare(EvaluateExpression(operation.Argument!, state, a), EvaluateExpression(operation.Argument!, state, b))); result = ToTypedArray(operation.ElementType, items); break; case "DISTINCT": var distinct = new List<object?>(); var keys = new List<object?>(); foreach (object? item in items) { object? key = operation.Argument is null ? item : EvaluateExpression(operation.Argument, state, item); if (keys.Any(x => EqualsNormalized(x, key))) continue; keys.Add(key); distinct.Add(item); } result = ToTypedArray(operation.ElementType, distinct); break; case "GROUP": var groups = new List<(object? Key, List<object?> Items)>(); foreach (object? item in items) { object? key = EvaluateExpression(operation.Argument!, state, item); int index = groups.FindIndex(x => EqualsNormalized(x.Key, key)); if (index < 0) groups.Add((key, new List<object?> { item })); else groups[index].Items.Add(item); } result = groups.Select(x => new CollectionGroup(x.Key, ToTypedArray(operation.ElementType, x.Items))).ToArray(); break; default: throw new InvalidOperationException($"Unknown collection operation '{operation.Operation}'."); }
-        state.PipelineValue = result; if (operation.ResultAlias is { Length: > 0 } alias) state.SetVariable(alias, result);
+        object? source = Materialize(operation.Source, state);
+        if (source is not null && AsyncSequenceAdapter.CanEnumerate(source))
+        {
+            RuntimeState captured = SnapshotState(state);
+            object? asyncResult = operation.Operation switch
+            {
+                "COUNT" => await AsyncSequenceAdapter.CountAsync(source, ct).ConfigureAwait(false),
+                "TAKE" => AsyncSequenceAdapter.Take(source, Convert.ToInt32(EvaluateExpression(operation.Argument!, captured, null), CultureInfo.InvariantCulture)),
+                "SKIP" => AsyncSequenceAdapter.Skip(source, Convert.ToInt32(EvaluateExpression(operation.Argument!, captured, null), CultureInfo.InvariantCulture)),
+                "DISTINCT" => AsyncSequenceAdapter.Distinct(
+                    source,
+                    item => operation.Argument is null ? item : EvaluateExpression(operation.Argument, captured, item),
+                    EqualsNormalized),
+                "SORT" or "GROUP" => await ExecuteMaterializingCollectionAsync(operation, source, captured, ct).ConfigureAwait(false),
+                _ => throw new InvalidOperationException($"Unknown collection operation '{operation.Operation}'.")
+            };
+            state.PipelineValue = asyncResult;
+            if (operation.ResultAlias is { Length: > 0 } asyncAlias) state.SetVariable(asyncAlias, asyncResult);
+            return;
+        }
+
+        object? result = await ExecuteMaterializingCollectionAsync(operation, source, state, ct).ConfigureAwait(false);
+        state.PipelineValue = result;
+        if (operation.ResultAlias is { Length: > 0 } alias) state.SetVariable(alias, result);
+    }
+    private async ValueTask<object?> ExecuteMaterializingCollectionAsync(BoundCollection operation, object? source, RuntimeState state, CancellationToken ct)
+    {
+        List<object?> items = await MaterializeSequenceAsync(source, operation.Operation, ct).ConfigureAwait(false);
+        return operation.Operation switch
+        {
+            "COUNT" => items.Count,
+            "TAKE" => ToTypedArray(operation.ElementType, items.Take(Math.Max(0, Convert.ToInt32(EvaluateExpression(operation.Argument!, state, null), CultureInfo.InvariantCulture))).ToList()),
+            "SKIP" => ToTypedArray(operation.ElementType, items.Skip(Math.Max(0, Convert.ToInt32(EvaluateExpression(operation.Argument!, state, null), CultureInfo.InvariantCulture))).ToList()),
+            "SORT" => Sort(items, operation, state),
+            "DISTINCT" => Distinct(items, operation, state),
+            "GROUP" => Group(items, operation, state),
+            _ => throw new InvalidOperationException($"Unknown collection operation '{operation.Operation}'.")
+        };
+    }
+    private object Sort(List<object?> items, BoundCollection operation, RuntimeState state)
+    {
+        items.Sort((a, b) => Compare(EvaluateExpression(operation.Argument!, state, a), EvaluateExpression(operation.Argument!, state, b)));
+        return ToTypedArray(operation.ElementType, items);
+    }
+    private object Distinct(List<object?> items, BoundCollection operation, RuntimeState state)
+    {
+        var distinct = new List<object?>(); var keys = new List<object?>();
+        foreach (object? item in items)
+        {
+            object? key = operation.Argument is null ? item : EvaluateExpression(operation.Argument, state, item);
+            if (keys.Any(existing => EqualsNormalized(existing, key))) continue;
+            keys.Add(key); distinct.Add(item);
+        }
+        return ToTypedArray(operation.ElementType, distinct);
+    }
+    private object Group(List<object?> items, BoundCollection operation, RuntimeState state)
+    {
+        var groups = new List<(object? Key, List<object?> Items)>();
+        foreach (object? item in items)
+        {
+            object? key = EvaluateExpression(operation.Argument!, state, item);
+            int index = groups.FindIndex(group => EqualsNormalized(group.Key, key));
+            if (index < 0) groups.Add((key, new List<object?> { item })); else groups[index].Items.Add(item);
+        }
+        return groups.Select(group => new CollectionGroup(group.Key, ToTypedArray(operation.ElementType, group.Items))).ToArray();
+    }
+    private static RuntimeState SnapshotState(RuntimeState state)
+    {
+        var snapshot = new RuntimeState { PipelineValue = state.PipelineValue };
+        foreach ((string name, object? value) in state.Variables) snapshot.SetVariable(name, value);
+        return snapshot;
     }
     private static async ValueTask<List<object?>> MaterializeSequenceAsync(object? source, string operation, CancellationToken ct)
     {
