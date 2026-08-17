@@ -106,11 +106,19 @@ public enum IntrinsicSyntaxKind
     CollectionSourceOptional
 }
 
+public enum IntrinsicExecutionKind
+{
+    Streaming,
+    Materializing,
+    Scalar
+}
+
 public sealed record IntrinsicDescriptor(
     string StableId,
     string Name,
     IntrinsicSyntaxKind Syntax,
-    IReadOnlyList<string>? Aliases = null)
+    IReadOnlyList<string>? Aliases = null,
+    IntrinsicExecutionKind Execution = IntrinsicExecutionKind.Materializing)
 {
     public IReadOnlyList<string> AllSurfaceNames => new[] { Name }
         .Concat(Aliases ?? Array.Empty<string>())
