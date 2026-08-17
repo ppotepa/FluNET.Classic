@@ -33,3 +33,4 @@ public sealed record InterpolatedStringExpression(IReadOnlyList<ExpressionNode> 
 public sealed record UnaryExpression(string Operator, ExpressionNode Operand, TextSpan Span) : ExpressionNode(Span);
 public sealed record PredicateExpression(string Predicate, ExpressionNode Operand, TextSpan Span) : ExpressionNode(Span);
 public sealed record BinaryExpression(ExpressionNode Left, string Operator, ExpressionNode Right, TextSpan Span) : ExpressionNode(Span);
+public sealed record BetweenExpression(ExpressionNode Operand, ExpressionNode Lower, ExpressionNode Upper, TextSpan Span) : ExpressionNode(Span);

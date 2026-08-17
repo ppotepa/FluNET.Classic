@@ -40,13 +40,7 @@ public sealed class LanguageIntrospectionService(LanguageSnapshot snapshot)
                     })
                 })
             }),
-            qualifiers = Snapshot.Qualifiers.Select(q => new
-            {
-                id = q.StableId,
-                name = q.Name,
-                type = q.TargetType?.FullName,
-                aliases = q.AllAliases
-            }),
+            qualifiers = Snapshot.Qualifiers.Select(q => new { id = q.StableId, name = q.Name, type = q.TargetType?.FullName, aliases = q.AllAliases }),
             predicates = Snapshot.Predicates.Select(p => new
             {
                 id = p.StableId,
@@ -54,6 +48,7 @@ public sealed class LanguageIntrospectionService(LanguageSnapshot snapshot)
                 surfaceNames = p.AllSurfaceNames,
                 syntax = p.Syntax.ToString(),
                 operandTypes = p.SupportedOperandTypes.Select(x => x.FullName),
+                referenceOperandType = p.ReferenceOperandType?.FullName,
                 capabilities = p.RequiredCapabilities
             }),
             operators = Snapshot.Operators.Select(o => new
@@ -63,19 +58,13 @@ public sealed class LanguageIntrospectionService(LanguageSnapshot snapshot)
                 surfaceNames = o.AllSurfaceNames,
                 precedence = o.Precedence,
                 arity = o.Arity.ToString(),
-                associativity = o.Associativity.ToString()
+                associativity = o.Associativity.ToString(),
+                semantic = o.Semantic.ToString()
             }),
-            intrinsics = Snapshot.Intrinsics.Select(i => new
-            {
-                id = i.StableId,
-                name = i.Name,
-                surfaceNames = i.AllSurfaceNames,
-                syntax = i.Syntax.ToString()
-            }),
+            intrinsics = Snapshot.Intrinsics.Select(i => new { id = i.StableId, name = i.Name, surfaceNames = i.AllSurfaceNames, syntax = i.Syntax.ToString() }),
             reservedWords = Snapshot.ReservedWords.OrderBy(x => x, StringComparer.OrdinalIgnoreCase),
             modules = Snapshot.Modules
         };
-
         return JsonSerializer.Serialize(manifest, new JsonSerializerOptions { WriteIndented = indented });
     }
 
