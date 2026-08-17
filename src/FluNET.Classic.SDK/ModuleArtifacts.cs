@@ -23,7 +23,7 @@ public sealed class ModuleArtifactGenerator
             version = module.Version.ToString(),
             dependencies = module.Dependencies,
             assemblies = module.Assemblies.Select(x => x.GetName().Name).Where(x => x is not null),
-            qualifiers = module.Qualifiers.Select(q => new { id = q.StableId, name = q.Name, type = q.TargetType?.FullName, aliases = q.AllAliases }),
+            qualifiers = module.Qualifiers.Select(q => new { id = q.StableId, name = q.Name, type = q.TargetType?.FullName, sensitive = q.TargetType is not null && SensitiveValueMetadata.IsSensitiveType(q.TargetType), aliases = q.AllAliases }),
             verbs = implementations.GroupBy(x => x.Name, StringComparer.OrdinalIgnoreCase).Select(group => new
             {
                 name = group.Key,
@@ -34,6 +34,7 @@ public sealed class ModuleArtifactGenerator
                     aliases = i.Aliases,
                     qualifiers = i.Qualifiers,
                     resultType = i.ResultType.FullName,
+                    resultSensitive = SensitiveValueMetadata.IsSensitiveType(i.ResultType),
                     capabilities = i.Capabilities,
                     traits = i.Traits,
                     patterns = i.Patterns.Select(p => new
@@ -46,6 +47,7 @@ public sealed class ModuleArtifactGenerator
                             surface = r.AllSurfaceNames,
                             type = r.ValueType.FullName,
                             elementType = r.TypeShape.ElementType?.FullName,
+                            sensitive = SensitiveValueMetadata.IsSensitiveType(r.ValueType),
                             direction = r.Direction.ToString(),
                             cardinality = r.Cardinality.ToString(),
                             required = r.Required
@@ -77,6 +79,7 @@ public sealed class ModuleArtifactGenerator
             {
                 string roles = string.Join(" ", pattern.Roles.OrderBy(x => x.Position).Select(FormatRole).Where(x => x.Length > 0));
                 text.AppendLine($"- `{verb.Key}{(roles.Length == 0 ? string.Empty : " " + roles)}` → `{Friendly(implementation.ResultType)}`");
+                if (SensitiveValueMetadata.IsSensitiveType(implementation.ResultType)) text.AppendLine("  - sensitive result: `true`");
                 if (implementation.Qualifiers.Count > 0) text.AppendLine($"  - qualifiers: {string.Join(", ", implementation.Qualifiers.Select(x => $"`{x}`"))}");
                 if (implementation.Capabilities.Count > 0) text.AppendLine($"  - capabilities: {string.Join(", ", implementation.Capabilities.Select(x => $"`{x}`"))}");
                 if (implementation.Traits.Count > 0) text.AppendLine($"  - traits: {string.Join(", ", implementation.Traits.Select(x => $"`{x}`"))}");
@@ -103,9 +106,10 @@ public sealed class ModuleArtifactGenerator
             RoleCardinality.OneOrMore => "+",
             _ => string.Empty
         };
-        if (role.Name.Equals("WHAT", StringComparison.OrdinalIgnoreCase)) return $"<{Friendly(role.ValueType)}>{cardinality}";
+        string sensitivity = SensitiveValueMetadata.IsSensitiveType(role.ValueType) ? " sensitive" : string.Empty;
+        if (role.Name.Equals("WHAT", StringComparison.OrdinalIgnoreCase)) return $"<{Friendly(role.ValueType)}{sensitivity}>{cardinality}";
         string surface = role.AllSurfaceNames.Count > 1 ? string.Join("|", role.AllSurfaceNames) : role.Name;
-        return $"{surface} <{Friendly(role.ValueType)}>{cardinality}";
+        return $"{surface} <{Friendly(role.ValueType)}{sensitivity}>{cardinality}";
     }
 
     private static string Friendly(Type type) => type.IsGenericType
