@@ -136,17 +136,18 @@ public sealed class BoundExecutor
         if (source is not null && AsyncSequenceAdapter.CanEnumerate(source))
         {
             RuntimeState captured = SnapshotState(state);
-            object? asyncResult = operation.Operation switch
+            object? asyncResult = operation.Semantic switch
             {
-                "COUNT" => await AsyncSequenceAdapter.CountAsync(source, ct).ConfigureAwait(false),
-                "TAKE" => AsyncSequenceAdapter.Take(source, CollectionAmount(operation, captured)),
-                "SKIP" => AsyncSequenceAdapter.Skip(source, CollectionAmount(operation, captured)),
-                "DISTINCT" => AsyncSequenceAdapter.Distinct(
+                IntrinsicSemanticKind.Count => await AsyncSequenceAdapter.CountAsync(source, ct).ConfigureAwait(false),
+                IntrinsicSemanticKind.Take => AsyncSequenceAdapter.Take(source, CollectionAmount(operation, captured)),
+                IntrinsicSemanticKind.Skip => AsyncSequenceAdapter.Skip(source, CollectionAmount(operation, captured)),
+                IntrinsicSemanticKind.Distinct => AsyncSequenceAdapter.Distinct(
                     source,
                     item => operation.Argument is null ? item : EvaluateExpression(operation.Argument, captured, item),
                     EqualsNormalized),
-                "SORT" or "GROUP" => await ExecuteMaterializingCollectionAsync(operation, source, captured, ct).ConfigureAwait(false),
-                _ => throw new InvalidOperationException($"Unknown collection operation '{operation.Operation}'.")
+                IntrinsicSemanticKind.Sort or IntrinsicSemanticKind.Group => await ExecuteMaterializingCollectionAsync(operation, source, captured, ct).ConfigureAwait(false),
+                IntrinsicSemanticKind.Custom => throw MissingIntrinsicEvaluator(operation),
+                _ => throw new InvalidOperationException($"Unsupported intrinsic semantic '{operation.Semantic}' for '{operation.Operation}'.")
             };
             state.PipelineValue = asyncResult;
             if (operation.ResultAlias is { Length: > 0 } asyncAlias) state.SetVariable(asyncAlias, asyncResult);
@@ -159,18 +160,21 @@ public sealed class BoundExecutor
     }
     private async ValueTask<object?> ExecuteMaterializingCollectionAsync(BoundCollection operation, object? source, RuntimeState state, CancellationToken ct)
     {
+        if (operation.Semantic == IntrinsicSemanticKind.Custom) throw MissingIntrinsicEvaluator(operation);
         List<object?> items = await MaterializeSequenceAsync(source, operation.Operation, ct).ConfigureAwait(false);
-        return operation.Operation switch
+        return operation.Semantic switch
         {
-            "COUNT" => items.Count,
-            "TAKE" => ToTypedArray(operation.ElementType, items.Take(CollectionAmount(operation, state)).ToList()),
-            "SKIP" => ToTypedArray(operation.ElementType, items.Skip(CollectionAmount(operation, state)).ToList()),
-            "SORT" => Sort(items, operation, state),
-            "DISTINCT" => Distinct(items, operation, state),
-            "GROUP" => Group(items, operation, state),
-            _ => throw new InvalidOperationException($"Unknown collection operation '{operation.Operation}'.")
+            IntrinsicSemanticKind.Count => items.Count,
+            IntrinsicSemanticKind.Take => ToTypedArray(operation.ElementType, items.Take(CollectionAmount(operation, state)).ToList()),
+            IntrinsicSemanticKind.Skip => ToTypedArray(operation.ElementType, items.Skip(CollectionAmount(operation, state)).ToList()),
+            IntrinsicSemanticKind.Sort => Sort(items, operation, state),
+            IntrinsicSemanticKind.Distinct => Distinct(items, operation, state),
+            IntrinsicSemanticKind.Group => Group(items, operation, state),
+            _ => throw new InvalidOperationException($"Unsupported intrinsic semantic '{operation.Semantic}' for '{operation.Operation}'.")
         };
     }
+    private static InvalidOperationException MissingIntrinsicEvaluator(BoundCollection operation) =>
+        new($"Custom intrinsic '{operation.Operation}' ({operation.Descriptor?.StableId ?? "unknown"}) has no registered evaluator.");
     private int CollectionAmount(BoundCollection operation, RuntimeState state)
     {
         if (operation.Argument is null) throw new InvalidOperationException($"{operation.Operation} requires an amount.");
@@ -200,7 +204,7 @@ public sealed class BoundExecutor
     }
     private object Group(List<object?> items, BoundCollection operation, RuntimeState state)
     {
-        if (operation.Argument is null) throw new InvalidOperationException("GROUP requires a typed BY selector.");
+        if (operation.Argument is null) throw new InvalidOperationException($"{operation.Operation} requires a typed BY selector.");
         var groups = new List<(object? Key, List<object?> Items)>();
         foreach (object? item in items)
         {
