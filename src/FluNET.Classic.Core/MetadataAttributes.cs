@@ -1,5 +1,11 @@
 namespace FluNET.Classic.Core;
 
+[AttributeUsage(AttributeTargets.Class | AttributeTargets.Interface | AttributeTargets.Constructor | AttributeTargets.Parameter, Inherited = true, AllowMultiple = false)]
+public sealed class StableIdAttribute(string id) : Attribute
+{
+    public string Id { get; } = id;
+}
+
 [AttributeUsage(AttributeTargets.Class | AttributeTargets.Interface, Inherited = true, AllowMultiple = false)]
 public sealed class VerbAttribute(string name) : Attribute
 {
@@ -77,10 +83,4 @@ public sealed class RequiresCapabilityAttribute(string capability) : Attribute
 public sealed class ExecutionTraitAttribute(ExecutionTrait trait) : Attribute
 {
     public ExecutionTrait Trait { get; } = trait;
-}
-
-[AttributeUsage(AttributeTargets.Class | AttributeTargets.Constructor | AttributeTargets.Parameter, Inherited = false, AllowMultiple = false)]
-public sealed class StableIdAttribute(string id) : Attribute
-{
-    public string Id { get; } = id;
 }
