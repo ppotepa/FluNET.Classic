@@ -30,7 +30,19 @@ public sealed class BoundExecutor
     {
         ct.ThrowIfCancellationRequested(); switch (statement)
         {
-            case BoundPipeline pipeline: foreach (BoundStage stage in pipeline.Stages) { ct.ThrowIfCancellationRequested(); switch (stage) { case BoundSentence sentence: await ExecuteSentence(sentence, state, ct).ConfigureAwait(false); break; case BoundFilter filter: ExecuteFilter(filter, state); break; case BoundCheck check: ExecuteCheck(check, state); break; case BoundCollection collection: ExecuteCollection(collection, state); break; } } break;
+            case BoundPipeline pipeline:
+                foreach (BoundStage stage in pipeline.Stages)
+                {
+                    ct.ThrowIfCancellationRequested();
+                    switch (stage)
+                    {
+                        case BoundSentence sentence: await ExecuteSentence(sentence, state, ct).ConfigureAwait(false); break;
+                        case BoundFilter filter: await ExecuteFilterAsync(filter, state, ct).ConfigureAwait(false); break;
+                        case BoundCheck check: ExecuteCheck(check, state); break;
+                        case BoundCollection collection: await ExecuteCollectionAsync(collection, state, ct).ConfigureAwait(false); break;
+                    }
+                }
+                break;
             case BoundIf conditional:
             {
                 var promoted = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase);
@@ -46,12 +58,28 @@ public sealed class BoundExecutor
                 break;
             }
             case BoundForEach loop:
+            {
                 object? source = Materialize(loop.Source, state);
-                if (source is not IEnumerable enumerable) throw new InvalidOperationException("FOR EACH source is not enumerable.");
-                foreach (object? item in enumerable) { using IDisposable scope = state.PushScope(); state.SetVariable(loop.Variable, item); await ExecuteBlock(loop.Body, state, ct).ConfigureAwait(false); }
+                if (source is IEnumerable enumerable)
+                {
+                    foreach (object? item in enumerable) await ExecuteLoopItem(loop, state, item, ct).ConfigureAwait(false);
+                }
+                else if (source is not null && AsyncSequenceAdapter.CanEnumerate(source))
+                {
+                    await AsyncSequenceAdapter.ForEachAsync(source, item => ExecuteLoopItem(loop, state, item, ct), ct).ConfigureAwait(false);
+                }
+                else throw new InvalidOperationException("FOR EACH source is not enumerable.");
                 state.PipelineValue = null;
                 break;
+            }
         }
+    }
+    private async ValueTask ExecuteLoopItem(BoundForEach loop, RuntimeState state, object? item, CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+        using IDisposable scope = state.PushScope();
+        state.SetVariable(loop.Variable, item);
+        await ExecuteBlock(loop.Body, state, ct).ConfigureAwait(false);
     }
     private async ValueTask ExecuteBlock(BoundBlock block, RuntimeState state, CancellationToken ct) { foreach (BoundStatement statement in block.Statements) await ExecuteStatement(statement, state, ct).ConfigureAwait(false); }
     private async ValueTask ExecuteSentence(BoundSentence sentence, RuntimeState state, CancellationToken ct)
@@ -75,13 +103,30 @@ public sealed class BoundExecutor
     private object? MaterializeRole(BoundRole role, ParameterDescriptor parameter, RuntimeState state) { if (role.Slot.Direction == RoleDirection.Output) return Default(parameter.ParameterType); object?[] values = role.Values.Select(x => Materialize(x, state)).ToArray(); if (parameter.IsParamArray || role.Slot.Cardinality is RoleCardinality.ZeroOrMore or RoleCardinality.OneOrMore) { Type elementType = parameter.TypeShape.ElementType ?? throw new InvalidOperationException($"Variadic parameter '{parameter.Name}' has no element type."); Array array = Array.CreateInstance(elementType, values.Length); for (int i = 0; i < values.Length; i++) array.SetValue(values[i], i); return array; } return values.FirstOrDefault(); }
     private object? Materialize(BoundValue value, RuntimeState state) => value switch { BoundConstantValue constant => constant.Value, BoundVariableValue variable when !variable.IsOutput => state.TryGetVariable(variable.Name, out object? resolved) ? resolved : throw new KeyNotFoundException($"Variable '{variable.Name}' is not defined."), BoundPipelineValue => state.PipelineValue, BoundPropertyValue property => property.Accessor(Materialize(property.Target, state) ?? throw new NullReferenceException($"Cannot access '{property.Property}' on null.")), BoundInterpolatedValue interpolated => string.Concat(interpolated.Parts.Select(x => SensitiveValueFormatter.Format(Materialize(x, state)))), BoundExpressionValue expression => EvaluateExpression(expression.Expression, state, null), BoundConversionValue conversion => ConvertValue(Materialize(conversion.Source, state), conversion.TargetType), _ => null };
     private object? ConvertValue(object? value, Type target) { if (_conversions.TryConvert(value, target, out ConversionResult? converted)) return converted!.Value; throw new InvalidCastException($"Cannot convert {value?.GetType().Name ?? "null"} to {target.Name}."); }
-    private void ExecuteFilter(BoundFilter filter, RuntimeState state) { object? value = Materialize(filter.Source, state); if (value is not IEnumerable enumerable) throw new InvalidOperationException("FILTER source is not enumerable."); var matches = new List<object?>(); foreach (object? item in enumerable) if (ToBoolean(EvaluateExpression(filter.Predicate, state, item))) matches.Add(item); Array result = ToTypedArray(filter.ElementType, matches); state.PipelineValue = result; if (filter.ResultAlias is { Length: > 0 } alias) state.SetVariable(alias, result); }
-    private void ExecuteCheck(BoundCheck check, RuntimeState state) { bool result = ToBoolean(EvaluateExpression(check.Condition, state, null)); state.PipelineValue = result; if (check.ResultAlias is { Length: > 0 } alias) state.SetVariable(alias, result); }
-    private void ExecuteCollection(BoundCollection operation, RuntimeState state)
+    private async ValueTask ExecuteFilterAsync(BoundFilter filter, RuntimeState state, CancellationToken ct)
     {
-        object? sourceValue = Materialize(operation.Source, state); if (sourceValue is not IEnumerable enumerable) throw new InvalidOperationException($"{operation.Operation} source is not enumerable."); List<object?> items = enumerable.Cast<object?>().ToList(); object? result;
+        object? value = Materialize(filter.Source, state);
+        List<object?> items = await MaterializeSequenceAsync(value, "FILTER", ct).ConfigureAwait(false);
+        var matches = new List<object?>();
+        foreach (object? item in items) if (ToBoolean(EvaluateExpression(filter.Predicate, state, item))) matches.Add(item);
+        Array result = ToTypedArray(filter.ElementType, matches);
+        state.PipelineValue = result;
+        if (filter.ResultAlias is { Length: > 0 } alias) state.SetVariable(alias, result);
+    }
+    private void ExecuteCheck(BoundCheck check, RuntimeState state) { bool result = ToBoolean(EvaluateExpression(check.Condition, state, null)); state.PipelineValue = result; if (check.ResultAlias is { Length: > 0 } alias) state.SetVariable(alias, result); }
+    private async ValueTask ExecuteCollectionAsync(BoundCollection operation, RuntimeState state, CancellationToken ct)
+    {
+        object? sourceValue = Materialize(operation.Source, state);
+        List<object?> items = await MaterializeSequenceAsync(sourceValue, operation.Operation, ct).ConfigureAwait(false);
+        object? result;
         switch (operation.Operation) { case "COUNT": result = items.Count; break; case "TAKE": result = ToTypedArray(operation.ElementType, items.Take(Math.Max(0, Convert.ToInt32(EvaluateExpression(operation.Argument!, state, null), CultureInfo.InvariantCulture))).ToList()); break; case "SKIP": result = ToTypedArray(operation.ElementType, items.Skip(Math.Max(0, Convert.ToInt32(EvaluateExpression(operation.Argument!, state, null), CultureInfo.InvariantCulture))).ToList()); break; case "SORT": items.Sort((a, b) => Compare(EvaluateExpression(operation.Argument!, state, a), EvaluateExpression(operation.Argument!, state, b))); result = ToTypedArray(operation.ElementType, items); break; case "DISTINCT": var distinct = new List<object?>(); var keys = new List<object?>(); foreach (object? item in items) { object? key = operation.Argument is null ? item : EvaluateExpression(operation.Argument, state, item); if (keys.Any(x => EqualsNormalized(x, key))) continue; keys.Add(key); distinct.Add(item); } result = ToTypedArray(operation.ElementType, distinct); break; case "GROUP": var groups = new List<(object? Key, List<object?> Items)>(); foreach (object? item in items) { object? key = EvaluateExpression(operation.Argument!, state, item); int index = groups.FindIndex(x => EqualsNormalized(x.Key, key)); if (index < 0) groups.Add((key, new List<object?> { item })); else groups[index].Items.Add(item); } result = groups.Select(x => new CollectionGroup(x.Key, ToTypedArray(operation.ElementType, x.Items))).ToArray(); break; default: throw new InvalidOperationException($"Unknown collection operation '{operation.Operation}'."); }
         state.PipelineValue = result; if (operation.ResultAlias is { Length: > 0 } alias) state.SetVariable(alias, result);
+    }
+    private static async ValueTask<List<object?>> MaterializeSequenceAsync(object? source, string operation, CancellationToken ct)
+    {
+        if (source is IEnumerable enumerable) return enumerable.Cast<object?>().ToList();
+        if (source is not null && AsyncSequenceAdapter.CanEnumerate(source)) return await AsyncSequenceAdapter.ToListAsync(source, ct).ConfigureAwait(false);
+        throw new InvalidOperationException($"{operation} source is not enumerable.");
     }
     private object? EvaluateExpression(BoundExpression expression, RuntimeState state, object? item) => expression switch { BoundValueExpression value => Materialize(value.Value, state), BoundItemPropertyExpression property => item is null ? null : property.Accessor(item), BoundUnaryExpression unary => unary.Operator == "NOT" ? !ToBoolean(EvaluateExpression(unary.Operand, state, item)) : EvaluateExpression(unary.Operand, state, item), BoundPredicateExpression predicate => EvaluatePredicate(predicate, state, item), BoundBinaryExpression binary => EvaluateBinaryExpression(binary, state, item), BoundBetweenExpression between => EvaluateBetweenExpression(between, state, item), _ => null };
     private object EvaluateBinaryExpression(BoundBinaryExpression binary, RuntimeState state, object? item) { if (binary.Operator == "AND") { object? left = EvaluateExpression(binary.Left, state, item); return ToBoolean(left) && ToBoolean(EvaluateExpression(binary.Right, state, item)); } if (binary.Operator == "OR") { object? left = EvaluateExpression(binary.Left, state, item); return ToBoolean(left) || ToBoolean(EvaluateExpression(binary.Right, state, item)); } return EvaluateBinary(binary.Operator, EvaluateExpression(binary.Left, state, item), EvaluateExpression(binary.Right, state, item)); }
