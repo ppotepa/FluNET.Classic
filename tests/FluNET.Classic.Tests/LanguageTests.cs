@@ -21,7 +21,7 @@ public class LanguageTests
     }
 
     [Test]
-    public void Language_exposes_modules_qualifiers_and_manifest()
+    public void Language_exposes_modules_qualifiers_manifest_and_tooling_metadata()
     {
         using ServiceProvider host = FluNetHost.Create();
         LanguageSnapshot language = host.GetRequiredService<LanguageSnapshot>();
@@ -29,5 +29,27 @@ public class LanguageTests
         Assert.That(language.Qualifiers.Any(x => x.Name == "JSON"), Is.True);
         string manifest = host.GetRequiredService<LanguageIntrospectionService>().ToJson();
         Assert.That(manifest, Does.Contain("filesystem.read"));
+        ClassicLanguageService tooling = host.GetRequiredService<ClassicLanguageService>();
+        Assert.That(tooling.Complete("GE").Any(x => x.Label == "GET"), Is.True);
+        Assert.That(tooling.Hover("GET")?.Detail, Does.Contain("overload"));
+    }
+
+    [Test]
+    public void Module_graph_reports_cycles()
+    {
+        IReadOnlyList<LanguageDiagnostic> diagnostics = ModuleGraphValidator.Validate(new ILanguageModule[] { new CycleA(), new CycleB() });
+        Assert.That(diagnostics.Any(x => x.Code == "FLU-LANG-031"), Is.True);
+    }
+
+    private sealed class CycleA : LanguageModule
+    {
+        public override string Name => "a";
+        public override IReadOnlyCollection<string> Dependencies => new[] { "b" };
+    }
+
+    private sealed class CycleB : LanguageModule
+    {
+        public override string Name => "b";
+        public override IReadOnlyCollection<string> Dependencies => new[] { "a" };
     }
 }

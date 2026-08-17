@@ -4,20 +4,38 @@ using FluNET.Classic.Hosting;
 using FluNET.Classic.Runtime;
 using Microsoft.Extensions.DependencyInjection;
 
-var arguments = args.ToList();
+var original = args.ToList();
+var arguments = new List<string>();
 var allowed = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-for (int i = arguments.Count - 1; i >= 0; i--)
+bool denyByDefault = false;
+
+for (int i = 0; i < original.Count; i++)
 {
-    if (i > 0 && arguments[i - 1].Equals("--allow", StringComparison.OrdinalIgnoreCase))
+    if (original[i].Equals("--deny-by-default", StringComparison.OrdinalIgnoreCase))
     {
-        allowed.Add(arguments[i]);
-        arguments.RemoveAt(i);
-        arguments.RemoveAt(i - 1);
-        i--;
+        denyByDefault = true;
+        continue;
     }
+
+    if (original[i].Equals("--allow", StringComparison.OrdinalIgnoreCase))
+    {
+        if (i + 1 >= original.Count)
+        {
+            Console.Error.WriteLine("--allow requires a capability name.");
+            return 2;
+        }
+        allowed.Add(original[++i]);
+        continue;
+    }
+
+    arguments.Add(original[i]);
 }
 
-var options = new FluNetOptions { AllowedCapabilities = allowed.Count == 0 ? null : allowed };
+var options = new FluNetOptions
+{
+    AllowedCapabilities = denyByDefault || allowed.Count > 0 ? allowed : null
+};
+
 using ServiceProvider host = FluNetHost.Create(options);
 ClassicEngine engine = host.GetRequiredService<ClassicEngine>();
 LanguageSnapshot language = host.GetRequiredService<LanguageSnapshot>();
@@ -65,7 +83,7 @@ static string Format(object value) => value is string text ? text : JsonSerializ
 
 static int Usage()
 {
-    Console.Error.WriteLine("flu run|check|explain <file|script> [--allow capability]");
+    Console.Error.WriteLine("flu run|check|explain <file|script> [--deny-by-default] [--allow capability]");
     Console.Error.WriteLine("flu verbs | verb GET | qualifiers | modules | language");
     return 2;
 }
