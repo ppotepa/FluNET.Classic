@@ -1,3 +1,4 @@
+using System.Linq.Expressions;
 using System.Reflection;
 
 namespace FluNET.Language;
@@ -76,8 +77,27 @@ public sealed record ParameterDescriptor(
 
 public sealed record ConstructorDescriptor(
     ConstructorInfo Constructor,
-    IReadOnlyList<ParameterDescriptor> Parameters,
-    Func<object?[], object> Activator);
+    IReadOnlyList<ParameterDescriptor> Parameters)
+{
+    public Func<object?[], object> Activator { get; } = CompileActivator(Constructor);
+
+    private static Func<object?[], object> CompileActivator(ConstructorInfo constructor)
+    {
+        ParameterExpression arguments = Expression.Parameter(typeof(object[]), "arguments");
+        ParameterInfo[] parameters = constructor.GetParameters();
+
+        Expression[] converted = parameters
+            .Select((parameter, index) =>
+                (Expression)Expression.Convert(
+                    Expression.ArrayIndex(arguments, Expression.Constant(index)),
+                    parameter.ParameterType))
+            .ToArray();
+
+        NewExpression create = Expression.New(constructor, converted);
+        UnaryExpression box = Expression.Convert(create, typeof(object));
+        return Expression.Lambda<Func<object?[], object>>(box, arguments).Compile();
+    }
+}
 
 public sealed record RoleSlotDescriptor(
     string Name,
