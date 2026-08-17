@@ -24,6 +24,41 @@ public sealed class ModuleArtifactGenerator
             dependencies = module.Dependencies,
             assemblies = module.Assemblies.Select(x => x.GetName().Name).Where(x => x is not null),
             qualifiers = module.Qualifiers.Select(q => new { id = q.StableId, name = q.Name, type = q.TargetType?.FullName, sensitive = q.TargetType is not null && SensitiveValueMetadata.IsSensitiveType(q.TargetType), aliases = q.AllAliases }),
+            predicates = module.Predicates.Select(p => new
+            {
+                id = p.StableId,
+                name = p.Name,
+                surface = p.AllSurfaceNames,
+                syntax = p.Syntax.ToString(),
+                precedence = p.Precedence,
+                operandTypes = p.SupportedOperandTypes.Select(x => x.FullName),
+                referenceOperandType = p.ReferenceOperandType?.FullName,
+                capabilities = p.RequiredCapabilities
+            }),
+            operators = module.Operators.Select(o => new
+            {
+                id = o.StableId,
+                name = o.Name,
+                surface = o.AllSurfaceNames,
+                precedence = o.Precedence,
+                arity = o.Arity.ToString(),
+                associativity = o.Associativity.ToString(),
+                semantic = o.Semantic.ToString(),
+                compatibility = o.Compatibility.ToString(),
+                evaluation = o.Evaluation.ToString(),
+                resultType = o.EffectiveResultType.FullName
+            }),
+            intrinsics = module.Intrinsics.Select(i => new
+            {
+                id = i.StableId,
+                name = i.Name,
+                surface = i.AllSurfaceNames,
+                syntax = i.Syntax.ToString(),
+                semantic = i.Semantic.ToString(),
+                execution = i.Execution.ToString(),
+                strategyType = i.StrategyType?.FullName,
+                strategyRole = i.StrategyType is null ? null : i.StrategyRole
+            }),
             verbs = implementations.GroupBy(x => x.Name, StringComparer.OrdinalIgnoreCase).Select(group => new
             {
                 name = group.Key,
@@ -47,6 +82,7 @@ public sealed class ModuleArtifactGenerator
                             surface = r.AllSurfaceNames,
                             type = r.ValueType.FullName,
                             elementType = r.TypeShape.ElementType?.FullName,
+                            nullable = r.TypeShape.IsNullable,
                             sensitive = SensitiveValueMetadata.IsSensitiveType(r.ValueType),
                             direction = r.Direction.ToString(),
                             cardinality = r.Cardinality.ToString(),
@@ -70,6 +106,33 @@ public sealed class ModuleArtifactGenerator
         text.AppendLine($"Version: `{module.Version}`");
         if (module.Dependencies.Count > 0) text.AppendLine($"Dependencies: {string.Join(", ", module.Dependencies.Select(x => $"`{x}`"))}");
         text.AppendLine();
+
+        if (module.Predicates.Count > 0)
+        {
+            text.AppendLine("## Predicates");
+            text.AppendLine();
+            foreach (PredicateDescriptor predicate in module.Predicates.OrderBy(x => x.Name, StringComparer.OrdinalIgnoreCase))
+                text.AppendLine($"- `{predicate.Name}` — `{predicate.Syntax}`, precedence `{predicate.Precedence}`; operands: `{DescribeTypes(predicate.SupportedOperandTypes)}`");
+            text.AppendLine();
+        }
+
+        if (module.Operators.Count > 0)
+        {
+            text.AppendLine("## Operators");
+            text.AppendLine();
+            foreach (OperatorDescriptor @operator in module.Operators.OrderBy(x => x.Precedence).ThenBy(x => x.Name, StringComparer.OrdinalIgnoreCase))
+                text.AppendLine($"- `{@operator.Name}` — `{@operator.Arity}`, precedence `{@operator.Precedence}`, compatibility `{@operator.Compatibility}`, evaluation `{@operator.Evaluation}`");
+            text.AppendLine();
+        }
+
+        if (module.Intrinsics.Count > 0)
+        {
+            text.AppendLine("## Intrinsics");
+            text.AppendLine();
+            foreach (IntrinsicDescriptor intrinsic in module.Intrinsics.OrderBy(x => x.Name, StringComparer.OrdinalIgnoreCase))
+                text.AppendLine($"- `{intrinsic.Name}` — syntax `{intrinsic.Syntax}`, semantic `{intrinsic.Semantic}`, execution `{intrinsic.Execution}`{(intrinsic.StrategyType is null ? string.Empty : $", {intrinsic.StrategyRole} `{Friendly(intrinsic.StrategyType)}`")}");
+            text.AppendLine();
+        }
 
         foreach (IGrouping<string, VerbImplementationDescriptor> verb in Implementations(snapshot, module).GroupBy(x => x.Name, StringComparer.OrdinalIgnoreCase).OrderBy(x => x.Key))
         {
@@ -109,10 +172,11 @@ public sealed class ModuleArtifactGenerator
             RoleCardinality.OneOrMore => "+",
             _ => string.Empty
         };
+        string nullability = role.TypeShape.IsNullable ? "?" : string.Empty;
         string sensitivity = SensitiveValueMetadata.IsSensitiveType(role.ValueType) ? " sensitive" : string.Empty;
-        if (role.Name.Equals("WHAT", StringComparison.OrdinalIgnoreCase)) return $"<{Friendly(role.ValueType)}{sensitivity}>{cardinality}";
+        if (role.Name.Equals("WHAT", StringComparison.OrdinalIgnoreCase)) return $"<{Friendly(role.ValueType)}{nullability}{sensitivity}>{cardinality}";
         string surface = role.AllSurfaceNames.Count > 1 ? string.Join("|", role.AllSurfaceNames) : role.Name;
-        return $"{surface} <{Friendly(role.ValueType)}{sensitivity}>{cardinality}";
+        return $"{surface} <{Friendly(role.ValueType)}{nullability}{sensitivity}>{cardinality}";
     }
 
     private static string? Projection(OutputProjectionDescriptor? projection) => projection?.Kind switch
@@ -123,6 +187,7 @@ public sealed class ModuleArtifactGenerator
         _ => null
     };
 
+    private static string DescribeTypes(IReadOnlyList<Type> types) => types.Count == 0 ? "any" : string.Join(", ", types.Select(Friendly));
     private static string Friendly(Type type) => type.IsGenericType
         ? $"{type.Name[..type.Name.IndexOf('`')]}<{string.Join(",", type.GetGenericArguments().Select(Friendly))}>"
         : type.Name;
