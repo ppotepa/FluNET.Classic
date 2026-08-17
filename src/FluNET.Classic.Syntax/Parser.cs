@@ -98,7 +98,7 @@ public sealed class ClassicParser
         {
             if (Current.Kind == TokenKind.Comma) { Advance(); SkipNewLines(); continue; }
             if (IsWord("INTO")) { Flush(); alias = ParseOptionalResultAlias(false); break; }
-            if (IsWord("AS") && Peek(1).Kind == TokenKind.Variable) { Flush(); alias = ParseOptionalResultAlias(true); break; }
+            if (IsWord("AS") && Peek(1).Kind == TokenKind.Variable && !surfaceRoles.Contains("AS")) { Flush(); alias = ParseOptionalResultAlias(true); break; }
             if (Current.Kind == TokenKind.Word && surfaceRoles.Contains(Current.Text)) { Flush(); roleToken = Advance(); currentRole = roleToken.Text.ToUpperInvariant(); SkipNewLines(); continue; }
             if (currentRole is null) { _diagnostics.Add(new("FLU-SYN-003", $"Unexpected value '{Current.Text}' after {verb.Name}.", Current.Span)); Advance(); continue; }
             int before = _position; values.Add(ParseSentenceValue(surfaceRoles)); if (_position == before) Advance();
