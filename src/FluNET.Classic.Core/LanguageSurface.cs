@@ -154,6 +154,17 @@ public enum IntrinsicExecutionKind
     Scalar
 }
 
+public enum IntrinsicSemanticKind
+{
+    Custom,
+    Sort,
+    Group,
+    Take,
+    Skip,
+    Distinct,
+    Count
+}
+
 public sealed record IntrinsicDescriptor(
     string StableId,
     string Name,
@@ -161,7 +172,8 @@ public sealed record IntrinsicDescriptor(
     IReadOnlyList<string>? Aliases = null,
     IntrinsicExecutionKind Execution = IntrinsicExecutionKind.Materializing,
     Type? StrategyType = null,
-    string StrategyRole = "USING")
+    string StrategyRole = "USING",
+    IntrinsicSemanticKind Semantic = IntrinsicSemanticKind.Custom)
 {
     public IReadOnlyList<string> AllSurfaceNames => new[] { Name }
         .Concat(Aliases ?? Array.Empty<string>())
