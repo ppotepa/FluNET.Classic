@@ -20,12 +20,16 @@ public sealed record BoundFilter(BoundValue Source, BoundExpression Predicate, T
 }
 public sealed record BoundCheck(BoundExpression Condition, string? ResultAlias, TextSpan Span) : BoundStage(typeof(bool), Span);
 public sealed record BoundCollection(string Operation, BoundValue Source, Type ElementType, BoundExpression? Argument, string? ResultAlias, Type CollectionResultType, TextSpan Span)
-    : BoundStage(ResolveCollectionResultType(Operation, Source.Type, ElementType, CollectionResultType), Span)
+    : BoundStage(ResolveCollectionResultType(Operation, Source.Type, ElementType, Argument, CollectionResultType), Span)
 {
-    private static Type ResolveCollectionResultType(string operation, Type sourceType, Type elementType, Type fallback)
+    private static Type ResolveCollectionResultType(string operation, Type sourceType, Type elementType, BoundExpression? argument, Type fallback)
     {
+        string normalized = operation.ToUpperInvariant();
+        if (normalized == "GROUP" && argument is not null)
+            return typeof(CollectionGroup<,>).MakeGenericType(argument.Type, elementType).MakeArrayType();
+
         if (!ClrTypeShape.IsAsyncEnumerableType(sourceType)) return fallback;
-        return operation.ToUpperInvariant() switch
+        return normalized switch
         {
             "TAKE" or "SKIP" or "DISTINCT" => typeof(IAsyncEnumerable<>).MakeGenericType(elementType),
             _ => fallback
