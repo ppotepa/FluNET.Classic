@@ -76,9 +76,10 @@ public sealed record BoundExpressionValue(BoundExpression Expression, TextSpan S
 {
     public override bool IsSensitive => Expression.IsSensitive;
 }
-public sealed record BoundConversionValue(BoundValue Source, Type TargetType, ConversionKind Kind, int Cost, TextSpan Span) : BoundValue(TargetType, Span)
+public sealed record BoundConversionValue(BoundValue Source, Type TargetType, ConversionKind Kind, int Cost, TextSpan Span, ConversionPlan? Plan = null) : BoundValue(TargetType, Span)
 {
     public override bool IsSensitive => base.IsSensitive || Source.IsSensitive;
+    public IReadOnlyList<ConversionStep> Steps => Plan?.Steps ?? Array.Empty<ConversionStep>();
 }
 public abstract record BoundExpression(Type Type, TextSpan Span)
 {
