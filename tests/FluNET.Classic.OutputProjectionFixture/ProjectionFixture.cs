@@ -9,6 +9,14 @@ public sealed class ProjectionFixtureModule : LanguageModule
 {
     public override string Name => "output-projection-fixture";
     public override IReadOnlyCollection<Assembly> Assemblies => new[] { typeof(ProjectionFixtureModule).Assembly };
+    public override IReadOnlyCollection<IntrinsicDescriptor> Intrinsics => new[]
+    {
+        new IntrinsicDescriptor(
+            "intrinsic:test:top",
+            "TOP",
+            IntrinsicSyntaxKind.CollectionAmountFrom,
+            Execution: IntrinsicExecutionKind.Streaming)
+    };
 }
 
 [Verb("PROJECTPAIR")]
