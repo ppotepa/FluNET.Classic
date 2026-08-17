@@ -68,7 +68,12 @@ public sealed class SemanticBinder
         {
             supplied.TryGetValue(slot.Name, out Queue<ExpressionNode>? queue); queue ??= new Queue<ExpressionNode>(); var expressions = new List<ExpressionNode>(); if (slot.Cardinality is RoleCardinality.ZeroOrMore or RoleCardinality.OneOrMore) while (queue.Count > 0) expressions.Add(queue.Dequeue()); else if (queue.Count > 0) expressions.Add(queue.Dequeue());
             if (expressions.Count == 0 && slot.Direction is RoleDirection.Output or RoleDirection.InputOutput && !aliasUsedAsOutput && sentence.ResultAlias is not null) { expressions.Add(new VariableExpression(sentence.ResultAlias, sentence.Span)); aliasUsedAsOutput = true; }
-            if (expressions.Count == 0 && slot.Direction == RoleDirection.Input && pipelineType is not null && slot.Required && !pipelineUsed && TryPlanConversion(pipelineType, SlotBindingType(slot), out ConversionKind pipelineKind, out int pipelineCost)) { BoundValue pipeline = new BoundPipelineValue(pipelineType, sentence.Span); if (pipelineKind != ConversionKind.Exact) pipeline = new BoundConversionValue(pipeline, SlotBindingType(slot), pipelineKind, pipelineCost, sentence.Span); roles.Add(new(slot, new[] { pipeline }, sentence.Span)); cost += pipelineCost + 1; pipelineUsed = true; continue; }
+            if (expressions.Count == 0 && slot.Direction == RoleDirection.Input && pipelineType is not null && slot.Required && !pipelineUsed && _conversions.TryPlan(pipelineType, SlotBindingType(slot), out ConversionPlan? pipelinePlan))
+            {
+                BoundValue pipeline = new BoundPipelineValue(pipelineType, sentence.Span);
+                if (pipelinePlan!.Kind != ConversionKind.Exact) pipeline = new BoundConversionValue(pipeline, SlotBindingType(slot), pipelinePlan.Kind, pipelinePlan.Cost, sentence.Span, pipelinePlan);
+                roles.Add(new(slot, new[] { pipeline }, sentence.Span)); cost += pipelinePlan.Cost + 1; pipelineUsed = true; continue;
+            }
             if (expressions.Count == 0) { if (slot.Direction == RoleDirection.Output) continue; if (slot.Required && slot.Cardinality is RoleCardinality.One or RoleCardinality.OneOrMore) return CandidateResult.Fail($"missing {slot.Name}"); continue; }
             var values = new List<BoundValue>(); Type expected = SlotBindingType(slot);
             foreach (ExpressionNode expression in expressions) { if (!TryBindValue(expression, expected, slot.Direction, verb.Name, qualifier?.Name, symbols, out BoundValue? value, out int valueCost, slot.Name)) return CandidateResult.Fail($"cannot bind {slot.Name} value to {expected.Name}"); values.Add(value!); cost += valueCost; }
@@ -307,8 +312,14 @@ public sealed class SemanticBinder
         if (_resolvers.TryResolve(text, expected, context, out object? resolved)) { bound = new BoundConstantValue(resolved, expected, span, ConversionKind.Resolution, 4); cost = 4; return true; }
         bound = null; cost = 0; return false;
     }
-    private bool ApplyExpected(ref BoundValue? value, Type? expected, out int cost) { if (expected is null) { cost = 0; return true; } if (!TryPlanConversion(value!.Type, expected, out ConversionKind kind, out cost)) return false; if (kind != ConversionKind.Exact) value = new BoundConversionValue(value, expected, kind, cost, value.Span); return true; }
-    private bool TryPlanConversion(Type source, Type target, out ConversionKind kind, out int cost) => _conversions.CanConvert(source, target, out kind, out cost);
+    private bool ApplyExpected(ref BoundValue? value, Type? expected, out int cost)
+    {
+        if (expected is null) { cost = 0; return true; }
+        if (!_conversions.TryPlan(value!.Type, expected, out ConversionPlan? plan)) { cost = 0; return false; }
+        cost = plan!.Cost;
+        if (plan.Kind != ConversionKind.Exact) value = new BoundConversionValue(value, expected, plan.Kind, plan.Cost, value.Span, plan);
+        return true;
+    }
     private static Type SlotBindingType(RoleSlotDescriptor slot) => slot.Cardinality is RoleCardinality.OneOrMore or RoleCardinality.ZeroOrMore ? slot.TypeShape.ElementType ?? slot.ValueType : slot.ValueType;
     private static bool QualifierMatches(QualifierDescriptor? qualifier, VerbImplementationDescriptor implementation, SentencePattern pattern) { if (qualifier is null) return true; if (implementation.Qualifiers.Contains(qualifier.Name, StringComparer.OrdinalIgnoreCase)) return true; if (qualifier.TargetType is null) return false; Type target = qualifier.TargetType; if (target == implementation.ResultType || target.IsAssignableFrom(implementation.ResultType) || ClrTypeShape.GetElementType(implementation.ResultType) == target) return true; return pattern.Roles.Any(role => role.Name.Equals("WHAT", StringComparison.OrdinalIgnoreCase) && (role.ValueType == target || role.TypeShape.ElementType == target)); }
     private static void RegisterOutputs(BoundSentence sentence, SymbolScope symbols) { foreach (BoundVariableValue variable in sentence.Roles.Where(x => x.Slot.Direction is RoleDirection.Output or RoleDirection.InputOutput).SelectMany(x => x.Values).OfType<BoundVariableValue>().Where(x => x.IsOutput)) symbols.Define(variable.Name, variable.VariableType); if (sentence.ResultAlias is { Length: > 0 } alias) symbols.Define(alias, sentence.ResultType); }
