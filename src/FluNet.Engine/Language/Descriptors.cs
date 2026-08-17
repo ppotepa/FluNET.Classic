@@ -76,7 +76,8 @@ public sealed record ParameterDescriptor(
 
 public sealed record ConstructorDescriptor(
     ConstructorInfo Constructor,
-    IReadOnlyList<ParameterDescriptor> Parameters);
+    IReadOnlyList<ParameterDescriptor> Parameters,
+    Func<object?[], object> Activator);
 
 public sealed record RoleSlotDescriptor(
     string Name,
