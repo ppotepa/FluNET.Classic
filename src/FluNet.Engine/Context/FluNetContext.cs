@@ -37,6 +37,7 @@ public sealed class FluNETContext : IDisposable
 
         services.AddSingleton<ValueResolverRegistry>();
         services.AddSingleton<ValueConversionRegistry>();
+        services.AddSingleton<ICapabilityPolicy, AllowAllCapabilityPolicy>();
 
         services.AddTransient<ClassicLexer>();
         services.AddTransient<ClassicParser>(sp =>
