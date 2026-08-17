@@ -36,3 +36,12 @@ public sealed class ProjectTuple : IVerb<(string Text, int Number)>
     public ValueTask<(string Text, int Number)> ExecuteAsync(VerbExecutionContext context, CancellationToken cancellationToken = default) =>
         ValueTask.FromResult(("tuple-value", 7));
 }
+
+[Verb("ACCEPTNULL")]
+public sealed class AcceptNull : IVerb<string>
+{
+    private readonly string? _value;
+    public AcceptNull([What] string? value) => _value = value;
+    public ValueTask<string> ExecuteAsync(VerbExecutionContext context, CancellationToken cancellationToken = default) =>
+        ValueTask.FromResult(_value ?? "<null>");
+}
