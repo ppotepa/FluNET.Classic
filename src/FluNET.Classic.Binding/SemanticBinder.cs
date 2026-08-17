@@ -292,16 +292,21 @@ public sealed class SemanticBinder
             case LiteralExpression literal:
                 if (expected is null) { Type literalType = literal.Value?.GetType() ?? typeof(object); bound = new BoundConstantValue(literal.Value, literalType, literal.Span); cost = 0; return true; }
                 if (literal.Value is not null && _conversions.TryConvert(literal.Value, expected, out ConversionResult? conversion)) { bound = new BoundConstantValue(conversion!.Value, expected, literal.Span, conversion.Kind, conversion.Cost); cost = conversion.Cost; return true; }
-                return ResolveText(literal.Value?.ToString() ?? string.Empty, expected, literal.Span, verb, qualifier, roleName, out bound, out cost);
+                return ResolveText(literal.Value?.ToString() ?? string.Empty, expected, literal.Span, verb, qualifier, roleName, ResolutionSourceKind.Literal, out bound, out cost);
             case ReferenceExpression reference:
-                if (expected is null) { bound = new BoundConstantValue(reference.Value, typeof(string), reference.Span); cost = 0; return true; } return ResolveText(reference.Value, expected, reference.Span, verb, qualifier, roleName, out bound, out cost);
+                if (expected is null) { bound = new BoundConstantValue(reference.Value, typeof(string), reference.Span); cost = 0; return true; } return ResolveText(reference.Value, expected, reference.Span, verb, qualifier, roleName, ResolutionSourceKind.Reference, out bound, out cost);
             case IdentifierExpression identifier:
-                if (expected is null) { bound = new BoundConstantValue(identifier.Name, typeof(string), identifier.Span); cost = 0; return true; } return ResolveText(identifier.Name, expected, identifier.Span, verb, qualifier, roleName, out bound, out cost);
+                if (expected is null) { bound = new BoundConstantValue(identifier.Name, typeof(string), identifier.Span); cost = 0; return true; } return ResolveText(identifier.Name, expected, identifier.Span, verb, qualifier, roleName, ResolutionSourceKind.Identifier, out bound, out cost);
             default: bound = null; cost = 0; return false;
         }
     }
 
-    private bool ResolveText(string text, Type expected, TextSpan span, string verb, string? qualifier, string? roleName, out BoundValue? bound, out int cost) { var context = new ResolutionContext(expected, roleName, verb, qualifier, _services); if (_resolvers.TryResolve(text, expected, context, out object? resolved)) { bound = new BoundConstantValue(resolved, expected, span, ConversionKind.Resolution, 4); cost = 4; return true; } bound = null; cost = 0; return false; }
+    private bool ResolveText(string text, Type expected, TextSpan span, string verb, string? qualifier, string? roleName, ResolutionSourceKind sourceKind, out BoundValue? bound, out int cost)
+    {
+        var context = new ResolutionContext(expected, roleName, verb, qualifier, _services, SourceKind: sourceKind);
+        if (_resolvers.TryResolve(text, expected, context, out object? resolved)) { bound = new BoundConstantValue(resolved, expected, span, ConversionKind.Resolution, 4); cost = 4; return true; }
+        bound = null; cost = 0; return false;
+    }
     private bool ApplyExpected(ref BoundValue? value, Type? expected, out int cost) { if (expected is null) { cost = 0; return true; } if (!TryPlanConversion(value!.Type, expected, out ConversionKind kind, out cost)) return false; if (kind != ConversionKind.Exact) value = new BoundConversionValue(value, expected, kind, cost, value.Span); return true; }
     private bool TryPlanConversion(Type source, Type target, out ConversionKind kind, out int cost) => _conversions.CanConvert(source, target, out kind, out cost);
     private static Type SlotBindingType(RoleSlotDescriptor slot) => slot.Cardinality is RoleCardinality.OneOrMore or RoleCardinality.ZeroOrMore ? slot.TypeShape.ElementType ?? slot.ValueType : slot.ValueType;
