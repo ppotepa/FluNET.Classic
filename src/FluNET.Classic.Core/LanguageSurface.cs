@@ -118,7 +118,9 @@ public sealed record IntrinsicDescriptor(
     string Name,
     IntrinsicSyntaxKind Syntax,
     IReadOnlyList<string>? Aliases = null,
-    IntrinsicExecutionKind Execution = IntrinsicExecutionKind.Materializing)
+    IntrinsicExecutionKind Execution = IntrinsicExecutionKind.Materializing,
+    Type? StrategyType = null,
+    string StrategyRole = "USING")
 {
     public IReadOnlyList<string> AllSurfaceNames => new[] { Name }
         .Concat(Aliases ?? Array.Empty<string>())
