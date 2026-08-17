@@ -22,17 +22,17 @@ public sealed record ClrTypeShape(
     bool IsCollection,
     bool IsArray,
     bool IsNullable,
-    bool IsEnum)
+    bool IsEnum,
+    bool IsAsyncEnumerable = false)
 {
-    public bool IsAsyncEnumerable => IsAsyncEnumerableType(EffectiveType);
-
     public static ClrTypeShape From(Type type, NullabilityState nullability = NullabilityState.Unknown)
     {
         ArgumentNullException.ThrowIfNull(type);
         Type effective = Nullable.GetUnderlyingType(type) ?? type;
         Type? element = GetElementType(effective);
         bool nullable = Nullable.GetUnderlyingType(type) is not null || (!type.IsValueType && nullability == NullabilityState.Nullable);
-        return new(type, effective, element, element is not null, effective.IsArray, nullable, effective.IsEnum);
+        bool asyncEnumerable = IsAsyncEnumerableType(effective);
+        return new(type, effective, element, element is not null, effective.IsArray, nullable, effective.IsEnum, asyncEnumerable);
     }
 
     public static Type? GetElementType(Type type)
@@ -43,17 +43,17 @@ public sealed record ClrTypeShape(
         if (type.IsGenericType)
         {
             Type definition = type.GetGenericTypeDefinition();
+            if (definition == typeof(IAsyncEnumerable<>)) return type.GetGenericArguments()[0];
             if (definition == typeof(IEnumerable<>) || definition == typeof(ICollection<>) || definition == typeof(IList<>) ||
-                definition == typeof(IReadOnlyCollection<>) || definition == typeof(IReadOnlyList<>) || definition == typeof(List<>) ||
-                definition == typeof(IAsyncEnumerable<>))
+                definition == typeof(IReadOnlyCollection<>) || definition == typeof(IReadOnlyList<>) || definition == typeof(List<>))
             {
                 return type.GetGenericArguments()[0];
             }
         }
 
-        Type? asyncEnumerable = type.GetInterfaces()
+        Type? asyncInterface = type.GetInterfaces()
             .FirstOrDefault(x => x.IsGenericType && x.GetGenericTypeDefinition() == typeof(IAsyncEnumerable<>));
-        if (asyncEnumerable is not null) return asyncEnumerable.GetGenericArguments()[0];
+        if (asyncInterface is not null) return asyncInterface.GetGenericArguments()[0];
 
         return type.GetInterfaces()
             .FirstOrDefault(x => x.IsGenericType && x.GetGenericTypeDefinition() == typeof(IEnumerable<>))
@@ -66,6 +66,20 @@ public sealed record ClrTypeShape(
         if (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(IAsyncEnumerable<>)) return true;
         return type.GetInterfaces().Any(x => x.IsGenericType && x.GetGenericTypeDefinition() == typeof(IAsyncEnumerable<>));
     }
+}
+
+public enum OutputProjectionKind
+{
+    WholeResult,
+    Member,
+    Index
+}
+
+public sealed record OutputProjectionDescriptor(OutputProjectionKind Kind, string? Member = null, int? Index = null)
+{
+    public static OutputProjectionDescriptor WholeResult { get; } = new(OutputProjectionKind.WholeResult);
+    public static OutputProjectionDescriptor FromMember(string member) => new(OutputProjectionKind.Member, member);
+    public static OutputProjectionDescriptor FromIndex(int index) => new(OutputProjectionKind.Index, Index: index);
 }
 
 public sealed record ParameterDescriptor(
@@ -81,7 +95,8 @@ public sealed record ParameterDescriptor(
     IReadOnlyList<string> SurfaceNames,
     RoleDirection Direction,
     RoleCardinality Cardinality,
-    int Position);
+    int Position,
+    OutputProjectionDescriptor? OutputProjection = null);
 
 public sealed record ConstructorDescriptor(
     string StableId,
@@ -99,7 +114,8 @@ public sealed record RoleSlotDescriptor(
     int Position,
     string ParameterName,
     bool Required,
-    IReadOnlyList<string> SurfaceNames)
+    IReadOnlyList<string> SurfaceNames,
+    OutputProjectionDescriptor? OutputProjection = null)
 {
     public IReadOnlyList<string> AllSurfaceNames => new[] { Name }
         .Concat(SurfaceNames)
