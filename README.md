@@ -1,53 +1,32 @@
-# FluNET
+# FluNET.Classic
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![.NET](https://img.shields.io/badge/.NET-8.0+-512BD4?logo=dotnet&logoColor=white)](https://dotnet.microsoft.com/)
+FluNET.Classic is a typed, sentence-oriented scripting language and runtime for .NET.
 
-**Author:** Paweł Potępa
+The language is compiled from CLR metadata: interfaces describe semantic roles, constructors describe binding/cardinality, attributes refine metadata, and reflection builds an immutable `LanguageSnapshot`. Source is parsed into an immutable AST, semantically bound to CLR overloads, and executed as a typed bound program.
 
-FluNET is an experimental C#/.NET engine for expressing small programs as English‑like commands instead of method calls. It focuses on language design, internal DSLs, and metaprogramming rather than being a full general‑purpose language.
-
-## Example
+Core examples:
 
 ```text
-GET [text] FROM file.txt
-SAVE [content] TO output.txt
-DOWNLOAD [data] FROM https://api.example.com
+GET TEXT FROM {input.txt} AS [lines]
+THEN TRANSFORM [lines] USING UPPER AS [upper]
+
+FILTER [users] WHERE active IS true AS [activeUsers]
+
+IF [response.status] IS 200 THEN SAY "ok" ELSE SAY "failed"
+
+FOR EACH [user] IN [users] THEN SAY "Processing [user.name]"
 ```
 
-Roughly equivalent to:
+Architecture:
 
-```csharp
-var text = File.ReadAllText("file.txt");
-File.WriteAllText("output.txt", content);
-var data = await httpClient.GetAsync("https://api.example.com");
+```text
+CLR types + interfaces + constructors + attributes
+                    ↓
+             LanguageCompiler
+                    ↓
+             LanguageSnapshot
+                    ↓
+source → lexer → parser → AST → binder → bound program → runtime
 ```
 
-## Architecture
-
-Pipeline:
-
-1. **Tokenization** – raw input is split into `RawToken` and `Token` objects (`TokenFactory`).
-2. **TokenTree** – tokens are arranged into a small AST‑like structure.
-3. **Sentence building** – `SentenceFactory` + `DiscoveryService` resolve verbs and arguments.
-4. **Validation** – `SentenceValidator` checks that the sentence is syntactically valid.
-5. **Execution** – `SentenceExecutor` runs a strongly‑typed verb instance.
-
-All of this is orchestrated by the `Engine` using an `ExecutionPipeline` composed of small `IExecutionStep` processors (parse, validate, execute, error handling, etc.).
-
-## Keywords
-
-Keywords are first‑class types implementing `IKeyword`/`IWord` (for example `Get`, `Save`, `Post`, `Delete`, `Load`, `Send`, `Transform`). They define the textual surface of verbs (e.g. `"GET"`) and participate in validation. `DiscoveryService` scans assemblies to discover available keywords and verbs.
-
-## Evolving the language
-
-To grow the language, you extend the vocabulary and verbs rather than touching the core engine:
-
-1. **Add keywords** – create `IKeyword`/`IWord` types for new verbs or prepositions (e.g. `Compress`, `Using`).
-2. **Implement verbs** – add `IVerb<,>` implementations that model real actions in your domain, plus `IWhat<T>`, `IFrom<T>`, `ITo<T>` etc. as needed.
-3. **Load assemblies** – ensure assemblies with your keywords/verbs are loaded so `DiscoveryService` can discover them.
-4. **Document usage** – add example sentences and tests so the new constructs stay stable as the engine evolves.
-
-## License
-
-This project is licensed under the [MIT License](LICENSE).
+`main` is the only development line for FluNET.Classic. The project does not maintain a legacy runtime compatibility layer.
