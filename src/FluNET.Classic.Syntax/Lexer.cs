@@ -85,9 +85,10 @@ public sealed class ClassicLexer
                 tokens.Add(new(TokenKind.String, source[start..i], sb.ToString(), new(start, i - start)));
                 continue;
             }
-            if (char.IsDigit(ch))
+            if (char.IsDigit(ch) || (ch == '-' && i + 1 < source.Length && char.IsDigit(source[i + 1])))
             {
                 int start = i;
+                if (source[i] == '-') i++;
                 while (i < source.Length && char.IsDigit(source[i])) i++;
                 if (i < source.Length && source[i] == '.' && i + 1 < source.Length && char.IsDigit(source[i + 1]))
                 {
