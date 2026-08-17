@@ -344,9 +344,17 @@ public sealed class LanguageCompiler
     }
 
     private static string PatternIdFromConstructorId(string constructorId) => constructorId.StartsWith("ctor:", StringComparison.OrdinalIgnoreCase) ? "pattern:" + constructorId[5..] : constructorId + ":pattern";
-    private static string ParameterSemanticSignature(ParameterDescriptor parameter) => $"{parameter.RoleName ?? "service"}:{TypeIdentity(parameter.ParameterType)}:{parameter.Cardinality}:{parameter.Direction}:{parameter.IsService}:{ProjectionSignature(parameter.OutputProjection)}";
-    private static string RoleSemanticSignature(ParameterDescriptor parameter) => $"{parameter.RoleName}:{TypeIdentity(parameter.ParameterType)}:{parameter.Cardinality}:{parameter.Direction}:{ProjectionSignature(parameter.OutputProjection)}";
-    private static string ProjectionSignature(OutputProjectionDescriptor? projection) => projection is null ? "none" : $"{projection.Kind}:{projection.Member}:{projection.Index}";
+    private static string ParameterSemanticSignature(ParameterDescriptor parameter)
+    {
+        string legacy = $"{parameter.RoleName ?? "service"}:{TypeIdentity(parameter.ParameterType)}:{parameter.Cardinality}:{parameter.Direction}:{parameter.IsService}";
+        return parameter.OutputProjection is null ? legacy : $"{legacy}:{ProjectionSignature(parameter.OutputProjection)}";
+    }
+    private static string RoleSemanticSignature(ParameterDescriptor parameter)
+    {
+        string legacy = $"{parameter.RoleName}:{TypeIdentity(parameter.ParameterType)}:{parameter.Cardinality}:{parameter.Direction}";
+        return parameter.OutputProjection is null ? legacy : $"{legacy}:{ProjectionSignature(parameter.OutputProjection)}";
+    }
+    private static string ProjectionSignature(OutputProjectionDescriptor projection) => $"{projection.Kind}:{projection.Member}:{projection.Index}";
     private static string TypeIdentity(Type type) => type.IsGenericType ? $"{type.GetGenericTypeDefinition().FullName}[{string.Join(",", type.GetGenericArguments().Select(TypeIdentity))}]" : type.FullName ?? type.Name;
     private static string ShortHash(string value) => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(value)))[..16].ToLowerInvariant();
     private static IEnumerable<Type> GetLoadableTypes(Assembly assembly) { try { return assembly.GetTypes(); } catch (ReflectionTypeLoadException ex) { return ex.Types.Where(x => x is not null).Cast<Type>(); } }
