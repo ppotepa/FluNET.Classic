@@ -1,4 +1,3 @@
-using System.Collections;
 using System.ComponentModel;
 using System.Globalization;
 using System.Reflection;
@@ -75,22 +74,20 @@ public sealed class ValueResolverRegistry
             if (registered.Status != ResolutionStatus.NotFound) return registered;
         }
 
-        ResolutionResult collection = ResolveCollection(source, targetType, context);
-        if (collection.Status != ResolutionStatus.NotFound) return collection;
-        if (effective == typeof(string)) return BuiltIn(source, "builtin:string", source);
-        if (effective == typeof(FileInfo)) return BuiltIn(new FileInfo(source), "builtin:file", source);
-        if (effective == typeof(DirectoryInfo)) return BuiltIn(new DirectoryInfo(source), "builtin:directory", source);
+        if (effective == typeof(string)) return BuiltIn(source, "builtin:string");
+        if (effective == typeof(FileInfo)) return BuiltIn(new FileInfo(source), "builtin:file");
+        if (effective == typeof(DirectoryInfo)) return BuiltIn(new DirectoryInfo(source), "builtin:directory");
         if (effective == typeof(Uri))
         {
             bool ok = Uri.TryCreate(source, UriKind.RelativeOrAbsolute, out Uri? uri);
-            return ok ? BuiltIn(uri, "builtin:uri", source) : NotFound();
+            return ok ? BuiltIn(uri, "builtin:uri") : NotFound();
         }
         if (effective.IsEnum)
         {
             bool ok = Enum.TryParse(effective, source, true, out object? parsed);
-            return ok ? BuiltIn(parsed, "builtin:enum", source) : NotFound();
+            return ok ? BuiltIn(parsed, "builtin:enum") : NotFound();
         }
-        if (TryParse(effective, source, context.FormatProvider ?? CultureInfo.InvariantCulture, out object? parsedValue)) return BuiltIn(parsedValue, "builtin:parse", source);
+        if (TryParse(effective, source, context.FormatProvider ?? CultureInfo.InvariantCulture, out object? parsedValue)) return BuiltIn(parsedValue, "builtin:parse");
 
         TypeConverter converter = TypeDescriptor.GetConverter(effective);
         if (converter.CanConvertFrom(typeof(string)))
@@ -98,7 +95,7 @@ public sealed class ValueResolverRegistry
             try
             {
                 object? converted = converter.ConvertFrom(null, context.FormatProvider as CultureInfo ?? CultureInfo.InvariantCulture, source);
-                if (converted is not null) return BuiltIn(converted, $"typeconverter:{effective.FullName}", source);
+                if (converted is not null) return BuiltIn(converted, $"typeconverter:{effective.FullName}");
             }
             catch { }
         }
@@ -106,7 +103,7 @@ public sealed class ValueResolverRegistry
         ConstructorInfo? ctor = effective.GetConstructor(new[] { typeof(string) });
         if (ctor is not null)
         {
-            try { return BuiltIn(ctor.Invoke(new object?[] { source }), $"string-ctor:{effective.FullName}", source); }
+            try { return BuiltIn(ctor.Invoke(new object?[] { source }), $"string-ctor:{effective.FullName}"); }
             catch { }
         }
         return NotFound();
@@ -120,8 +117,9 @@ public sealed class ValueResolverRegistry
             var successful = new List<ResolutionCandidate>();
             foreach (ResolverEntry entry in priorityGroup)
             {
-                if (entry.Resolver is IContextualValueResolver contextual && !contextual.CanResolve(context with { ExpectedType = targetType })) continue;
-                if (entry.Resolver.TryResolve(source, context with { ExpectedType = targetType }, out object? value))
+                ResolutionContext effectiveContext = context with { ExpectedType = targetType };
+                if (entry.Resolver is IContextualValueResolver contextual && !contextual.CanResolve(effectiveContext)) continue;
+                if (entry.Resolver.TryResolve(source, effectiveContext, out object? value))
                     successful.Add(new(entry.Id, entry.Priority, value));
             }
             if (successful.Count == 1)
@@ -135,33 +133,7 @@ public sealed class ValueResolverRegistry
         return NotFound();
     }
 
-    private ResolutionResult ResolveCollection(string source, Type targetType, ResolutionContext context)
-    {
-        Type? elementType = ClrTypeShape.GetElementType(targetType);
-        if (elementType is null) return NotFound();
-        string[] parts = source.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        var items = new object?[parts.Length];
-        for (int i = 0; i < parts.Length; i++)
-        {
-            ResolutionResult item = Resolve(parts[i], elementType, context with { ExpectedType = elementType });
-            if (item.Status == ResolutionStatus.Ambiguous) return item;
-            if (!item.Success) return NotFound();
-            items[i] = item.Value;
-        }
-        Array array = Array.CreateInstance(elementType, items.Length);
-        for (int i = 0; i < items.Length; i++) array.SetValue(items[i], i);
-        if (targetType.IsArray || targetType.IsAssignableFrom(array.GetType())) return BuiltIn(array, "builtin:collection", source);
-        if (targetType.IsGenericType)
-        {
-            Type listType = typeof(List<>).MakeGenericType(elementType);
-            IList list = (IList)Activator.CreateInstance(listType)!;
-            foreach (object? item in items) list.Add(item);
-            if (targetType.IsAssignableFrom(listType)) return BuiltIn(list, "builtin:collection", source);
-        }
-        return BuiltIn(array, "builtin:collection", source);
-    }
-
-    private static ResolutionResult BuiltIn(object? value, string resolver, string source) =>
+    private static ResolutionResult BuiltIn(object? value, string resolver) =>
         new(ResolutionStatus.Success, value, resolver, int.MinValue, new[] { new ResolutionCandidate(resolver, int.MinValue, value) });
     private static ResolutionResult NotFound() => new(ResolutionStatus.NotFound, null, null, int.MinValue, Array.Empty<ResolutionCandidate>());
 
