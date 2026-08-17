@@ -32,10 +32,19 @@ public sealed class BoundExecutor
         {
             case BoundPipeline pipeline: foreach (BoundStage stage in pipeline.Stages) { ct.ThrowIfCancellationRequested(); switch (stage) { case BoundSentence sentence: await ExecuteSentence(sentence, state, ct).ConfigureAwait(false); break; case BoundFilter filter: ExecuteFilter(filter, state); break; case BoundCheck check: ExecuteCheck(check, state); break; case BoundCollection collection: ExecuteCollection(collection, state); break; } } break;
             case BoundIf conditional:
-                if (ToBoolean(EvaluateExpression(conditional.Condition, state, null))) await ExecuteBlock(conditional.Then, state, ct).ConfigureAwait(false);
-                else if (conditional.Else is not null) await ExecuteBlock(conditional.Else, state, ct).ConfigureAwait(false);
+            {
+                var promoted = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase);
+                using (state.PushScope())
+                {
+                    if (ToBoolean(EvaluateExpression(conditional.Condition, state, null))) await ExecuteBlock(conditional.Then, state, ct).ConfigureAwait(false);
+                    else if (conditional.Else is not null) await ExecuteBlock(conditional.Else, state, ct).ConfigureAwait(false);
+                    foreach (BoundFlowVariable variable in conditional.PromotedVariables)
+                        if (state.TryGetVariable(variable.Name, out object? value)) promoted[variable.Name] = value;
+                }
+                foreach ((string name, object? value) in promoted) state.SetVariable(name, value);
                 state.PipelineValue = null;
                 break;
+            }
             case BoundForEach loop:
                 object? source = Materialize(loop.Source, state);
                 if (source is not IEnumerable enumerable) throw new InvalidOperationException("FOR EACH source is not enumerable.");
