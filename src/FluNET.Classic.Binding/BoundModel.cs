@@ -10,9 +10,28 @@ public sealed record BoundBlock(IReadOnlyList<BoundStatement> Statements, TextSp
 public sealed record BoundPipeline(IReadOnlyList<BoundStage> Stages, Type? ResultType, TextSpan Span) : BoundStatement(Span);
 public abstract record BoundStage(Type ResultType, TextSpan Span);
 public sealed record BoundSentence(VerbDescriptor Verb, VerbImplementationDescriptor Implementation, SentencePattern Pattern, IReadOnlyList<BoundRole> Roles, string? ResultAlias, int Cost, TextSpan Span) : BoundStage(Implementation.ResultType, Span);
-public sealed record BoundFilter(BoundValue Source, BoundExpression Predicate, Type ElementType, string? ResultAlias, Type CollectionResultType, TextSpan Span) : BoundStage(CollectionResultType, Span);
+public sealed record BoundFilter(BoundValue Source, BoundExpression Predicate, Type ElementType, string? ResultAlias, TextSpan Span)
+    : BoundStage(SequenceResultType(Source.Type, ElementType), Span)
+{
+    private static Type SequenceResultType(Type sourceType, Type elementType) =>
+        ClrTypeShape.IsAsyncEnumerableType(sourceType)
+            ? typeof(IAsyncEnumerable<>).MakeGenericType(elementType)
+            : elementType.MakeArrayType();
+}
 public sealed record BoundCheck(BoundExpression Condition, string? ResultAlias, TextSpan Span) : BoundStage(typeof(bool), Span);
-public sealed record BoundCollection(string Operation, BoundValue Source, Type ElementType, BoundExpression? Argument, string? ResultAlias, Type CollectionResultType, TextSpan Span) : BoundStage(CollectionResultType, Span);
+public sealed record BoundCollection(string Operation, BoundValue Source, Type ElementType, BoundExpression? Argument, string? ResultAlias, Type CollectionResultType, TextSpan Span)
+    : BoundStage(ResolveCollectionResultType(Operation, Source.Type, ElementType, CollectionResultType), Span)
+{
+    private static Type ResolveCollectionResultType(string operation, Type sourceType, Type elementType, Type fallback)
+    {
+        if (!ClrTypeShape.IsAsyncEnumerableType(sourceType)) return fallback;
+        return operation.ToUpperInvariant() switch
+        {
+            "TAKE" or "SKIP" or "DISTINCT" => typeof(IAsyncEnumerable<>).MakeGenericType(elementType),
+            _ => fallback
+        };
+    }
+}
 public sealed record BoundFlowVariable(string Name, Type Type);
 public sealed record BoundIf(BoundExpression Condition, BoundBlock Then, BoundBlock? Else, IReadOnlyList<BoundFlowVariable> PromotedVariables, TextSpan Span) : BoundStatement(Span);
 public sealed record BoundForEach(string Variable, BoundValue Source, Type ElementType, BoundBlock Body, TextSpan Span) : BoundStatement(Span);
