@@ -225,12 +225,73 @@ public sealed class BoundExecutor
         if (source is not null && AsyncSequenceAdapter.CanEnumerate(source)) return await AsyncSequenceAdapter.ToListAsync(source, ct).ConfigureAwait(false);
         throw new InvalidOperationException($"{operation} source is not enumerable.");
     }
-    private object? EvaluateExpression(BoundExpression expression, RuntimeState state, object? item) => expression switch { BoundValueExpression value => Materialize(value.Value, state), BoundItemPropertyExpression property => item is null ? null : property.Accessor(item), BoundUnaryExpression unary => unary.Operator == "NOT" ? !ToBoolean(EvaluateExpression(unary.Operand, state, item)) : EvaluateExpression(unary.Operand, state, item), BoundPredicateExpression predicate => EvaluatePredicate(predicate, state, item), BoundBinaryExpression binary => EvaluateBinaryExpression(binary, state, item), BoundBetweenExpression between => EvaluateBetweenExpression(between, state, item), _ => null };
-    private object EvaluateBinaryExpression(BoundBinaryExpression binary, RuntimeState state, object? item) { if (binary.Operator == "AND") { object? left = EvaluateExpression(binary.Left, state, item); return ToBoolean(left) && ToBoolean(EvaluateExpression(binary.Right, state, item)); } if (binary.Operator == "OR") { object? left = EvaluateExpression(binary.Left, state, item); return ToBoolean(left) || ToBoolean(EvaluateExpression(binary.Right, state, item)); } return EvaluateBinary(binary.Operator, EvaluateExpression(binary.Left, state, item), EvaluateExpression(binary.Right, state, item)); }
-    private object EvaluateBetweenExpression(BoundBetweenExpression between, RuntimeState state, object? item) { object? value = EvaluateExpression(between.Operand, state, item); object? lower = EvaluateExpression(between.Lower, state, item); object? upper = EvaluateExpression(between.Upper, state, item); return Compare(value, lower) >= 0 && Compare(value, upper) <= 0; }
+    private object? EvaluateExpression(BoundExpression expression, RuntimeState state, object? item) => expression switch
+    {
+        BoundValueExpression value => Materialize(value.Value, state),
+        BoundItemPropertyExpression property => item is null ? null : property.Accessor(item),
+        BoundUnaryExpression unary => EvaluateUnaryExpression(unary, state, item),
+        BoundPredicateExpression predicate => EvaluatePredicate(predicate, state, item),
+        BoundBinaryExpression binary => EvaluateBinaryExpression(binary, state, item),
+        BoundBetweenExpression between => EvaluateBetweenExpression(between, state, item),
+        _ => null
+    };
+    private object? EvaluateUnaryExpression(BoundUnaryExpression unary, RuntimeState state, object? item)
+    {
+        object? operand = EvaluateExpression(unary.Operand, state, item);
+        return unary.Descriptor.Evaluation switch
+        {
+            OperatorEvaluationKind.LogicalNot => !ToBoolean(operand),
+            _ => throw new InvalidOperationException($"Operator '{unary.Operator}' has no runtime evaluator for '{unary.Descriptor.Evaluation}'.")
+        };
+    }
+    private object EvaluateBinaryExpression(BoundBinaryExpression binary, RuntimeState state, object? item)
+    {
+        if (binary.Descriptor.Evaluation == OperatorEvaluationKind.LogicalAnd)
+        {
+            object? left = EvaluateExpression(binary.Left, state, item);
+            return ToBoolean(left) && ToBoolean(EvaluateExpression(binary.Right, state, item));
+        }
+        if (binary.Descriptor.Evaluation == OperatorEvaluationKind.LogicalOr)
+        {
+            object? left = EvaluateExpression(binary.Left, state, item);
+            return ToBoolean(left) || ToBoolean(EvaluateExpression(binary.Right, state, item));
+        }
+        return EvaluateBinary(binary.Descriptor.Evaluation, EvaluateExpression(binary.Left, state, item), EvaluateExpression(binary.Right, state, item));
+    }
+    private object EvaluateBetweenExpression(BoundBetweenExpression between, RuntimeState state, object? item)
+    {
+        if (between.Descriptor.Evaluation != OperatorEvaluationKind.Between) throw new InvalidOperationException($"Operator '{between.Operator}' is not a BETWEEN evaluator.");
+        object? value = EvaluateExpression(between.Operand, state, item); object? lower = EvaluateExpression(between.Lower, state, item); object? upper = EvaluateExpression(between.Upper, state, item); return Compare(value, lower) >= 0 && Compare(value, upper) <= 0;
+    }
     private bool EvaluatePredicate(BoundPredicateExpression predicate, RuntimeState state, object? item) { object? value = EvaluateExpression(predicate.Operand, state, item); foreach (string capability in predicate.Descriptor.CapabilitiesFor(predicate.Operand.Type)) if (!IsCapabilityAllowed(capability, value)) throw new UnauthorizedAccessException($"Capability '{capability}' is required by predicate '{predicate.Predicate}'."); return _predicates.Evaluate(predicate.Predicate, value, new PredicateContext(_services)); }
     private bool IsCapabilityAllowed(string capability, object? resource) { if (_capabilities is IScopedCapabilityPolicy scoped) return scoped.IsAllowed(capability, null) || scoped.IsAllowed(capability, resource); return _capabilities.IsAllowed(capability); }
-    private static object EvaluateBinary(string op, object? left, object? right) { if (op is "=" or "==" or "IS") return EqualsNormalized(left, right); if (op is "!=" or "IS NOT") return !EqualsNormalized(left, right); if (op == "CONTAINS") { if (left is string text) return text.Contains(right?.ToString() ?? string.Empty, StringComparison.Ordinal); if (left is IDictionary dictionary) return right is not null && dictionary.Contains(right); if (left is IEnumerable enumerable) return enumerable.Cast<object?>().Any(x => EqualsNormalized(x, right)); return false; } if (op == "STARTS WITH") return (left?.ToString() ?? string.Empty).StartsWith(right?.ToString() ?? string.Empty, StringComparison.Ordinal); if (op == "ENDS WITH") return (left?.ToString() ?? string.Empty).EndsWith(right?.ToString() ?? string.Empty, StringComparison.Ordinal); if (op == "MATCHES") return Regex.IsMatch(left?.ToString() ?? string.Empty, right?.ToString() ?? string.Empty, RegexOptions.CultureInvariant); if (op == "IN") { if (right is string text) return text.Contains(left?.ToString() ?? string.Empty, StringComparison.Ordinal); if (right is IEnumerable enumerable) return enumerable.Cast<object?>().Any(x => EqualsNormalized(x, left)); return false; } int comparison = Compare(left, right); return op switch { ">" => comparison > 0, "<" => comparison < 0, ">=" => comparison >= 0, "<=" => comparison <= 0, "BEFORE" => comparison < 0, "AFTER" => comparison > 0, _ => false }; }
+    private static object EvaluateBinary(OperatorEvaluationKind operation, object? left, object? right)
+    {
+        return operation switch
+        {
+            OperatorEvaluationKind.Equal => EqualsNormalized(left, right),
+            OperatorEvaluationKind.NotEqual => !EqualsNormalized(left, right),
+            OperatorEvaluationKind.Contains => Contains(left, right),
+            OperatorEvaluationKind.StartsWith => (left?.ToString() ?? string.Empty).StartsWith(right?.ToString() ?? string.Empty, StringComparison.Ordinal),
+            OperatorEvaluationKind.EndsWith => (left?.ToString() ?? string.Empty).EndsWith(right?.ToString() ?? string.Empty, StringComparison.Ordinal),
+            OperatorEvaluationKind.RegexMatch => Regex.IsMatch(left?.ToString() ?? string.Empty, right?.ToString() ?? string.Empty, RegexOptions.CultureInvariant),
+            OperatorEvaluationKind.Membership => Contains(right, left),
+            OperatorEvaluationKind.GreaterThan => Compare(left, right) > 0,
+            OperatorEvaluationKind.LessThan => Compare(left, right) < 0,
+            OperatorEvaluationKind.GreaterThanOrEqual => Compare(left, right) >= 0,
+            OperatorEvaluationKind.LessThanOrEqual => Compare(left, right) <= 0,
+            OperatorEvaluationKind.Before => Compare(left, right) < 0,
+            OperatorEvaluationKind.After => Compare(left, right) > 0,
+            _ => throw new InvalidOperationException($"No runtime evaluator is defined for '{operation}'.")
+        };
+    }
+    private static bool Contains(object? container, object? value)
+    {
+        if (container is string text) return text.Contains(value?.ToString() ?? string.Empty, StringComparison.Ordinal);
+        if (container is IDictionary dictionary) return value is not null && dictionary.Contains(value);
+        if (container is IEnumerable enumerable) return enumerable.Cast<object?>().Any(item => EqualsNormalized(item, value));
+        return false;
+    }
     private static bool EqualsNormalized(object? left, object? right) { if (left is null || right is null) return left is null && right is null; if (IsNumber(left) && IsNumber(right)) return Convert.ToDecimal(left, CultureInfo.InvariantCulture) == Convert.ToDecimal(right, CultureInfo.InvariantCulture); return Equals(left, right) || string.Equals(left.ToString(), right.ToString(), StringComparison.OrdinalIgnoreCase); }
     private static int Compare(object? left, object? right) { if (left is null && right is null) return 0; if (left is null) return -1; if (right is null) return 1; if (IsNumber(left) && IsNumber(right)) return Convert.ToDecimal(left, CultureInfo.InvariantCulture).CompareTo(Convert.ToDecimal(right, CultureInfo.InvariantCulture)); if (left is IComparable comparable && left.GetType().IsInstanceOfType(right)) return comparable.CompareTo(right); return string.Compare(left.ToString(), right.ToString(), StringComparison.OrdinalIgnoreCase); }
     private static bool ToBoolean(object? value) => Convert.ToBoolean(value, CultureInfo.InvariantCulture);
