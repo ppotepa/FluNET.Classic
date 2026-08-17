@@ -92,7 +92,48 @@ public sealed class SemanticBinder
         if (!TryBindValue(sourceExpression, null, RoleDirection.Input, operation, null, symbols, out BoundValue? source, out _)) { _diagnostics.Add(new(code, $"{operation} source cannot be bound.", sourceExpression.Span)); return null; } return source;
     }
     private BoundCheck BindCheck(CheckStageNode check, SymbolScope symbols) { BoundExpression condition = BindExpression(check.Condition, symbols, null); if (condition.Type != typeof(bool)) _diagnostics.Add(new("FLU-BIND-124", "CHECK IF condition must be BOOLEAN.", check.Condition.Span)); return new(condition, check.ResultAlias, check.Span); }
-    private BoundIf BindIf(IfNode node, SymbolScope symbols) { BoundExpression condition = BindExpression(node.Condition, symbols, null); if (condition.Type != typeof(bool)) _diagnostics.Add(new("FLU-BIND-130", "IF condition must be BOOLEAN.", node.Condition.Span)); return new(condition, BindBlock(node.Then, new SymbolScope(symbols)), node.Else is null ? null : BindBlock(node.Else, new SymbolScope(symbols)), node.Span); }
+
+    private BoundIf BindIf(IfNode node, SymbolScope symbols)
+    {
+        BoundExpression condition = BindExpression(node.Condition, symbols, null);
+        if (condition.Type != typeof(bool)) _diagnostics.Add(new("FLU-BIND-130", "IF condition must be BOOLEAN.", node.Condition.Span));
+
+        var thenScope = new SymbolScope(symbols);
+        BoundBlock thenBlock = BindBlock(node.Then, thenScope);
+        BoundBlock? elseBlock = null;
+        if (node.Else is not null)
+        {
+            var elseScope = new SymbolScope(symbols);
+            elseBlock = BindBlock(node.Else, elseScope);
+            MergeBranchSymbols(symbols, thenScope, elseScope, node.Span);
+        }
+
+        return new(condition, thenBlock, elseBlock, node.Span);
+    }
+
+    private void MergeBranchSymbols(SymbolScope parent, SymbolScope thenScope, SymbolScope elseScope, TextSpan span)
+    {
+        foreach ((string name, Type thenType) in thenScope.LocalSymbols)
+        {
+            if (!elseScope.TryGetLocal(name, out Type elseType)) continue;
+            if (TryCommonBranchType(thenType, elseType, out Type commonType))
+            {
+                parent.Define(name, commonType);
+                continue;
+            }
+            _diagnostics.Add(new("FLU-BIND-132", $"Variable '[{name}]' has incompatible branch types {Friendly(thenType)} and {Friendly(elseType)}.", span, new[] { Friendly(thenType), Friendly(elseType) }));
+        }
+    }
+
+    private static bool TryCommonBranchType(Type left, Type right, out Type common)
+    {
+        if (left == right) { common = left; return true; }
+        if (left.IsAssignableFrom(right)) { common = left; return true; }
+        if (right.IsAssignableFrom(left)) { common = right; return true; }
+        common = null!;
+        return false;
+    }
+
     private BoundForEach? BindForEach(ForEachNode node, SymbolScope symbols)
     {
         if (!TryBindValue(node.Source, null, RoleDirection.Input, "FOR EACH", null, symbols, out BoundValue? source, out _)) { _diagnostics.Add(new("FLU-BIND-140", "FOR EACH source cannot be bound.", node.Source.Span)); return null; } Type? element = ClrTypeShape.GetElementType(source!.Type); if (element is null) { _diagnostics.Add(new("FLU-BIND-141", $"FOR EACH requires a collection, got {source.Type.Name}.", node.Source.Span)); return null; } var child = new SymbolScope(symbols); child.Define(node.Variable, element); return new(node.Variable, source, element, BindBlock(node.Body, child), node.Span);
@@ -201,5 +242,12 @@ public sealed class SemanticBinder
     private static string Signature(VerbImplementationDescriptor implementation, SentencePattern pattern) => $"{implementation.Name}({string.Join(", ", pattern.Roles.Select(role => $"{role.Name}:{role.ValueType.Name}:{role.Cardinality}"))})";
     private sealed record Candidate(VerbImplementationDescriptor Implementation, SentencePattern Pattern, IReadOnlyList<BoundRole> Roles, int Cost);
     private sealed record CandidateResult(Candidate? Candidate, string Reason) { public static CandidateResult Ok(Candidate candidate) => new(candidate, string.Empty); public static CandidateResult Fail(string reason) => new(null, reason); }
-    private sealed class SymbolScope(SymbolScope? parent) { private readonly Dictionary<string, Type> _symbols = new(StringComparer.OrdinalIgnoreCase); public void Define(string name, Type type) => _symbols[name] = type; public bool TryGet(string name, out Type type) { if (_symbols.TryGetValue(name, out type!)) return true; if (parent is not null) return parent.TryGet(name, out type!); type = null!; return false; } }
+    private sealed class SymbolScope(SymbolScope? parent)
+    {
+        private readonly Dictionary<string, Type> _symbols = new(StringComparer.OrdinalIgnoreCase);
+        public IReadOnlyDictionary<string, Type> LocalSymbols => _symbols;
+        public void Define(string name, Type type) => _symbols[name] = type;
+        public bool TryGetLocal(string name, out Type type) => _symbols.TryGetValue(name, out type!);
+        public bool TryGet(string name, out Type type) { if (_symbols.TryGetValue(name, out type!)) return true; if (parent is not null) return parent.TryGet(name, out type!); type = null!; return false; }
+    }
 }
