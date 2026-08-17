@@ -17,10 +17,12 @@ public sealed record RuntimeResult(
 public sealed class BoundExecutor
 {
     private readonly VerbActivator _activator;
+    private readonly ICapabilityPolicy _capabilities;
 
-    public BoundExecutor(VerbActivator activator)
+    public BoundExecutor(VerbActivator activator, ICapabilityPolicy? capabilities = null)
     {
         _activator = activator ?? throw new ArgumentNullException(nameof(activator));
+        _capabilities = capabilities ?? new AllowAllCapabilityPolicy();
     }
 
     public async ValueTask<RuntimeResult> ExecuteAsync(
@@ -44,6 +46,16 @@ public sealed class BoundExecutor
             foreach (BoundSentence sentence in pipeline.Sentences)
             {
                 cancellationToken.ThrowIfCancellationRequested();
+
+                string? denied = sentence.Implementation.Capabilities
+                    .FirstOrDefault(capability => !_capabilities.IsAllowed(capability));
+                if (denied is not null)
+                {
+                    diagnostics.Add(new RuntimeDiagnostic(
+                        "FLU-RUN-403",
+                        $"Capability '{denied}' is required by {sentence.Verb.Name} but is not allowed by the host."));
+                    return new RuntimeResult(state, diagnostics);
+                }
 
                 try
                 {
