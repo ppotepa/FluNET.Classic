@@ -29,23 +29,45 @@ public sealed record BoundCheck(BoundExpression Condition, string? ResultAlias, 
 {
     public override bool IsSensitive => Condition.IsSensitive;
 }
-public sealed record BoundCollection(string Operation, BoundValue Source, Type ElementType, BoundExpression? Argument, string? ResultAlias, Type CollectionResultType, TextSpan Span, BoundValue? Strategy = null)
-    : BoundStage(ResolveCollectionResultType(Operation, Source.Type, ElementType, Argument, CollectionResultType), Span)
+public sealed record BoundCollection(
+    string Operation,
+    BoundValue Source,
+    Type ElementType,
+    BoundExpression? Argument,
+    string? ResultAlias,
+    Type CollectionResultType,
+    TextSpan Span,
+    BoundValue? Strategy = null,
+    IntrinsicDescriptor? Descriptor = null)
+    : BoundStage(ResolveCollectionResultType(Descriptor, Operation, Source.Type, ElementType, Argument, CollectionResultType), Span)
 {
+    public IntrinsicSemanticKind Semantic => Descriptor?.Semantic ?? LegacySemantic(Operation);
     public override bool IsSensitive => Source.IsSensitive || SensitiveValueMetadata.IsSensitiveType(ElementType);
-    private static Type ResolveCollectionResultType(string operation, Type sourceType, Type elementType, BoundExpression? argument, Type fallback)
+
+    private static Type ResolveCollectionResultType(IntrinsicDescriptor? descriptor, string operation, Type sourceType, Type elementType, BoundExpression? argument, Type fallback)
     {
-        string normalized = operation.ToUpperInvariant();
-        if (normalized == "GROUP" && argument is not null)
+        IntrinsicSemanticKind semantic = descriptor?.Semantic ?? LegacySemantic(operation);
+        if (semantic == IntrinsicSemanticKind.Group && argument is not null)
             return typeof(CollectionGroup<,>).MakeGenericType(argument.Type, elementType).MakeArrayType();
 
         if (!ClrTypeShape.IsAsyncEnumerableType(sourceType)) return fallback;
-        return normalized switch
+        return semantic switch
         {
-            "TAKE" or "SKIP" or "DISTINCT" => typeof(IAsyncEnumerable<>).MakeGenericType(elementType),
+            IntrinsicSemanticKind.Take or IntrinsicSemanticKind.Skip or IntrinsicSemanticKind.Distinct => typeof(IAsyncEnumerable<>).MakeGenericType(elementType),
             _ => fallback
         };
     }
+
+    private static IntrinsicSemanticKind LegacySemantic(string operation) => operation.ToUpperInvariant() switch
+    {
+        "SORT" => IntrinsicSemanticKind.Sort,
+        "GROUP" => IntrinsicSemanticKind.Group,
+        "TAKE" => IntrinsicSemanticKind.Take,
+        "SKIP" => IntrinsicSemanticKind.Skip,
+        "DISTINCT" => IntrinsicSemanticKind.Distinct,
+        "COUNT" => IntrinsicSemanticKind.Count,
+        _ => IntrinsicSemanticKind.Custom
+    };
 }
 public sealed record BoundFlowVariable(string Name, Type Type);
 public sealed record BoundIf(BoundExpression Condition, BoundBlock Then, BoundBlock? Else, IReadOnlyList<BoundFlowVariable> PromotedVariables, TextSpan Span) : BoundStatement(Span);
