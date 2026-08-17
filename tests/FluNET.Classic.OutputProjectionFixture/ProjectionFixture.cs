@@ -45,3 +45,18 @@ public sealed class AcceptNull : IVerb<string>
     public ValueTask<string> ExecuteAsync(VerbExecutionContext context, CancellationToken cancellationToken = default) =>
         ValueTask.FromResult(_value ?? "<null>");
 }
+
+[Verb("INTERPRET")]
+public sealed class InterpretAs : IVerb<string>
+{
+    private readonly string _value;
+    private readonly string _representation;
+    public InterpretAs([What] string value, [As] string representation)
+    {
+        _value = value;
+        _representation = representation;
+    }
+
+    public ValueTask<string> ExecuteAsync(VerbExecutionContext context, CancellationToken cancellationToken = default) =>
+        ValueTask.FromResult($"{_representation}:{_value}");
+}
