@@ -40,7 +40,39 @@ public sealed class LanguageIntrospectionService(LanguageSnapshot snapshot)
                     })
                 })
             }),
-            qualifiers = Snapshot.Qualifiers.Select(q => new { id = q.StableId, name = q.Name, type = q.TargetType?.FullName, aliases = q.AllAliases }),
+            qualifiers = Snapshot.Qualifiers.Select(q => new
+            {
+                id = q.StableId,
+                name = q.Name,
+                type = q.TargetType?.FullName,
+                aliases = q.AllAliases
+            }),
+            predicates = Snapshot.Predicates.Select(p => new
+            {
+                id = p.StableId,
+                name = p.Name,
+                surfaceNames = p.AllSurfaceNames,
+                syntax = p.Syntax.ToString(),
+                operandTypes = p.SupportedOperandTypes.Select(x => x.FullName),
+                capabilities = p.RequiredCapabilities
+            }),
+            operators = Snapshot.Operators.Select(o => new
+            {
+                id = o.StableId,
+                name = o.Name,
+                surfaceNames = o.AllSurfaceNames,
+                precedence = o.Precedence,
+                arity = o.Arity.ToString(),
+                associativity = o.Associativity.ToString()
+            }),
+            intrinsics = Snapshot.Intrinsics.Select(i => new
+            {
+                id = i.StableId,
+                name = i.Name,
+                surfaceNames = i.AllSurfaceNames,
+                syntax = i.Syntax.ToString()
+            }),
+            reservedWords = Snapshot.ReservedWords.OrderBy(x => x, StringComparer.OrdinalIgnoreCase),
             modules = Snapshot.Modules
         };
 

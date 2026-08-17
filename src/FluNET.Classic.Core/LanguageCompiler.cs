@@ -7,61 +7,166 @@ public sealed class LanguageCompiler
 {
     private readonly NullabilityInfoContext _nullability = new();
 
-    public LanguageSnapshot Compile(IEnumerable<Assembly>? assemblies = null, IEnumerable<ILanguageModule>? modules = null, IEnumerable<QualifierDescriptor>? qualifiers = null) => Build(assemblies, modules, qualifiers).ThrowIfFailed();
+    public LanguageSnapshot Compile(
+        IEnumerable<Assembly>? assemblies = null,
+        IEnumerable<ILanguageModule>? modules = null,
+        IEnumerable<QualifierDescriptor>? qualifiers = null,
+        IEnumerable<PredicateDescriptor>? predicates = null,
+        IEnumerable<OperatorDescriptor>? operators = null,
+        IEnumerable<IntrinsicDescriptor>? intrinsics = null) =>
+        Build(assemblies, modules, qualifiers, predicates, operators, intrinsics).ThrowIfFailed();
 
-    public LanguageBuildResult Build(IEnumerable<Assembly>? assemblies = null, IEnumerable<ILanguageModule>? modules = null, IEnumerable<QualifierDescriptor>? qualifiers = null)
+    public LanguageBuildResult Build(
+        IEnumerable<Assembly>? assemblies = null,
+        IEnumerable<ILanguageModule>? modules = null,
+        IEnumerable<QualifierDescriptor>? qualifiers = null,
+        IEnumerable<PredicateDescriptor>? predicates = null,
+        IEnumerable<OperatorDescriptor>? operators = null,
+        IEnumerable<IntrinsicDescriptor>? intrinsics = null)
     {
         ILanguageModule[] moduleArray = (modules ?? Array.Empty<ILanguageModule>()).ToArray();
         var diagnostics = new List<LanguageDiagnostic>();
         ValidateModules(moduleArray, diagnostics);
-        Assembly[] sourceAssemblies = (assemblies ?? (moduleArray.Length > 0 ? moduleArray.SelectMany(x => x.Assemblies) : AppDomain.CurrentDomain.GetAssemblies())).Distinct().ToArray();
+
+        Assembly[] sourceAssemblies = (assemblies ?? (moduleArray.Length > 0
+            ? moduleArray.SelectMany(x => x.Assemblies)
+            : AppDomain.CurrentDomain.GetAssemblies())).Distinct().ToArray();
+
         var implementations = new List<VerbImplementationDescriptor>();
         foreach (Type type in sourceAssemblies.SelectMany(GetLoadableTypes).Where(x => !x.IsAbstract && !x.IsInterface && typeof(IVerb).IsAssignableFrom(x)))
         {
             VerbImplementationDescriptor? implementation = CompileVerb(type, diagnostics);
             if (implementation is not null) implementations.Add(implementation);
         }
-        VerbDescriptor[] verbs = implementations.GroupBy(x => x.Name, StringComparer.OrdinalIgnoreCase).Select(group => new VerbDescriptor($"verb:{Slug(group.Key)}", group.Key, group.SelectMany(x => x.Aliases).Distinct(StringComparer.OrdinalIgnoreCase).ToArray(), group.ToArray())).OrderBy(x => x.Name, StringComparer.OrdinalIgnoreCase).ToArray();
+
+        VerbDescriptor[] verbs = implementations
+            .GroupBy(x => x.Name, StringComparer.OrdinalIgnoreCase)
+            .Select(group => new VerbDescriptor(
+                $"verb:{Slug(group.Key)}",
+                group.Key,
+                group.SelectMany(x => x.Aliases).Distinct(StringComparer.OrdinalIgnoreCase).ToArray(),
+                group.ToArray()))
+            .OrderBy(x => x.Name, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        QualifierDescriptor[] qualifierArray = StandardQualifiers.All
+            .Concat(moduleArray.SelectMany(x => x.Qualifiers))
+            .Concat(qualifiers ?? Array.Empty<QualifierDescriptor>())
+            .GroupBy(x => x.Name, StringComparer.OrdinalIgnoreCase)
+            .Select(x => x.Last())
+            .ToArray();
+
+        PredicateDescriptor[] predicateArray = StandardLanguageSurface.Predicates
+            .Concat(moduleArray.SelectMany(x => x.Predicates))
+            .Concat(predicates ?? Array.Empty<PredicateDescriptor>())
+            .GroupBy(x => x.Name, StringComparer.OrdinalIgnoreCase)
+            .Select(x => x.Last())
+            .ToArray();
+
+        OperatorDescriptor[] operatorArray = StandardLanguageSurface.Operators
+            .Concat(moduleArray.SelectMany(x => x.Operators))
+            .Concat(operators ?? Array.Empty<OperatorDescriptor>())
+            .GroupBy(x => x.Name, StringComparer.OrdinalIgnoreCase)
+            .Select(x => x.Last())
+            .ToArray();
+
+        IntrinsicDescriptor[] intrinsicArray = moduleArray.SelectMany(x => x.Intrinsics)
+            .Concat(intrinsics ?? Array.Empty<IntrinsicDescriptor>())
+            .GroupBy(x => x.Name, StringComparer.OrdinalIgnoreCase)
+            .Select(x => x.Last())
+            .ToArray();
+
         ValidateNames(verbs, diagnostics);
         ValidatePatterns(implementations, diagnostics);
-        QualifierDescriptor[] qualifierArray = StandardQualifiers.All.Concat(moduleArray.SelectMany(x => x.Qualifiers)).Concat(qualifiers ?? Array.Empty<QualifierDescriptor>()).GroupBy(x => x.Name, StringComparer.OrdinalIgnoreCase).Select(x => x.Last()).ToArray();
-        ModuleDescriptor[] moduleDescriptors = moduleArray.Select(x => new ModuleDescriptor($"module:{Slug(x.Name)}", x.Name, x.Version, x.Dependencies.ToArray(), x.Assemblies.Select(a => a.GetName().Name ?? a.FullName ?? "unknown").ToArray())).ToArray();
+        ValidateSurfaceDefinitions(predicateArray, operatorArray, intrinsicArray, verbs, diagnostics);
+
+        ModuleDescriptor[] moduleDescriptors = moduleArray
+            .Select(x => new ModuleDescriptor(
+                $"module:{Slug(x.Name)}",
+                x.Name,
+                x.Version,
+                x.Dependencies.ToArray(),
+                x.Assemblies.Select(a => a.GetName().Name ?? a.FullName ?? "unknown").ToArray()))
+            .ToArray();
+
         if (diagnostics.Any(x => x.Severity == LanguageDiagnosticSeverity.Error)) return new(null, diagnostics);
-        return new(new LanguageSnapshot(verbs, qualifierArray, moduleDescriptors), diagnostics);
+        return new(new LanguageSnapshot(verbs, qualifierArray, moduleDescriptors, predicateArray, operatorArray, intrinsicArray), diagnostics);
     }
 
     private VerbImplementationDescriptor? CompileVerb(Type type, ICollection<LanguageDiagnostic> diagnostics)
     {
         string? name = ResolveVerbName(type);
-        if (name is null) { diagnostics.Add(new("FLU-LANG-001", $"Could not infer verb family for '{type.FullName}'. Add [Verb] or a semantic verb-family interface.", LanguageDiagnosticSeverity.Error, type)); return null; }
-        string[] aliases = type.GetCustomAttributes<AliasAttribute>(true).Select(x => x.Alias.ToUpperInvariant()).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
-        string[] implementationQualifiers = type.GetCustomAttributes<QualifierAttribute>(true).Select(x => x.Name.ToUpperInvariant()).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+        if (name is null)
+        {
+            diagnostics.Add(new("FLU-LANG-001", $"Could not infer verb family for '{type.FullName}'. Add [Verb] or a semantic verb-family interface.", LanguageDiagnosticSeverity.Error, type));
+            return null;
+        }
+
+        string[] aliases = type.GetCustomAttributes<AliasAttribute>(true)
+            .Select(x => x.Alias.ToUpperInvariant())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        string[] implementationQualifiers = type.GetCustomAttributes<QualifierAttribute>(true)
+            .Select(x => x.Name.ToUpperInvariant())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
         Type resultType = ResolveResultType(type) ?? typeof(object);
-        ConstructorDescriptor[] constructors = type.GetConstructors(BindingFlags.Instance | BindingFlags.Public).Select(c => CompileConstructor(c, name)).ToArray();
-        if (constructors.Length == 0) { diagnostics.Add(new("FLU-LANG-014", $"Verb '{type.FullName}' has no public constructor.", LanguageDiagnosticSeverity.Error, type)); return null; }
+        ConstructorDescriptor[] constructors = type.GetConstructors(BindingFlags.Instance | BindingFlags.Public)
+            .Select(c => CompileConstructor(c, name))
+            .ToArray();
+
+        if (constructors.Length == 0)
+        {
+            diagnostics.Add(new("FLU-LANG-014", $"Verb '{type.FullName}' has no public constructor.", LanguageDiagnosticSeverity.Error, type));
+            return null;
+        }
+
         SentencePattern[] patterns = constructors.Select((constructor, index) => new SentencePattern(
-            $"pattern:{Slug(name)}:{Slug(type.Name)}:{index}",
-            constructor,
-            constructor.Parameters
-                .Where(x => !x.IsService && x.RoleName is not null)
-                .Select(x => new RoleSlotDescriptor(
-                    $"role:{Slug(name)}:{index}:{x.Position}",
-                    x.RoleName!,
-                    x.ParameterType,
-                    x.TypeShape,
-                    x.Direction,
-                    x.Cardinality,
-                    x.Position,
-                    x.Name,
-                    !x.IsOptional,
-                    x.SurfaceNames))
-                .ToArray()))
+                $"pattern:{Slug(name)}:{Slug(type.Name)}:{index}",
+                constructor,
+                constructor.Parameters
+                    .Where(x => !x.IsService && x.RoleName is not null)
+                    .Select(x => new RoleSlotDescriptor(
+                        $"role:{Slug(name)}:{index}:{x.Position}",
+                        x.RoleName!,
+                        x.ParameterType,
+                        x.TypeShape,
+                        x.Direction,
+                        x.Cardinality,
+                        x.Position,
+                        x.Name,
+                        !x.IsOptional,
+                        x.SurfaceNames))
+                    .ToArray()))
             .Where(x => x.Roles.Count > 0)
             .ToArray();
-        if (patterns.Length == 0) diagnostics.Add(new("FLU-LANG-015", $"Verb '{type.FullName}' has no constructor with language roles.", LanguageDiagnosticSeverity.Error, type));
-        string[] capabilities = type.GetCustomAttributes<RequiresCapabilityAttribute>(true).Select(x => x.Capability).Concat(InferCapabilities(type, patterns)).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
-        ExecutionTrait[] traits = type.GetCustomAttributes<ExecutionTraitAttribute>(true).Select(x => x.Trait).Concat(InferTraits(type)).Distinct().ToArray();
-        return new($"verb:{Slug(name)}:{Slug(type.FullName ?? type.Name)}", type, name, aliases, implementationQualifiers, constructors, patterns, resultType, capabilities, traits, CompileInvoker(resultType));
+
+        if (patterns.Length == 0)
+            diagnostics.Add(new("FLU-LANG-015", $"Verb '{type.FullName}' has no constructor with language roles.", LanguageDiagnosticSeverity.Error, type));
+
+        string[] capabilities = type.GetCustomAttributes<RequiresCapabilityAttribute>(true)
+            .Select(x => x.Capability)
+            .Concat(InferCapabilities(type, patterns))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        ExecutionTrait[] traits = type.GetCustomAttributes<ExecutionTraitAttribute>(true)
+            .Select(x => x.Trait)
+            .Concat(InferTraits(type))
+            .Distinct()
+            .ToArray();
+
+        return new(
+            $"verb:{Slug(name)}:{Slug(type.FullName ?? type.Name)}",
+            type,
+            name,
+            aliases,
+            implementationQualifiers,
+            constructors,
+            patterns,
+            resultType,
+            capabilities,
+            traits,
+            CompileInvoker(resultType));
     }
 
     private ConstructorDescriptor CompileConstructor(ConstructorInfo constructor, string verbName)
@@ -77,12 +182,28 @@ public sealed class LanguageCompiler
         string? roleName = service ? null : role?.Name ?? InferRoleName(parameter.Name);
         string[] surfaceNames = service
             ? Array.Empty<string>()
-            : parameter.GetCustomAttributes<RoleAliasAttribute>(false).Select(x => x.Alias.ToUpperInvariant()).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+            : parameter.GetCustomAttributes<RoleAliasAttribute>(false)
+                .Select(x => x.Alias.ToUpperInvariant())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToArray();
         RoleDirection direction = parameter.GetCustomAttribute<RoleDirectionAttribute>()?.Direction ?? role?.Direction ?? InferDirection(verbName, roleName);
         bool paramArray = parameter.IsDefined(typeof(ParamArrayAttribute), false);
         RoleCardinality cardinality = paramArray ? RoleCardinality.ZeroOrMore : parameter.IsOptional ? RoleCardinality.ZeroOrOne : RoleCardinality.One;
         NullabilityInfo nullability = _nullability.Create(parameter);
-        return new(parameter, parameter.Name ?? $"arg{parameter.Position}", parameter.ParameterType, ClrTypeShape.From(parameter.ParameterType, nullability.ReadState), parameter.IsOptional, parameter.HasDefaultValue ? parameter.DefaultValue : null, paramArray, service, roleName, surfaceNames, direction, cardinality, parameter.Position);
+        return new(
+            parameter,
+            parameter.Name ?? $"arg{parameter.Position}",
+            parameter.ParameterType,
+            ClrTypeShape.From(parameter.ParameterType, nullability.ReadState),
+            parameter.IsOptional,
+            parameter.HasDefaultValue ? parameter.DefaultValue : null,
+            paramArray,
+            service,
+            roleName,
+            surfaceNames,
+            direction,
+            cardinality,
+            parameter.Position);
     }
 
     private static Func<object?[], object> CompileActivator(ConstructorInfo constructor)
@@ -101,16 +222,22 @@ public sealed class LanguageCompiler
         return Expression.Lambda<Func<object, VerbExecutionContext, CancellationToken, ValueTask<object?>>>(Expression.Call(bridge, instance, context, token), instance, context, token).Compile();
     }
 
-    private static async ValueTask<object?> InvokeGeneric<TResult>(object instance, VerbExecutionContext context, CancellationToken cancellationToken) => await ((IVerb<TResult>)instance).ExecuteAsync(context, cancellationToken).ConfigureAwait(false);
+    private static async ValueTask<object?> InvokeGeneric<TResult>(object instance, VerbExecutionContext context, CancellationToken cancellationToken) =>
+        await ((IVerb<TResult>)instance).ExecuteAsync(context, cancellationToken).ConfigureAwait(false);
 
     private static IEnumerable<string> InferCapabilities(Type type, IEnumerable<SentencePattern> patterns)
     {
         RoleSlotDescriptor[] roles = patterns.SelectMany(x => x.Roles).ToArray();
-        bool fileInput = roles.Any(r => r.Direction != RoleDirection.Output && (r.ValueType == typeof(FileInfo) || r.ValueType == typeof(DirectoryInfo) || r.TypeShape.ElementType == typeof(FileInfo)));
+        bool fileInput = roles.Any(r => r.Direction != RoleDirection.Output &&
+            (r.ValueType == typeof(FileInfo) || r.ValueType == typeof(DirectoryInfo) || r.TypeShape.ElementType == typeof(FileInfo)));
         bool uriInput = roles.Any(r => r.ValueType == typeof(Uri) || r.TypeShape.ElementType == typeof(Uri));
-        if ((typeof(IGet).IsAssignableFrom(type) || typeof(ILoad).IsAssignableFrom(type) || typeof(IListVerb).IsAssignableFrom(type) || typeof(ICheck).IsAssignableFrom(type) || typeof(ICopy).IsAssignableFrom(type) || typeof(IMove).IsAssignableFrom(type)) && fileInput) yield return StandardCapabilities.FileSystemRead;
-        if ((typeof(ISave).IsAssignableFrom(type) || typeof(IDelete).IsAssignableFrom(type) || typeof(ICreate).IsAssignableFrom(type) || typeof(ICopy).IsAssignableFrom(type) || typeof(IMove).IsAssignableFrom(type) || typeof(IDownload).IsAssignableFrom(type)) && fileInput) yield return StandardCapabilities.FileSystemWrite;
-        if (uriInput || typeof(IPost).IsAssignableFrom(type) || typeof(IDownload).IsAssignableFrom(type) || typeof(ISend).IsAssignableFrom(type)) yield return StandardCapabilities.Network;
+
+        if ((typeof(IGet).IsAssignableFrom(type) || typeof(ILoad).IsAssignableFrom(type) || typeof(IListVerb).IsAssignableFrom(type) || typeof(ICheck).IsAssignableFrom(type) || typeof(ICopy).IsAssignableFrom(type) || typeof(IMove).IsAssignableFrom(type)) && fileInput)
+            yield return StandardCapabilities.FileSystemRead;
+        if ((typeof(ISave).IsAssignableFrom(type) || typeof(IDelete).IsAssignableFrom(type) || typeof(ICreate).IsAssignableFrom(type) || typeof(ICopy).IsAssignableFrom(type) || typeof(IMove).IsAssignableFrom(type) || typeof(IDownload).IsAssignableFrom(type)) && fileInput)
+            yield return StandardCapabilities.FileSystemWrite;
+        if (uriInput || typeof(IPost).IsAssignableFrom(type) || typeof(IDownload).IsAssignableFrom(type) || typeof(ISend).IsAssignableFrom(type))
+            yield return StandardCapabilities.Network;
         if (typeof(ISend).IsAssignableFrom(type)) yield return StandardCapabilities.EmailSend;
         if (typeof(IRun).IsAssignableFrom(type)) yield return StandardCapabilities.ProcessExecute;
         if (typeof(IStop).IsAssignableFrom(type)) yield return StandardCapabilities.ProcessTerminate;
@@ -118,10 +245,14 @@ public sealed class LanguageCompiler
 
     private static IEnumerable<ExecutionTrait> InferTraits(Type type)
     {
-        if (typeof(ITransform).IsAssignableFrom(type) || typeof(IParse).IsAssignableFrom(type) || typeof(IFormat).IsAssignableFrom(type) || typeof(ICheck).IsAssignableFrom(type) || typeof(IFilter).IsAssignableFrom(type)) yield return ExecutionTrait.Pure;
-        if (typeof(IGet).IsAssignableFrom(type) || typeof(ILoad).IsAssignableFrom(type) || typeof(IListVerb).IsAssignableFrom(type) || typeof(ICheck).IsAssignableFrom(type)) yield return ExecutionTrait.Idempotent;
-        if (typeof(ISave).IsAssignableFrom(type) || typeof(IDelete).IsAssignableFrom(type) || typeof(ICreate).IsAssignableFrom(type) || typeof(ICopy).IsAssignableFrom(type) || typeof(IMove).IsAssignableFrom(type) || typeof(IRun).IsAssignableFrom(type) || typeof(IStop).IsAssignableFrom(type) || typeof(IPost).IsAssignableFrom(type) || typeof(ISend).IsAssignableFrom(type) || typeof(IDownload).IsAssignableFrom(type)) yield return ExecutionTrait.SideEffecting;
-        if (typeof(IGet).IsAssignableFrom(type) || typeof(ILoad).IsAssignableFrom(type) || typeof(IDownload).IsAssignableFrom(type)) yield return ExecutionTrait.Retryable;
+        if (typeof(ITransform).IsAssignableFrom(type) || typeof(IParse).IsAssignableFrom(type) || typeof(IFormat).IsAssignableFrom(type) || typeof(ICheck).IsAssignableFrom(type) || typeof(IFilter).IsAssignableFrom(type))
+            yield return ExecutionTrait.Pure;
+        if (typeof(IGet).IsAssignableFrom(type) || typeof(ILoad).IsAssignableFrom(type) || typeof(IListVerb).IsAssignableFrom(type) || typeof(ICheck).IsAssignableFrom(type))
+            yield return ExecutionTrait.Idempotent;
+        if (typeof(ISave).IsAssignableFrom(type) || typeof(IDelete).IsAssignableFrom(type) || typeof(ICreate).IsAssignableFrom(type) || typeof(ICopy).IsAssignableFrom(type) || typeof(IMove).IsAssignableFrom(type) || typeof(IRun).IsAssignableFrom(type) || typeof(IStop).IsAssignableFrom(type) || typeof(IPost).IsAssignableFrom(type) || typeof(ISend).IsAssignableFrom(type) || typeof(IDownload).IsAssignableFrom(type))
+            yield return ExecutionTrait.SideEffecting;
+        if (typeof(IGet).IsAssignableFrom(type) || typeof(ILoad).IsAssignableFrom(type) || typeof(IDownload).IsAssignableFrom(type))
+            yield return ExecutionTrait.Retryable;
     }
 
     private static string? ResolveVerbName(Type type)
@@ -151,11 +282,13 @@ public sealed class LanguageCompiler
             (typeof(IFilter), "FILTER"),
             (typeof(ISay), "SAY")
         };
-        foreach ((Type marker, string familyName) in families) if (marker.IsAssignableFrom(type)) return familyName;
+        foreach ((Type marker, string familyName) in families)
+            if (marker.IsAssignableFrom(type)) return familyName;
         return null;
     }
 
-    private static Type? ResolveResultType(Type type) => type.GetInterfaces().FirstOrDefault(x => x.IsGenericType && x.GetGenericTypeDefinition() == typeof(IVerb<>))?.GetGenericArguments()[0];
+    private static Type? ResolveResultType(Type type) =>
+        type.GetInterfaces().FirstOrDefault(x => x.IsGenericType && x.GetGenericTypeDefinition() == typeof(IVerb<>))?.GetGenericArguments()[0];
 
     private static string? InferRoleName(string? name) => name?.ToLowerInvariant() switch
     {
@@ -169,17 +302,32 @@ public sealed class LanguageCompiler
         "at" or "location" => "AT",
         "for" => "FOR",
         "until" or "deadline" => "UNTIL",
+        "by" or "selector" or "key" => "BY",
         "then" => "THEN",
         _ => null
     };
 
-    private static RoleDirection InferDirection(string verb, string? role) => role?.Equals("WHAT", StringComparison.OrdinalIgnoreCase) == true && (verb is "GET" or "LOAD" or "DOWNLOAD" or "LIST") ? RoleDirection.Output : RoleDirection.Input;
+    private static RoleDirection InferDirection(string verb, string? role) =>
+        role?.Equals("WHAT", StringComparison.OrdinalIgnoreCase) == true && verb is "GET" or "LOAD" or "DOWNLOAD" or "LIST"
+            ? RoleDirection.Output
+            : RoleDirection.Input;
 
     private static void ValidateNames(IEnumerable<VerbDescriptor> verbs, ICollection<LanguageDiagnostic> diagnostics)
     {
         var owners = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        foreach (VerbDescriptor verb in verbs) { Add(verb.Name, verb.Name); foreach (string alias in verb.Aliases) Add(alias, verb.Name); }
-        void Add(string name, string owner) { if (owners.TryGetValue(name, out string? existing) && !existing.Equals(owner, StringComparison.OrdinalIgnoreCase)) diagnostics.Add(new("FLU-LANG-002", $"Language name '{name}' is claimed by '{existing}' and '{owner}'.", LanguageDiagnosticSeverity.Error)); else owners[name] = owner; }
+        foreach (VerbDescriptor verb in verbs)
+        {
+            Add(verb.Name, verb.Name);
+            foreach (string alias in verb.Aliases) Add(alias, verb.Name);
+        }
+
+        void Add(string name, string owner)
+        {
+            if (owners.TryGetValue(name, out string? existing) && !existing.Equals(owner, StringComparison.OrdinalIgnoreCase))
+                diagnostics.Add(new("FLU-LANG-002", $"Language name '{name}' is claimed by '{existing}' and '{owner}'.", LanguageDiagnosticSeverity.Error));
+            else
+                owners[name] = owner;
+        }
     }
 
     private static void ValidatePatterns(IEnumerable<VerbImplementationDescriptor> implementations, ICollection<LanguageDiagnostic> diagnostics)
@@ -188,15 +336,17 @@ public sealed class LanguageCompiler
         foreach (SentencePattern pattern in implementation.Patterns)
         {
             RoleSlotDescriptor[] variadic = pattern.Roles.Where(x => x.Cardinality is RoleCardinality.ZeroOrMore or RoleCardinality.OneOrMore).ToArray();
-            if (variadic.Length > 1) diagnostics.Add(new("FLU-LANG-016", $"Pattern '{pattern.StableId}' has more than one variadic role.", LanguageDiagnosticSeverity.Error, implementation.ImplementationType));
-            if (variadic.Length == 1 && variadic[0].Position != pattern.Roles.Max(x => x.Position)) diagnostics.Add(new("FLU-LANG-017", $"Variadic role '{variadic[0].Name}' must be the last language role.", LanguageDiagnosticSeverity.Error, implementation.ImplementationType));
+            if (variadic.Length > 1)
+                diagnostics.Add(new("FLU-LANG-016", $"Pattern '{pattern.StableId}' has more than one variadic role.", LanguageDiagnosticSeverity.Error, implementation.ImplementationType));
+            if (variadic.Length == 1 && variadic[0].Position != pattern.Roles.Max(x => x.Position))
+                diagnostics.Add(new("FLU-LANG-017", $"Variadic role '{variadic[0].Name}' must be the last language role.", LanguageDiagnosticSeverity.Error, implementation.ImplementationType));
 
             var surfaceOwners = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             foreach (RoleSlotDescriptor role in pattern.Roles)
             foreach (string surface in role.AllSurfaceNames)
             {
-                if (surface.Equals("INTO", StringComparison.OrdinalIgnoreCase))
-                    diagnostics.Add(new("FLU-LANG-018", $"'{surface}' is reserved for result binding and cannot be a role name or alias.", LanguageDiagnosticSeverity.Error, implementation.ImplementationType));
+                if (surface.Equals("INTO", StringComparison.OrdinalIgnoreCase) || surface.Equals("THEN", StringComparison.OrdinalIgnoreCase) || surface.Equals("ELSE", StringComparison.OrdinalIgnoreCase) || surface.Equals("WHERE", StringComparison.OrdinalIgnoreCase))
+                    diagnostics.Add(new("FLU-LANG-018", $"'{surface}' is reserved by the structural grammar and cannot be a role name or alias.", LanguageDiagnosticSeverity.Error, implementation.ImplementationType));
                 if (surfaceOwners.TryGetValue(surface, out string? owner) && !owner.Equals(role.Name, StringComparison.OrdinalIgnoreCase))
                     diagnostics.Add(new("FLU-LANG-019", $"Surface role '{surface}' maps to both '{owner}' and '{role.Name}' in pattern '{pattern.StableId}'.", LanguageDiagnosticSeverity.Error, implementation.ImplementationType));
                 else
@@ -205,13 +355,62 @@ public sealed class LanguageCompiler
         }
     }
 
+    private static void ValidateSurfaceDefinitions(
+        IReadOnlyList<PredicateDescriptor> predicates,
+        IReadOnlyList<OperatorDescriptor> operators,
+        IReadOnlyList<IntrinsicDescriptor> intrinsics,
+        IReadOnlyList<VerbDescriptor> verbs,
+        ICollection<LanguageDiagnostic> diagnostics)
+    {
+        ValidateUniqueSurface(predicates, x => x.Name, x => x.AllSurfaceNames, "predicate", diagnostics);
+        ValidateUniqueSurface(operators, x => x.Name, x => x.AllSurfaceNames, "operator", diagnostics);
+        ValidateUniqueSurface(intrinsics, x => x.Name, x => x.AllSurfaceNames, "intrinsic", diagnostics);
+
+        HashSet<string> verbSurface = verbs
+            .SelectMany(x => new[] { x.Name }.Concat(x.Aliases))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        foreach (IntrinsicDescriptor intrinsic in intrinsics)
+        foreach (string surface in intrinsic.AllSurfaceNames)
+            if (verbSurface.Contains(surface))
+                diagnostics.Add(new("FLU-LANG-023", $"Intrinsic surface '{surface}' collides with a verb surface.", LanguageDiagnosticSeverity.Error));
+
+        foreach (OperatorDescriptor descriptor in operators)
+        {
+            if (descriptor.Precedence <= 0)
+                diagnostics.Add(new("FLU-LANG-024", $"Operator '{descriptor.Name}' must have positive precedence.", LanguageDiagnosticSeverity.Error));
+            if (descriptor.AllSurfaceNames.Any(string.IsNullOrWhiteSpace))
+                diagnostics.Add(new("FLU-LANG-025", $"Operator '{descriptor.Name}' has an empty surface name.", LanguageDiagnosticSeverity.Error));
+        }
+    }
+
+    private static void ValidateUniqueSurface<T>(
+        IEnumerable<T> items,
+        Func<T, string> name,
+        Func<T, IReadOnlyList<string>> surfaces,
+        string kind,
+        ICollection<LanguageDiagnostic> diagnostics)
+    {
+        var owners = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (T item in items)
+        foreach (string surface in surfaces(item))
+        {
+            string owner = name(item);
+            if (owners.TryGetValue(surface, out string? existing) && !existing.Equals(owner, StringComparison.OrdinalIgnoreCase))
+                diagnostics.Add(new("FLU-LANG-022", $"{kind} surface '{surface}' is claimed by '{existing}' and '{owner}'.", LanguageDiagnosticSeverity.Error));
+            else
+                owners[surface] = owner;
+        }
+    }
+
     private static void ValidateModules(IReadOnlyList<ILanguageModule> modules, ICollection<LanguageDiagnostic> diagnostics)
     {
         var names = new HashSet<string>(modules.Select(x => x.Name), StringComparer.OrdinalIgnoreCase);
-        if (names.Count != modules.Count) diagnostics.Add(new("FLU-LANG-029", "Duplicate module names are not allowed.", LanguageDiagnosticSeverity.Error));
+        if (names.Count != modules.Count)
+            diagnostics.Add(new("FLU-LANG-029", "Duplicate module names are not allowed.", LanguageDiagnosticSeverity.Error));
         foreach (ILanguageModule module in modules)
         foreach (string dependency in module.Dependencies)
-            if (!names.Contains(dependency)) diagnostics.Add(new("FLU-LANG-030", $"Module '{module.Name}' requires missing module '{dependency}'.", LanguageDiagnosticSeverity.Error));
+            if (!names.Contains(dependency))
+                diagnostics.Add(new("FLU-LANG-030", $"Module '{module.Name}' requires missing module '{dependency}'.", LanguageDiagnosticSeverity.Error));
     }
 
     private static IEnumerable<Type> GetLoadableTypes(Assembly assembly)
@@ -220,5 +419,6 @@ public sealed class LanguageCompiler
         catch (ReflectionTypeLoadException ex) { return ex.Types.OfType<Type>(); }
     }
 
-    private static string Slug(string text) => new string(text.ToLowerInvariant().Select(ch => char.IsLetterOrDigit(ch) ? ch : '-').ToArray()).Trim('-');
+    private static string Slug(string text) =>
+        new string(text.ToLowerInvariant().Select(ch => char.IsLetterOrDigit(ch) ? ch : '-').ToArray()).Trim('-');
 }
