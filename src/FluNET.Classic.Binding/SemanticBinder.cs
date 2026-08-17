@@ -63,11 +63,10 @@ public sealed class SemanticBinder
             RoleSlotDescriptor[] matches = pattern.Roles.Where(role => role.AllSurfaceNames.Contains(clause.RoleName, StringComparer.OrdinalIgnoreCase)).ToArray(); if (matches.Length == 0) return CandidateResult.Fail($"role {clause.RoleName} is not valid for this pattern"); if (matches.Length > 1) return CandidateResult.Fail($"role {clause.RoleName} is ambiguous in this pattern");
             if (!supplied.TryGetValue(matches[0].Name, out Queue<ExpressionNode>? values)) supplied[matches[0].Name] = values = new Queue<ExpressionNode>(); foreach (ExpressionNode value in clause.Values) values.Enqueue(value);
         }
-        var roles = new List<BoundRole>(); int cost = pattern.Roles.Count(x => x.Cardinality is RoleCardinality.ZeroOrMore or RoleCardinality.OneOrMore); bool aliasUsedAsOutput = false; bool pipelineUsed = false;
+        var roles = new List<BoundRole>(); int cost = pattern.Roles.Count(x => x.Cardinality is RoleCardinality.ZeroOrMore or RoleCardinality.OneOrMore); bool pipelineUsed = false;
         foreach (RoleSlotDescriptor slot in pattern.Roles.OrderBy(x => x.Position))
         {
             supplied.TryGetValue(slot.Name, out Queue<ExpressionNode>? queue); queue ??= new Queue<ExpressionNode>(); var expressions = new List<ExpressionNode>(); if (slot.Cardinality is RoleCardinality.ZeroOrMore or RoleCardinality.OneOrMore) while (queue.Count > 0) expressions.Add(queue.Dequeue()); else if (queue.Count > 0) expressions.Add(queue.Dequeue());
-            if (expressions.Count == 0 && slot.Direction is RoleDirection.Output or RoleDirection.InputOutput && !aliasUsedAsOutput && sentence.ResultAlias is not null) { expressions.Add(new VariableExpression(sentence.ResultAlias, sentence.Span)); aliasUsedAsOutput = true; }
             if (expressions.Count == 0 && slot.Direction == RoleDirection.Input && pipelineType is not null && slot.Required && !pipelineUsed && _conversions.TryPlan(pipelineType, SlotBindingType(slot), out ConversionPlan? pipelinePlan))
             {
                 BoundValue pipeline = new BoundPipelineValue(pipelineType, sentence.Span);
@@ -79,7 +78,7 @@ public sealed class SemanticBinder
             foreach (ExpressionNode expression in expressions) { if (!TryBindValue(expression, expected, slot.Direction, verb.Name, qualifier?.Name, symbols, out BoundValue? value, out int valueCost, slot.Name)) return CandidateResult.Fail($"cannot bind {slot.Name} value to {expected.Name}"); values.Add(value!); cost += valueCost; }
             roles.Add(new(slot, values, sentence.Span));
         }
-        if (supplied.Values.Any(x => x.Count > 0)) return CandidateResult.Fail("too many role values"); if (sentence.ResultAlias is not null && !aliasUsedAsOutput) cost += 1; return CandidateResult.Ok(new Candidate(implementation, pattern, roles, cost));
+        if (supplied.Values.Any(x => x.Count > 0)) return CandidateResult.Fail("too many role values"); return CandidateResult.Ok(new Candidate(implementation, pattern, roles, cost));
     }
 
     private BoundFilter? BindFilter(FilterStageNode filter, SymbolScope symbols, Type? pipelineType)
