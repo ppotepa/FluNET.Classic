@@ -49,6 +49,8 @@ public sealed class LanguageSnapshot
         Operators = _operators.Values.Distinct().OrderBy(x => x.Precedence).ThenBy(x => x.Name, StringComparer.OrdinalIgnoreCase).ToArray();
         Intrinsics = _intrinsics.Values.Distinct().OrderBy(x => x.Name, StringComparer.OrdinalIgnoreCase).ToArray();
         Modules = modules.OrderBy(x => x.Name, StringComparer.OrdinalIgnoreCase).ToArray();
+        StructuralSyntax = StandardLanguageSurface.StructuralSyntax.ToArray();
+        LiteralWords = StandardLanguageSurface.LiteralWords.ToHashSet(StringComparer.OrdinalIgnoreCase);
         ReservedWords = StandardLanguageSurface.ReservedWords
             .Concat(Predicates.SelectMany(x => x.AllSurfaceNames).SelectMany(SplitSurface))
             .Concat(Operators.SelectMany(x => x.AllSurfaceNames).SelectMany(SplitSurface))
@@ -62,6 +64,8 @@ public sealed class LanguageSnapshot
     public IReadOnlyList<OperatorDescriptor> Operators { get; }
     public IReadOnlyList<IntrinsicDescriptor> Intrinsics { get; }
     public IReadOnlyList<ModuleDescriptor> Modules { get; }
+    public IReadOnlyList<string> StructuralSyntax { get; }
+    public IReadOnlySet<string> LiteralWords { get; }
     public IReadOnlySet<string> ReservedWords { get; }
 
     public bool TryGetVerb(string name, out VerbDescriptor descriptor) => _verbs.TryGetValue(name, out descriptor!);
