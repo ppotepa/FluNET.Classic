@@ -24,6 +24,8 @@ public sealed record ClrTypeShape(
     bool IsNullable,
     bool IsEnum)
 {
+    public bool IsAsyncEnumerable => IsAsyncEnumerableType(EffectiveType);
+
     public static ClrTypeShape From(Type type, NullabilityState nullability = NullabilityState.Unknown)
     {
         ArgumentNullException.ThrowIfNull(type);
@@ -42,15 +44,27 @@ public sealed record ClrTypeShape(
         {
             Type definition = type.GetGenericTypeDefinition();
             if (definition == typeof(IEnumerable<>) || definition == typeof(ICollection<>) || definition == typeof(IList<>) ||
-                definition == typeof(IReadOnlyCollection<>) || definition == typeof(IReadOnlyList<>) || definition == typeof(List<>))
+                definition == typeof(IReadOnlyCollection<>) || definition == typeof(IReadOnlyList<>) || definition == typeof(List<>) ||
+                definition == typeof(IAsyncEnumerable<>))
             {
                 return type.GetGenericArguments()[0];
             }
         }
 
+        Type? asyncEnumerable = type.GetInterfaces()
+            .FirstOrDefault(x => x.IsGenericType && x.GetGenericTypeDefinition() == typeof(IAsyncEnumerable<>));
+        if (asyncEnumerable is not null) return asyncEnumerable.GetGenericArguments()[0];
+
         return type.GetInterfaces()
             .FirstOrDefault(x => x.IsGenericType && x.GetGenericTypeDefinition() == typeof(IEnumerable<>))
             ?.GetGenericArguments()[0];
+    }
+
+    public static bool IsAsyncEnumerableType(Type type)
+    {
+        type = Nullable.GetUnderlyingType(type) ?? type;
+        if (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(IAsyncEnumerable<>)) return true;
+        return type.GetInterfaces().Any(x => x.IsGenericType && x.GetGenericTypeDefinition() == typeof(IAsyncEnumerable<>));
     }
 }
 
