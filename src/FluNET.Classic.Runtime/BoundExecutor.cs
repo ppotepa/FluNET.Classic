@@ -308,8 +308,44 @@ public sealed class BoundExecutor
     private static bool ToBoolean(object? value) => Convert.ToBoolean(value, CultureInfo.InvariantCulture);
     private static bool IsNumber(object value) => Type.GetTypeCode(value.GetType()) is TypeCode.Byte or TypeCode.SByte or TypeCode.Int16 or TypeCode.UInt16 or TypeCode.Int32 or TypeCode.UInt32 or TypeCode.Int64 or TypeCode.UInt64 or TypeCode.Single or TypeCode.Double or TypeCode.Decimal;
     private static Array ToTypedArray(Type elementType, IReadOnlyList<object?> values) { Array array = Array.CreateInstance(elementType, values.Count); for (int i = 0; i < values.Count; i++) array.SetValue(values[i], i); return array; }
-    private static void StoreOutputs(BoundSentence sentence, object? result, RuntimeState state) { BoundVariableValue[] outputs = sentence.Roles.Where(x => x.Slot.Direction is RoleDirection.Output or RoleDirection.InputOutput).SelectMany(x => x.Values).OfType<BoundVariableValue>().Where(x => x.IsOutput).ToArray(); if (outputs.Length == 0) return; if (outputs.Length == 1) { state.SetVariable(outputs[0].Name, result); return; } for (int i = 0; i < outputs.Length; i++) state.SetVariable(outputs[i].Name, Project(result, outputs[i].Name, i)); }
-    private static object? Project(object? result, string name, int index) { if (result is null) return null; if (result is IDictionary dictionary && dictionary.Contains(name)) return dictionary[name]; var property = result.GetType().GetProperty(name, System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.IgnoreCase); if (property is not null) return property.GetValue(result); if (result is System.Runtime.CompilerServices.ITuple tuple && index < tuple.Length) return tuple[index]; if (result is IList list && index < list.Count) return list[index]; throw new InvalidOperationException($"Cannot project output '{name}' from {result.GetType().Name}."); }
+
+    private static void StoreOutputs(BoundSentence sentence, object? result, RuntimeState state)
+    {
+        var outputs = sentence.Roles
+            .Where(role => role.Slot.Direction is RoleDirection.Output or RoleDirection.InputOutput)
+            .SelectMany(role => role.Values.OfType<BoundVariableValue>()
+                .Where(variable => variable.IsOutput)
+                .Select(variable => (Slot: role.Slot, Variable: variable)))
+            .ToArray();
+        foreach ((RoleSlotDescriptor slot, BoundVariableValue variable) in outputs)
+        {
+            OutputProjectionDescriptor projection = slot.OutputProjection ?? OutputProjectionDescriptor.WholeResult;
+            state.SetVariable(variable.Name, ProjectOutput(result, projection, variable.Name));
+        }
+    }
+
+    private static object? ProjectOutput(object? result, OutputProjectionDescriptor projection, string outputName)
+    {
+        if (projection.Kind == OutputProjectionKind.WholeResult) return result;
+        if (result is null) return null;
+
+        if (projection.Kind == OutputProjectionKind.Member)
+        {
+            string memberName = projection.Member ?? throw new InvalidOperationException($"Output '{outputName}' has an empty member projection.");
+            Type type = result.GetType();
+            var property = type.GetProperty(memberName, System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.IgnoreCase);
+            if (property is not null) return property.GetValue(result);
+            var field = type.GetField(memberName, System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.IgnoreCase);
+            if (field is not null) return field.GetValue(result);
+            throw new InvalidOperationException($"Output '{outputName}' projects member '{memberName}', which does not exist on {type.Name}.");
+        }
+
+        int index = projection.Index ?? throw new InvalidOperationException($"Output '{outputName}' has no projection index.");
+        if (result is System.Runtime.CompilerServices.ITuple tuple && index >= 0 && index < tuple.Length) return tuple[index];
+        if (result is IList list && index >= 0 && index < list.Count) return list[index];
+        throw new InvalidOperationException($"Output '{outputName}' projects index {index}, which is not available on {result.GetType().Name}.");
+    }
+
     private static object? Default(Type type) => type.IsValueType ? Activator.CreateInstance(type) : null;
     private static IEnumerable<string> CollectCapabilities(BoundScript script) { foreach (BoundStatement statement in script.Statements) foreach (string capability in CollectCapabilities(statement)) yield return capability; }
     private static IEnumerable<string> CollectCapabilities(BoundStatement statement) { switch (statement) { case BoundPipeline pipeline: foreach (BoundStage stage in pipeline.Stages) { if (stage is BoundSentence sentence) foreach (string capability in sentence.Implementation.Capabilities) yield return capability; foreach (string capability in CollectExpressionCapabilities(stage)) yield return capability; } break; case BoundIf conditional: foreach (string capability in CollectExpressionCapabilities(conditional.Condition)) yield return capability; foreach (BoundStatement child in conditional.Then.Statements) foreach (string capability in CollectCapabilities(child)) yield return capability; if (conditional.Else is not null) foreach (BoundStatement child in conditional.Else.Statements) foreach (string capability in CollectCapabilities(child)) yield return capability; break; case BoundForEach loop: foreach (BoundStatement child in loop.Body.Statements) foreach (string capability in CollectCapabilities(child)) yield return capability; break; } }
