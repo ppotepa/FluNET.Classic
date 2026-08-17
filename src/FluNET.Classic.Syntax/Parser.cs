@@ -62,7 +62,7 @@ public sealed class ClassicParser
     private CheckStageNode ParseCheck() { int start = Advance().Span.Start; ExpectWord("IF", "FLU-SYN-125", "CHECK requires IF."); ExpressionNode condition = ParseExpressionUntil("INTO", "AS", "THEN", "ELSE"); string? alias = ParseOptionalResultAlias(true); return new(condition, alias, TextSpan.FromBounds(start, alias is not null ? Previous.Span.End : condition.Span.End)); }
     private CollectionStageNode ParseIntrinsic(IntrinsicDescriptor intrinsic)
     {
-        SyntaxToken operation = Advance(); int start = operation.Span.Start; string name = intrinsic.Name.ToUpperInvariant(); ExpressionNode? source = null; ExpressionNode? argument = null;
+        SyntaxToken operation = Advance(); int start = operation.Span.Start; string name = intrinsic.Name.ToUpperInvariant(); ExpressionNode? source = null; ExpressionNode? argument = null; ExpressionNode? strategy = null;
         switch (intrinsic.Syntax)
         {
             case IntrinsicSyntaxKind.CollectionBy: if (!IsWord("BY")) source = ParseAtomic(); ExpectWord("BY", "FLU-SYN-160", $"{name} requires BY."); argument = ParseAtomic(); break;
@@ -71,7 +71,20 @@ public sealed class ClassicParser
             case IntrinsicSyntaxKind.CollectionSourceOptional: if (!IsResultBinding() && !IsStageBoundary(Current)) source = ParseAtomic(); break;
             default: _diagnostics.Add(new("FLU-SYN-161", $"Intrinsic '{name}' uses unsupported syntax '{intrinsic.Syntax}'.", operation.Span)); break;
         }
-        string? alias = ParseOptionalResultAlias(true); int end = alias is not null ? Previous.Span.End : argument?.Span.End ?? source?.Span.End ?? operation.Span.End; return new(name, source, argument, alias, TextSpan.FromBounds(start, end));
+
+        if (intrinsic.StrategyType is not null && IsWord(intrinsic.StrategyRole))
+        {
+            Advance();
+            strategy = ParseAtomic();
+        }
+        else if (IsWord("USING") && intrinsic.StrategyType is null)
+        {
+            _diagnostics.Add(new("FLU-SYN-162", $"Intrinsic '{name}' does not accept USING strategy.", Current.Span));
+            Advance();
+            if (!IsResultBinding() && !IsStageBoundary(Current)) Advance();
+        }
+
+        string? alias = ParseOptionalResultAlias(true); int end = alias is not null ? Previous.Span.End : strategy?.Span.End ?? argument?.Span.End ?? source?.Span.End ?? operation.Span.End; return new(name, source, argument, strategy, alias, TextSpan.FromBounds(start, end));
     }
     private bool IsResultBinding() => IsWord("INTO") || (IsWord("AS") && Peek(1).Kind == TokenKind.Variable);
 
