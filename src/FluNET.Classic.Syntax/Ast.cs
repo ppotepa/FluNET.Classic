@@ -14,24 +14,10 @@ public sealed record BlockNode(IReadOnlyList<StatementNode> Statements, TextSpan
 public sealed record PipelineNode(IReadOnlyList<PipelineStageNode> Stages, TextSpan Span) : StatementNode(Span);
 public abstract record PipelineStageNode(TextSpan Span) : SyntaxNode(Span);
 
-public sealed record SentenceNode(
-    string Verb,
-    string? Qualifier,
-    IReadOnlyList<ClauseNode> Clauses,
-    string? ResultAlias,
-    TextSpan Span) : PipelineStageNode(Span);
-
-public sealed record FilterStageNode(
-    ExpressionNode? Source,
-    ExpressionNode Predicate,
-    string? ResultAlias,
-    TextSpan Span) : PipelineStageNode(Span);
-
-public sealed record CheckStageNode(
-    ExpressionNode Condition,
-    string? ResultAlias,
-    TextSpan Span) : PipelineStageNode(Span);
-
+public sealed record SentenceNode(string Verb, string? Qualifier, IReadOnlyList<ClauseNode> Clauses, string? ResultAlias, TextSpan Span) : PipelineStageNode(Span);
+public sealed record FilterStageNode(ExpressionNode? Source, ExpressionNode Predicate, string? ResultAlias, TextSpan Span) : PipelineStageNode(Span);
+public sealed record CheckStageNode(ExpressionNode Condition, string? ResultAlias, TextSpan Span) : PipelineStageNode(Span);
+public sealed record CollectionStageNode(string Operation, ExpressionNode? Source, ExpressionNode? Argument, string? ResultAlias, TextSpan Span) : PipelineStageNode(Span);
 public sealed record ClauseNode(string RoleName, IReadOnlyList<ExpressionNode> Values, TextSpan Span) : SyntaxNode(Span);
 
 public sealed record IfNode(ExpressionNode Condition, BlockNode Then, BlockNode? Else, TextSpan Span) : StatementNode(Span);
