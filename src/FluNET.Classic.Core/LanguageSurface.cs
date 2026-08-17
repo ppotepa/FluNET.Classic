@@ -173,6 +173,15 @@ public sealed record IntrinsicDescriptor(
 
 public static class StandardLanguageSurface
 {
+    public static IReadOnlyList<string> StructuralSyntax { get; } = new[]
+    {
+        "INTO", "THEN", "AND THEN", "IF", "WHERE", "ELSE", "FOR", "EACH", "AS"
+    };
+
+    public static IReadOnlySet<string> LiteralWords { get; } = new HashSet<string>(
+        new[] { "TRUE", "FALSE", "NULL" },
+        StringComparer.OrdinalIgnoreCase);
+
     public static IReadOnlyList<PredicateDescriptor> Predicates { get; } = new PredicateDescriptor[]
     {
         new(
@@ -211,7 +220,8 @@ public static class StandardLanguageSurface
     };
 
     public static IReadOnlySet<string> ReservedWords { get; } = new HashSet<string>(
-        new[] { "INTO", "THEN", "ELSE", "IF", "WHERE", "FOR", "EACH", "AS", "TRUE", "FALSE", "NULL" }
+        StructuralSyntax.SelectMany(x => x.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+            .Concat(LiteralWords)
             .Concat(Predicates.SelectMany(x => x.AllSurfaceNames))
             .Concat(Operators.SelectMany(x => x.AllSurfaceNames).SelectMany(x => x.Split(' ', StringSplitOptions.RemoveEmptyEntries))),
         StringComparer.OrdinalIgnoreCase);
