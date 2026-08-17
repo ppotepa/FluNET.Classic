@@ -4,9 +4,9 @@ using FluNET.Classic.Core;
 namespace FluNET.Classic.Runtime;
 
 public sealed record ExecutionPlanDiagnostic(string Source, string Code, string Message);
-public sealed record ExecutionPlanValue(string Kind, string Type, string? Detail = null, string? Conversion = null, int Cost = 0);
-public sealed record ExecutionPlanRole(string Name, string Direction, string Cardinality, string ValueType, IReadOnlyList<ExecutionPlanValue> Values);
-public sealed record ExecutionPlanStep(string Kind, string? Verb, string? Implementation, string? Pattern, string? ResultType, string? ResultAlias, int? BindingCost, string? ExecutionMode, IReadOnlyList<string> Capabilities, IReadOnlyList<ExecutionTrait> Traits, IReadOnlyList<ExecutionPlanRole> Roles, IReadOnlyList<ExecutionPlanStep> Children);
+public sealed record ExecutionPlanValue(string Kind, string Type, string? Detail = null, string? Conversion = null, int Cost = 0, bool Sensitive = false);
+public sealed record ExecutionPlanRole(string Name, string Direction, string Cardinality, string ValueType, IReadOnlyList<ExecutionPlanValue> Values, bool Sensitive = false);
+public sealed record ExecutionPlanStep(string Kind, string? Verb, string? Implementation, string? Pattern, string? ResultType, string? ResultAlias, int? BindingCost, string? ExecutionMode, IReadOnlyList<string> Capabilities, IReadOnlyList<ExecutionTrait> Traits, IReadOnlyList<ExecutionPlanRole> Roles, IReadOnlyList<ExecutionPlanStep> Children, bool Sensitive = false);
 public sealed record ExecutionPlan(bool Success, IReadOnlyList<ExecutionPlanDiagnostic> Diagnostics, IReadOnlyList<ExecutionPlanStep> Steps, IReadOnlyList<string> RequiredCapabilities, IReadOnlyList<ExecutionTrait> Traits, string? ResultType);
 
 public sealed class ExecutionPlanner
@@ -23,9 +23,9 @@ public sealed class ExecutionPlanner
 
     private ExecutionPlanStep BuildStatement(BoundStatement statement) => statement switch
     {
-        BoundPipeline pipeline => new("pipeline", null, null, null, TypeName(pipeline.ResultType), null, null, null, Array.Empty<string>(), Array.Empty<ExecutionTrait>(), Array.Empty<ExecutionPlanRole>(), pipeline.Stages.Select(BuildStage).ToArray()),
-        BoundIf conditional => new("if", null, null, null, null, null, null, null, ExpressionCapabilities(conditional.Condition), Array.Empty<ExecutionTrait>(), Array.Empty<ExecutionPlanRole>(), Branches(conditional)),
-        BoundForEach loop => new("forEach", null, null, null, null, loop.Variable, null, ClrTypeShape.IsAsyncEnumerableType(loop.Source.Type) ? "Streaming" : null, Array.Empty<string>(), Array.Empty<ExecutionTrait>(), new[] { new ExecutionPlanRole("IN", "Input", "One", TypeName(loop.Source.Type)!, new[] { DescribeValue(loop.Source) }) }, loop.Body.Statements.Select(BuildStatement).ToArray()),
+        BoundPipeline pipeline => new("pipeline", null, null, null, TypeName(pipeline.ResultType), null, null, null, Array.Empty<string>(), Array.Empty<ExecutionTrait>(), Array.Empty<ExecutionPlanRole>(), pipeline.Stages.Select(BuildStage).ToArray(), pipeline.Stages.LastOrDefault()?.IsSensitive == true),
+        BoundIf conditional => new("if", null, null, null, null, null, null, null, ExpressionCapabilities(conditional.Condition), Array.Empty<ExecutionTrait>(), Array.Empty<ExecutionPlanRole>(), Branches(conditional), conditional.Condition.IsSensitive),
+        BoundForEach loop => new("forEach", null, null, null, null, loop.Variable, null, ClrTypeShape.IsAsyncEnumerableType(loop.Source.Type) ? "Streaming" : null, Array.Empty<string>(), Array.Empty<ExecutionTrait>(), new[] { new ExecutionPlanRole("IN", "Input", "One", TypeName(loop.Source.Type)!, new[] { DescribeValue(loop.Source) }, loop.Source.IsSensitive) }, loop.Body.Statements.Select(BuildStatement).ToArray(), loop.Source.IsSensitive),
         _ => Empty(statement.GetType().Name)
     };
 
@@ -37,10 +37,10 @@ public sealed class ExecutionPlanner
 
     private ExecutionPlanStep BuildStage(BoundStage stage) => stage switch
     {
-        BoundSentence sentence => new("sentence", sentence.Verb.Name, sentence.Implementation.ImplementationType.FullName, sentence.Pattern.StableId, TypeName(sentence.ResultType), sentence.ResultAlias, sentence.Cost, sentence.Implementation.Traits.Contains(ExecutionTrait.Streaming) ? "Streaming" : null, sentence.Implementation.Capabilities, sentence.Implementation.Traits, sentence.Roles.Select(role => new ExecutionPlanRole(role.Slot.Name, role.Slot.Direction.ToString(), role.Slot.Cardinality.ToString(), TypeName(role.Slot.ValueType)!, role.Values.Select(DescribeValue).ToArray())).ToArray(), Array.Empty<ExecutionPlanStep>()),
-        BoundFilter filter => new("filter", "FILTER", null, null, TypeName(filter.ResultType), filter.ResultAlias, null, ClrTypeShape.IsAsyncEnumerableType(filter.Source.Type) ? "Streaming" : "Materializing", ExpressionCapabilities(filter.Predicate), new[] { ExecutionTrait.Pure }, new[] { new ExecutionPlanRole("WHAT", "Input", "One", TypeName(filter.Source.Type)!, new[] { DescribeValue(filter.Source) }) }, Array.Empty<ExecutionPlanStep>()),
-        BoundCheck check => new("check", "CHECK", null, null, TypeName(check.ResultType), check.ResultAlias, null, "Scalar", ExpressionCapabilities(check.Condition), new[] { ExecutionTrait.Pure }, Array.Empty<ExecutionPlanRole>(), Array.Empty<ExecutionPlanStep>()),
-        BoundCollection collection => new("collection", collection.Operation, null, null, TypeName(collection.ResultType), collection.ResultAlias, null, IntrinsicExecutionMode(collection.Operation), Array.Empty<string>(), new[] { ExecutionTrait.Pure }, CollectionRoles(collection), Array.Empty<ExecutionPlanStep>()),
+        BoundSentence sentence => new("sentence", sentence.Verb.Name, sentence.Implementation.ImplementationType.FullName, sentence.Pattern.StableId, TypeName(sentence.ResultType), sentence.ResultAlias, sentence.Cost, sentence.Implementation.Traits.Contains(ExecutionTrait.Streaming) ? "Streaming" : null, sentence.Implementation.Capabilities, sentence.Implementation.Traits, sentence.Roles.Select(role => new ExecutionPlanRole(role.Slot.Name, role.Slot.Direction.ToString(), role.Slot.Cardinality.ToString(), TypeName(role.Slot.ValueType)!, role.Values.Select(DescribeValue).ToArray(), role.IsSensitive)).ToArray(), Array.Empty<ExecutionPlanStep>(), sentence.IsSensitive),
+        BoundFilter filter => new("filter", "FILTER", null, null, TypeName(filter.ResultType), filter.ResultAlias, null, ClrTypeShape.IsAsyncEnumerableType(filter.Source.Type) ? "Streaming" : "Materializing", ExpressionCapabilities(filter.Predicate), new[] { ExecutionTrait.Pure }, new[] { new ExecutionPlanRole("WHAT", "Input", "One", TypeName(filter.Source.Type)!, new[] { DescribeValue(filter.Source) }, filter.Source.IsSensitive) }, Array.Empty<ExecutionPlanStep>(), filter.IsSensitive),
+        BoundCheck check => new("check", "CHECK", null, null, TypeName(check.ResultType), check.ResultAlias, null, "Scalar", ExpressionCapabilities(check.Condition), new[] { ExecutionTrait.Pure }, Array.Empty<ExecutionPlanRole>(), Array.Empty<ExecutionPlanStep>(), check.IsSensitive),
+        BoundCollection collection => new("collection", collection.Operation, null, null, TypeName(collection.ResultType), collection.ResultAlias, null, IntrinsicExecutionMode(collection.Operation), Array.Empty<string>(), new[] { ExecutionTrait.Pure }, CollectionRoles(collection), Array.Empty<ExecutionPlanStep>(), collection.IsSensitive),
         _ => Empty(stage.GetType().Name, TypeName(stage.ResultType))
     };
 
@@ -48,13 +48,13 @@ public sealed class ExecutionPlanner
     {
         var roles = new List<ExecutionPlanRole>
         {
-            new("WHAT", "Input", "One", TypeName(collection.Source.Type)!, new[] { DescribeValue(collection.Source) })
+            new("WHAT", "Input", "One", TypeName(collection.Source.Type)!, new[] { DescribeValue(collection.Source) }, collection.Source.IsSensitive)
         };
 
         if (collection.Argument is not null)
         {
             string argumentRole = collection.Operation is "SORT" or "GROUP" or "DISTINCT" ? "BY" : "WITH";
-            roles.Add(new(argumentRole, "Input", "One", TypeName(collection.Argument.Type)!, Array.Empty<ExecutionPlanValue>()));
+            roles.Add(new(argumentRole, "Input", "One", TypeName(collection.Argument.Type)!, Array.Empty<ExecutionPlanValue>(), collection.Argument.IsSensitive));
         }
 
         if (collection.Strategy is not null)
@@ -62,7 +62,7 @@ public sealed class ExecutionPlanner
             string strategyRole = _language.TryGetIntrinsic(collection.Operation, out IntrinsicDescriptor intrinsic)
                 ? intrinsic.StrategyRole
                 : "USING";
-            roles.Add(new(strategyRole, "Input", "One", TypeName(collection.Strategy.Type)!, new[] { DescribeValue(collection.Strategy) }));
+            roles.Add(new(strategyRole, "Input", "One", TypeName(collection.Strategy.Type)!, new[] { DescribeValue(collection.Strategy) }, collection.Strategy.IsSensitive));
         }
 
         return roles;
@@ -72,8 +72,14 @@ public sealed class ExecutionPlanner
     private static ExecutionPlanStep Empty(string kind, string? resultType = null) => new(kind, null, null, null, resultType, null, null, null, Array.Empty<string>(), Array.Empty<ExecutionTrait>(), Array.Empty<ExecutionPlanRole>(), Array.Empty<ExecutionPlanStep>());
     private static ExecutionPlanValue DescribeValue(BoundValue value) => value switch
     {
-        BoundConstantValue constant => new(constant.Kind == ConversionKind.Resolution ? "resolved" : "constant", TypeName(constant.Type)!, constant.Value is ISensitiveValue ? "***" : constant.Value?.ToString(), constant.Kind == ConversionKind.Exact ? null : constant.Kind.ToString(), constant.Cost),
-        BoundVariableValue variable => new(variable.IsOutput ? "output" : "variable", TypeName(variable.Type)!, variable.Name), BoundPipelineValue pipeline => new("pipeline", TypeName(pipeline.Type)!), BoundPropertyValue property => new("property", TypeName(property.Type)!, property.Property), BoundInterpolatedValue interpolation => new("interpolation", TypeName(interpolation.Type)!, $"{interpolation.Parts.Count} part(s)"), BoundConversionValue conversion => new("conversion", TypeName(conversion.Type)!, $"{TypeName(conversion.Source.Type)} -> {TypeName(conversion.TargetType)}", conversion.Kind.ToString(), conversion.Cost), _ => new(value.GetType().Name, TypeName(value.Type)!)
+        BoundConstantValue constant => new(constant.Kind == ConversionKind.Resolution ? "resolved" : "constant", TypeName(constant.Type)!, constant.IsSensitive ? "***" : constant.Value?.ToString(), constant.Kind == ConversionKind.Exact ? null : constant.Kind.ToString(), constant.Cost, constant.IsSensitive),
+        BoundVariableValue variable => new(variable.IsOutput ? "output" : "variable", TypeName(variable.Type)!, variable.Name, Sensitive: variable.IsSensitive),
+        BoundPipelineValue pipeline => new("pipeline", TypeName(pipeline.Type)!, Sensitive: pipeline.IsSensitive),
+        BoundPropertyValue property => new("property", TypeName(property.Type)!, property.Property, Sensitive: property.IsSensitive),
+        BoundInterpolatedValue interpolation => new("interpolation", TypeName(interpolation.Type)!, $"{interpolation.Parts.Count} part(s)", Sensitive: interpolation.IsSensitive),
+        BoundExpressionValue expression => new("expression", TypeName(expression.Type)!, Sensitive: expression.IsSensitive),
+        BoundConversionValue conversion => new("conversion", TypeName(conversion.Type)!, $"{TypeName(conversion.Source.Type)} -> {TypeName(conversion.TargetType)}", conversion.Kind.ToString(), conversion.Cost, conversion.IsSensitive),
+        _ => new(value.GetType().Name, TypeName(value.Type)!, Sensitive: value.IsSensitive)
     };
     private static string[] ExpressionCapabilities(BoundExpression expression) => EnumerateExpressionCapabilities(expression).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
     private static IEnumerable<string> EnumerateExpressionCapabilities(BoundExpression expression)
