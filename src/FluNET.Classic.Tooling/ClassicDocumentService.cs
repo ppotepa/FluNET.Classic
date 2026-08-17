@@ -15,9 +15,6 @@ public sealed record SignatureHelpInfo(IReadOnlyList<SignatureInfo> Signatures, 
 
 public sealed class ClassicDocumentService
 {
-    private static readonly string[] StructuralSyntax = { "INTO", "THEN", "AND THEN", "IF", "WHERE", "ELSE", "FOR", "EACH" };
-    private static readonly HashSet<string> LiteralWords = new(StringComparer.OrdinalIgnoreCase) { "TRUE", "FALSE", "NULL" };
-
     private readonly LanguageSnapshot _language;
     private readonly ClassicLexer _lexer;
     private readonly ClassicParser _parser;
@@ -62,7 +59,7 @@ public sealed class ClassicDocumentService
         position = Math.Clamp(position, 0, source.Length);
         string prefix = PrefixAt(source, position);
         VerbDescriptor? verb = CurrentVerb(source, position);
-        if (verb is null) return Merge(_languageService.Complete(prefix), SurfaceCompletion(prefix));
+        if (verb is null) return _languageService.Complete(prefix);
 
         var items = new List<CompletionItem>();
         string[] qualifiers = verb.Implementations.SelectMany(x => x.Qualifiers).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
@@ -92,17 +89,11 @@ public sealed class ClassicDocumentService
         if (roles.Length > 0)
             return new(token.Text.ToUpperInvariant(), $"Contextual role surface; semantic role(s): {string.Join(", ", roles.Select(x => x.Name).Distinct(StringComparer.OrdinalIgnoreCase))}.");
 
-        if (_language.TryGetPredicate(token.Text, out PredicateDescriptor predicate))
-            return new(predicate.Name, $"Predicate ({predicate.Syntax}); accepted semantic operand type(s): {DescribeTypes(predicate.SupportedOperandTypes)}.");
-
-        if (_language.TryGetIntrinsic(token.Text, out IntrinsicDescriptor intrinsic))
-            return new(intrinsic.Name, $"Compiler intrinsic using {intrinsic.Syntax} grammar.");
-
         OperatorDescriptor? @operator = FindOperatorForToken(token.Text);
         if (@operator is not null)
-            return new(@operator.Name, $"{@operator.Arity} operator; precedence {@operator.Precedence}, {@operator.Associativity.ToString().ToLowerInvariant()} associative.");
+            return new(@operator.Name, $"{@operator.Arity} operator; precedence {@operator.Precedence}; compatibility {@operator.Compatibility}; evaluation {@operator.Evaluation}.");
 
-        if (StructuralSyntax.Any(x => x.Split(' ').Contains(token.Text, StringComparer.OrdinalIgnoreCase)) || LiteralWords.Contains(token.Text))
+        if (_language.StructuralSyntax.Any(x => SplitSurface(x).Contains(token.Text, StringComparer.OrdinalIgnoreCase)) || _language.LiteralWords.Contains(token.Text))
             return new(token.Text.ToUpperInvariant(), "FluNET controlled-language structural syntax.");
         return null;
     }
@@ -205,19 +196,22 @@ public sealed class ClassicDocumentService
 
     private IEnumerable<CompletionItem> SurfaceCompletion(string prefix)
     {
-        IEnumerable<CompletionItem> structural = StructuralSyntax
+        IEnumerable<CompletionItem> structural = _language.StructuralSyntax
             .Where(x => x.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
             .Select(x => new CompletionItem(x, "syntax"));
+        IEnumerable<CompletionItem> literals = _language.LiteralWords
+            .Where(x => x.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+            .Select(x => new CompletionItem(x, "literal"));
         IEnumerable<CompletionItem> predicates = _language.Predicates
-            .SelectMany(x => x.AllSurfaceNames.Select(surface => new CompletionItem(surface, "predicate", x.Syntax.ToString())))
+            .SelectMany(x => x.AllSurfaceNames.Select(surface => new CompletionItem(surface, "predicate", $"{x.Syntax}; precedence {x.Precedence}")))
             .Where(x => x.Label.StartsWith(prefix, StringComparison.OrdinalIgnoreCase));
         IEnumerable<CompletionItem> operators = _language.Operators
-            .SelectMany(x => x.AllSurfaceNames.Select(surface => new CompletionItem(surface, "operator", $"precedence {x.Precedence}")))
+            .SelectMany(x => x.AllSurfaceNames.Select(surface => new CompletionItem(surface, "operator", $"precedence {x.Precedence}; {x.Compatibility}")))
             .Where(x => x.Label.StartsWith(prefix, StringComparison.OrdinalIgnoreCase));
         IEnumerable<CompletionItem> intrinsics = _language.Intrinsics
-            .SelectMany(x => x.AllSurfaceNames.Select(surface => new CompletionItem(surface, "intrinsic", x.Syntax.ToString())))
+            .SelectMany(x => x.AllSurfaceNames.Select(surface => new CompletionItem(surface, "intrinsic", $"{x.Syntax}; {x.Execution}")))
             .Where(x => x.Label.StartsWith(prefix, StringComparison.OrdinalIgnoreCase));
-        return structural.Concat(predicates).Concat(operators).Concat(intrinsics);
+        return structural.Concat(literals).Concat(predicates).Concat(operators).Concat(intrinsics);
     }
 
     private OperatorDescriptor? FindOperatorForToken(string token) => _language.Operators.FirstOrDefault(x =>
@@ -234,13 +228,6 @@ public sealed class ClassicDocumentService
     }
 
     private static string RootName(SyntaxToken token) => (token.Value?.ToString() ?? string.Empty).Split('.', 2)[0];
-
-    private static IReadOnlyList<CompletionItem> Merge(IEnumerable<CompletionItem> first, IEnumerable<CompletionItem> second) =>
-        first.Concat(second)
-            .GroupBy(x => x.Label, StringComparer.OrdinalIgnoreCase)
-            .Select(x => x.First())
-            .OrderBy(x => x.Label, StringComparer.OrdinalIgnoreCase)
-            .ToArray();
 
     private string Classify(
         SyntaxToken token,
@@ -260,7 +247,7 @@ public sealed class ClassicDocumentService
         TokenKind.Word when predicateWords.Contains(token.Text) => "predicate",
         TokenKind.Word when intrinsicWords.Contains(token.Text) => "intrinsic",
         TokenKind.Word when operatorWords.Contains(token.Text) => "operator",
-        TokenKind.Word when LiteralWords.Contains(token.Text) || StructuralSyntax.Any(x => SplitSurface(x).Contains(token.Text, StringComparer.OrdinalIgnoreCase)) => "keyword",
+        TokenKind.Word when _language.LiteralWords.Contains(token.Text) || _language.StructuralSyntax.Any(x => SplitSurface(x).Contains(token.Text, StringComparer.OrdinalIgnoreCase)) => "keyword",
         TokenKind.Word => "identifier",
         _ => "operator"
     };
@@ -278,5 +265,4 @@ public sealed class ClassicDocumentService
         : type.Name;
 
     private static IEnumerable<string> SplitSurface(string surface) => surface.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-    private static string DescribeTypes(IReadOnlyList<Type> types) => types.Count == 0 ? "any" : string.Join(", ", types.Select(Friendly));
 }
