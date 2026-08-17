@@ -13,7 +13,14 @@ public sealed record ExecutionPlanValue(
     int Cost = 0,
     bool Sensitive = false,
     IReadOnlyList<ExecutionPlanConversionStep>? ConversionSteps = null);
-public sealed record ExecutionPlanRole(string Name, string Direction, string Cardinality, string ValueType, IReadOnlyList<ExecutionPlanValue> Values, bool Sensitive = false);
+public sealed record ExecutionPlanRole(
+    string Name,
+    string Direction,
+    string Cardinality,
+    string ValueType,
+    IReadOnlyList<ExecutionPlanValue> Values,
+    bool Sensitive = false,
+    string? Projection = null);
 public sealed record ExecutionPlanStep(string Kind, string? Verb, string? Implementation, string? Pattern, string? ResultType, string? ResultAlias, int? BindingCost, string? ExecutionMode, IReadOnlyList<string> Capabilities, IReadOnlyList<ExecutionTrait> Traits, IReadOnlyList<ExecutionPlanRole> Roles, IReadOnlyList<ExecutionPlanStep> Children, bool Sensitive = false);
 public sealed record ExecutionPlan(bool Success, IReadOnlyList<ExecutionPlanDiagnostic> Diagnostics, IReadOnlyList<ExecutionPlanStep> Steps, IReadOnlyList<string> RequiredCapabilities, IReadOnlyList<ExecutionTrait> Traits, string? ResultType);
 
@@ -45,7 +52,7 @@ public sealed class ExecutionPlanner
 
     private ExecutionPlanStep BuildStage(BoundStage stage) => stage switch
     {
-        BoundSentence sentence => new("sentence", sentence.Verb.Name, sentence.Implementation.ImplementationType.FullName, sentence.Pattern.StableId, TypeName(sentence.ResultType), sentence.ResultAlias, sentence.Cost, sentence.Implementation.Traits.Contains(ExecutionTrait.Streaming) ? "Streaming" : null, sentence.Implementation.Capabilities, sentence.Implementation.Traits, sentence.Roles.Select(role => new ExecutionPlanRole(role.Slot.Name, role.Slot.Direction.ToString(), role.Slot.Cardinality.ToString(), TypeName(role.Slot.ValueType)!, role.Values.Select(DescribeValue).ToArray(), role.IsSensitive)).ToArray(), Array.Empty<ExecutionPlanStep>(), sentence.IsSensitive),
+        BoundSentence sentence => new("sentence", sentence.Verb.Name, sentence.Implementation.ImplementationType.FullName, sentence.Pattern.StableId, TypeName(sentence.ResultType), sentence.ResultAlias, sentence.Cost, sentence.Implementation.Traits.Contains(ExecutionTrait.Streaming) ? "Streaming" : null, sentence.Implementation.Capabilities, sentence.Implementation.Traits, sentence.Roles.Select(role => new ExecutionPlanRole(role.Slot.Name, role.Slot.Direction.ToString(), role.Slot.Cardinality.ToString(), TypeName(role.Slot.ValueType)!, role.Values.Select(DescribeValue).ToArray(), role.IsSensitive, Projection(role.Slot.OutputProjection))).ToArray(), Array.Empty<ExecutionPlanStep>(), sentence.IsSensitive),
         BoundFilter filter => new("filter", "FILTER", null, null, TypeName(filter.ResultType), filter.ResultAlias, null, ClrTypeShape.IsAsyncEnumerableType(filter.Source.Type) ? "Streaming" : "Materializing", ExpressionCapabilities(filter.Predicate), new[] { ExecutionTrait.Pure }, new[] { new ExecutionPlanRole("WHAT", "Input", "One", TypeName(filter.Source.Type)!, new[] { DescribeValue(filter.Source) }, filter.Source.IsSensitive) }, Array.Empty<ExecutionPlanStep>(), filter.IsSensitive),
         BoundCheck check => new("check", "CHECK", null, null, TypeName(check.ResultType), check.ResultAlias, null, "Scalar", ExpressionCapabilities(check.Condition), new[] { ExecutionTrait.Pure }, Array.Empty<ExecutionPlanRole>(), Array.Empty<ExecutionPlanStep>(), check.IsSensitive),
         BoundCollection collection => new("collection", collection.Operation, null, null, TypeName(collection.ResultType), collection.ResultAlias, null, IntrinsicExecutionMode(collection.Operation), Array.Empty<string>(), new[] { ExecutionTrait.Pure }, CollectionRoles(collection), Array.Empty<ExecutionPlanStep>(), collection.IsSensitive),
@@ -75,6 +82,14 @@ public sealed class ExecutionPlanner
 
         return roles;
     }
+
+    private static string? Projection(OutputProjectionDescriptor? projection) => projection?.Kind switch
+    {
+        OutputProjectionKind.Member => $"member:{projection.Member}",
+        OutputProjectionKind.Index => $"index:{projection.Index}",
+        OutputProjectionKind.WholeResult => "whole",
+        _ => null
+    };
 
     private string? IntrinsicExecutionMode(string operation) => _language.TryGetIntrinsic(operation, out IntrinsicDescriptor intrinsic) ? intrinsic.Execution.ToString() : null;
     private static ExecutionPlanStep Empty(string kind, string? resultType = null) => new(kind, null, null, null, resultType, null, null, null, Array.Empty<string>(), Array.Empty<ExecutionTrait>(), Array.Empty<ExecutionPlanRole>(), Array.Empty<ExecutionPlanStep>());
