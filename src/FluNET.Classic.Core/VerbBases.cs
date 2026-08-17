@@ -3,23 +3,16 @@ namespace FluNET.Classic.Core;
 [Verb("GET")]
 [Alias("FETCH")]
 [Alias("RETRIEVE")]
-public abstract class Get<TResult, TFrom> : IVerb<TResult>, IGet, IWhat<TResult>, IFrom<TFrom>
+public abstract class Get<TResult, TFrom> : IVerb<TResult>, IGet, IWhat<TResult>, IFrom<TFrom>, IPipelineProducer<TResult>
 {
-    protected Get(TResult what, TFrom from)
-    {
-        From = from;
-    }
-
+    protected Get(TResult what, TFrom from) => From = from;
     protected TFrom From { get; }
-
     protected abstract ValueTask<TResult> ActAsync(TFrom from, CancellationToken cancellationToken);
-
-    public ValueTask<TResult> ExecuteAsync(VerbExecutionContext context, CancellationToken cancellationToken = default) =>
-        ActAsync(From, cancellationToken);
+    public ValueTask<TResult> ExecuteAsync(VerbExecutionContext context, CancellationToken cancellationToken = default) => ActAsync(From, cancellationToken);
 }
 
 [Verb("LOAD")]
-public abstract class Load<TResult, TFrom> : IVerb<TResult>, ILoad, IWhat<TResult>, IFrom<TFrom>
+public abstract class Load<TResult, TFrom> : IVerb<TResult>, ILoad, IWhat<TResult>, IFrom<TFrom>, IPipelineProducer<TResult>
 {
     protected Load(TResult what, TFrom from) => From = from;
     protected TFrom From { get; }
@@ -28,27 +21,17 @@ public abstract class Load<TResult, TFrom> : IVerb<TResult>, ILoad, IWhat<TResul
 }
 
 [Verb("SAVE")]
-public abstract class Save<TWhat, TTo> : IVerb<TWhat>, ISave, IWhat<TWhat>, ITo<TTo>
+public abstract class Save<TWhat, TTo> : IVerb<TWhat>, ISave, IWhat<TWhat>, ITo<TTo>, IPipelineConsumer<TWhat>, IPipelineProducer<TWhat>
 {
-    protected Save(TWhat what, TTo to)
-    {
-        What = what;
-        To = to;
-    }
-
+    protected Save(TWhat what, TTo to) { What = what; To = to; }
     protected TWhat What { get; }
     protected TTo To { get; }
     protected abstract ValueTask SaveAsync(TWhat what, TTo to, CancellationToken cancellationToken);
-
-    public async ValueTask<TWhat> ExecuteAsync(VerbExecutionContext context, CancellationToken cancellationToken = default)
-    {
-        await SaveAsync(What, To, cancellationToken).ConfigureAwait(false);
-        return What;
-    }
+    public async ValueTask<TWhat> ExecuteAsync(VerbExecutionContext context, CancellationToken cancellationToken = default) { await SaveAsync(What, To, cancellationToken).ConfigureAwait(false); return What; }
 }
 
 [Verb("DELETE")]
-public abstract class Delete<TFrom> : IVerb<bool>, IDelete, IFrom<TFrom>
+public abstract class Delete<TFrom> : IVerb<bool>, IDelete, IFrom<TFrom>, IPipelineProducer<bool>
 {
     protected Delete(TFrom from) => From = from;
     protected TFrom From { get; }
@@ -57,14 +40,9 @@ public abstract class Delete<TFrom> : IVerb<bool>, IDelete, IFrom<TFrom>
 }
 
 [Verb("TRANSFORM")]
-public abstract class Transform<TResult, TWhat, TUsing> : IVerb<TResult>, ITransform, IWhat<TWhat>, IUsing<TUsing>
+public abstract class Transform<TResult, TWhat, TUsing> : IVerb<TResult>, ITransform, IWhat<TWhat>, IUsing<TUsing>, IPipelineConsumer<TWhat>, IPipelineProducer<TResult>
 {
-    protected Transform(TWhat what, TUsing @using)
-    {
-        What = what;
-        Using = @using;
-    }
-
+    protected Transform(TWhat what, TUsing @using) { What = what; Using = @using; }
     protected TWhat What { get; }
     protected TUsing Using { get; }
     protected abstract ValueTask<TResult> TransformAsync(TWhat what, TUsing @using, CancellationToken cancellationToken);
@@ -72,15 +50,10 @@ public abstract class Transform<TResult, TWhat, TUsing> : IVerb<TResult>, ITrans
 }
 
 [Verb("SAY")]
-public abstract class Say<TWhat> : IVerb<TWhat>, ISay, IWhat<TWhat>
+public abstract class Say<TWhat> : IVerb<TWhat>, ISay, IWhat<TWhat>, IPipelineConsumer<TWhat>, IPipelineProducer<TWhat>
 {
     protected Say(TWhat what) => What = what;
     protected TWhat What { get; }
     protected abstract ValueTask SayAsync(TWhat what, CancellationToken cancellationToken);
-
-    public async ValueTask<TWhat> ExecuteAsync(VerbExecutionContext context, CancellationToken cancellationToken = default)
-    {
-        await SayAsync(What, cancellationToken).ConfigureAwait(false);
-        return What;
-    }
+    public async ValueTask<TWhat> ExecuteAsync(VerbExecutionContext context, CancellationToken cancellationToken = default) { await SayAsync(What, cancellationToken).ConfigureAwait(false); return What; }
 }
