@@ -1,10 +1,16 @@
 using System.Globalization;
 using System.Text;
+using FluNET.Classic.Core;
 
 namespace FluNET.Classic.Syntax;
 
 public sealed class ClassicFormatter
 {
+    private readonly LanguageSnapshot? _language;
+
+    public ClassicFormatter() { }
+    public ClassicFormatter(LanguageSnapshot language) => _language = language;
+
     public string Format(ScriptNode script) => string.Join(Environment.NewLine, script.Statements.Select(FormatStatement));
     private string FormatStatement(StatementNode statement) => statement switch { PipelineNode pipeline => FormatPipeline(pipeline) + ".", IfNode conditional => FormatIf(conditional), ForEachNode loop => FormatForEach(loop), _ => string.Empty };
     private string FormatPipeline(PipelineNode pipeline) { if (pipeline.Stages.Count == 0) return string.Empty; var sb = new StringBuilder(FormatStage(pipeline.Stages[0])); foreach (PipelineStageNode stage in pipeline.Stages.Skip(1)) sb.Append(",").AppendLine().Append("THEN ").Append(FormatStage(stage)); return sb.ToString(); }
@@ -35,13 +41,51 @@ public sealed class ClassicFormatter
     private string FormatBlock(BlockNode block) => string.Join(Environment.NewLine, block.Statements.Select(FormatStatement));
     private static string Indent(string text) => string.Join(Environment.NewLine, text.Split(new[] { Environment.NewLine }, StringSplitOptions.None).Select(x => "    " + x));
     private string FormatExpression(ExpressionNode expression, int parentPrecedence = 0) => expression switch { LiteralExpression literal => FormatLiteral(literal.Value), VariableExpression variable => $"[{variable.Name}]", PropertyExpression property => FormatProperty(property), ReferenceExpression reference => $"{{{reference.Value}}}", IdentifierExpression identifier => identifier.Name, InterpolatedStringExpression interpolated => FormatInterpolated(interpolated), PredicateExpression predicate => FormatPredicate(predicate, parentPrecedence), UnaryExpression unary => FormatUnary(unary, parentPrecedence), BinaryExpression binary => FormatBinary(binary, parentPrecedence), BetweenExpression between => FormatBetween(between, parentPrecedence), _ => string.Empty };
-    private string FormatBinary(BinaryExpression binary, int parentPrecedence) { int precedence = BinaryPrecedence(binary.Operator); string text = $"{FormatExpression(binary.Left, precedence)} {binary.Operator.ToUpperInvariant()} {FormatExpression(binary.Right, precedence)}"; return precedence < parentPrecedence ? $"({text})" : text; }
-    private string FormatBetween(BetweenExpression between, int parentPrecedence) { const int precedence = 3; string text = $"{FormatExpression(between.Operand, precedence)} {between.Operator.ToUpperInvariant()} {FormatExpression(between.Lower, precedence)} AND {FormatExpression(between.Upper, precedence)}"; return precedence < parentPrecedence ? $"({text})" : text; }
-    private string FormatUnary(UnaryExpression unary, int parentPrecedence) { const int precedence = 6; string text = $"{unary.Operator.ToUpperInvariant()} {FormatExpression(unary.Operand, precedence)}"; return precedence < parentPrecedence ? $"({text})" : text; }
-    private string FormatPredicate(PredicateExpression predicate, int parentPrecedence) { const int precedence = 7; string operand = FormatExpression(predicate.Operand, precedence); string text = predicate.Predicate.Equals("EXISTS", StringComparison.OrdinalIgnoreCase) ? $"{operand} EXISTS" : $"{operand} IS {predicate.Predicate.ToUpperInvariant()}"; return precedence < parentPrecedence ? $"({text})" : text; }
+    private string FormatBinary(BinaryExpression binary, int parentPrecedence)
+    {
+        OperatorDescriptor? descriptor = ResolveOperator(binary.Operator);
+        int precedence = descriptor?.Precedence ?? 0;
+        string surface = descriptor?.Name ?? binary.Operator.ToUpperInvariant();
+        string text = $"{FormatExpression(binary.Left, precedence)} {surface} {FormatExpression(binary.Right, precedence)}";
+        return precedence < parentPrecedence ? $"({text})" : text;
+    }
+    private string FormatBetween(BetweenExpression between, int parentPrecedence)
+    {
+        OperatorDescriptor? descriptor = ResolveOperator(between.Operator);
+        int precedence = descriptor?.Precedence ?? 0;
+        string surface = descriptor?.Name ?? between.Operator.ToUpperInvariant();
+        string text = $"{FormatExpression(between.Operand, precedence)} {surface} {FormatExpression(between.Lower, precedence)} AND {FormatExpression(between.Upper, precedence)}";
+        return precedence < parentPrecedence ? $"({text})" : text;
+    }
+    private string FormatUnary(UnaryExpression unary, int parentPrecedence)
+    {
+        OperatorDescriptor? descriptor = ResolveOperator(unary.Operator);
+        int precedence = descriptor?.Precedence ?? 0;
+        string surface = descriptor?.Name ?? unary.Operator.ToUpperInvariant();
+        string text = $"{surface} {FormatExpression(unary.Operand, precedence)}";
+        return precedence < parentPrecedence ? $"({text})" : text;
+    }
+    private string FormatPredicate(PredicateExpression predicate, int parentPrecedence)
+    {
+        PredicateDescriptor? descriptor = ResolvePredicate(predicate.Predicate);
+        int precedence = descriptor?.Precedence ?? 7;
+        string surface = descriptor?.Name ?? predicate.Predicate.ToUpperInvariant();
+        string operand = FormatExpression(predicate.Operand, precedence);
+        string text = descriptor?.Syntax == PredicateSyntaxKind.Postfix ? $"{operand} {surface}" : $"{operand} IS {surface}";
+        return precedence < parentPrecedence ? $"({text})" : text;
+    }
     private string FormatProperty(PropertyExpression property) { var parts = new Stack<string>(); ExpressionNode current = property; while (current is PropertyExpression p) { parts.Push(p.Property); current = p.Target; } if (current is VariableExpression variable) { parts.Push(variable.Name); return $"[{string.Join(".", parts)}]"; } return $"{FormatExpression(current)}.{string.Join(".", parts)}"; }
     private string FormatInterpolated(InterpolatedStringExpression interpolated) { var sb = new StringBuilder("\""); foreach (ExpressionNode part in interpolated.Parts) { switch (part) { case LiteralExpression literal: sb.Append(Escape(literal.Value?.ToString() ?? string.Empty)); break; case VariableExpression variable: sb.Append('[').Append(variable.Name).Append(']'); break; case PropertyExpression property: sb.Append(FormatProperty(property)); break; default: sb.Append(FormatExpression(part)); break; } } return sb.Append('"').ToString(); }
+    private OperatorDescriptor? ResolveOperator(string surface)
+    {
+        if (_language is not null && _language.TryGetOperator(surface, out OperatorDescriptor descriptor)) return descriptor;
+        return StandardLanguageSurface.Operators.FirstOrDefault(x => x.AllSurfaceNames.Contains(surface, StringComparer.OrdinalIgnoreCase));
+    }
+    private PredicateDescriptor? ResolvePredicate(string surface)
+    {
+        if (_language is not null && _language.TryGetPredicate(surface, out PredicateDescriptor descriptor)) return descriptor;
+        return StandardLanguageSurface.Predicates.FirstOrDefault(x => x.AllSurfaceNames.Contains(surface, StringComparer.OrdinalIgnoreCase));
+    }
     private static string FormatLiteral(object? value) => value switch { null => "null", bool boolean => boolean ? "true" : "false", string text => $"\"{Escape(text)}\"", IFormattable formattable => formattable.ToString(null, CultureInfo.InvariantCulture) ?? string.Empty, _ => value.ToString() ?? string.Empty };
     private static string Escape(string text) => text.Replace("\\", "\\\\", StringComparison.Ordinal).Replace("\"", "\\\"", StringComparison.Ordinal).Replace("\n", "\\n", StringComparison.Ordinal).Replace("\r", "\\r", StringComparison.Ordinal).Replace("\t", "\\t", StringComparison.Ordinal);
-    private static int BinaryPrecedence(string op) => op.ToUpperInvariant() switch { "OR" => 1, "AND" => 2, "CONTAINS" or "STARTS WITH" or "ENDS WITH" or "MATCHES" or "IN" or "BEFORE" or "AFTER" => 3, "=" or "==" or "!=" or ">" or "<" or ">=" or "<=" or "IS" or "IS NOT" => 4, _ => 0 };
 }
