@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Globalization;
 using System.Reflection;
 using FluNET.Classic.Core;
 using FluNET.Classic.Syntax;
@@ -90,6 +91,7 @@ public sealed class SemanticBinder
         BoundExpression? argument = null;
         if (node.Argument is not null) argument = op is "SORT" or "GROUP" or "DISTINCT" ? BindExpression(node.Argument, symbols, element) : BindExpression(node.Argument, symbols, null);
         if (op is "TAKE" or "SKIP" && (argument is null || !IsNumeric(argument.Type))) _diagnostics.Add(new("FLU-BIND-162", $"{op} requires a numeric amount.", node.Argument?.Span ?? node.Span));
+        if (op is "TAKE" or "SKIP" && argument is not null && TryGetConstantDecimal(argument, out decimal amount) && amount < 0) _diagnostics.Add(new("FLU-BIND-166", $"{op} requires a non-negative amount, got {amount.ToString(CultureInfo.InvariantCulture)}.", node.Argument?.Span ?? node.Span));
         if (op is "SORT" or "GROUP" && argument is null) _diagnostics.Add(new("FLU-BIND-163", $"{op} requires BY selector.", node.Span));
 
         BoundValue? strategy = null;
@@ -266,6 +268,16 @@ public sealed class SemanticBinder
     private static bool TryBindProperty(PropertyExpression property, SymbolScope symbols, out BoundPropertyValue? bound) { if (!TryRoot(property.Target, symbols, out BoundValue? target) || !TryCompileAccessor(target!.Type, property.Property, out Type? type, out Func<object, object?>? accessor)) { bound = null; return false; } bound = new(target, property.Property, type!, accessor!, property.Span); return true; }
     private static bool TryRoot(ExpressionNode expression, SymbolScope symbols, out BoundValue? value) { if (expression is VariableExpression variable && symbols.TryGet(variable.Name, out Type type)) { value = new BoundVariableValue(variable.Name, type, false, variable.Span); return true; } if (expression is PropertyExpression property && TryRoot(property.Target, symbols, out BoundValue? nested) && TryCompileAccessor(nested!.Type, property.Property, out Type? propertyType, out Func<object, object?>? accessor)) { value = new BoundPropertyValue(nested, property.Property, propertyType!, accessor!, property.Span); return true; } value = null; return false; }
     private static bool TryCompileAccessor(Type type, string propertyName, out Type? propertyType, out Func<object, object?>? accessor) { PropertyInfo? property = type.GetProperty(propertyName, BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase); if (property is null) { propertyType = null; accessor = null; return false; } var instance = System.Linq.Expressions.Expression.Parameter(typeof(object), "instance"); var cast = System.Linq.Expressions.Expression.Convert(instance, type); var read = System.Linq.Expressions.Expression.Property(cast, property); accessor = System.Linq.Expressions.Expression.Lambda<Func<object, object?>>(System.Linq.Expressions.Expression.Convert(read, typeof(object)), instance).Compile(); propertyType = property.PropertyType; return true; }
+    private static bool TryGetConstantDecimal(BoundExpression expression, out decimal value)
+    {
+        if (expression is BoundValueExpression { Value: BoundConstantValue constant } && constant.Value is not null && IsNumeric(constant.Value.GetType()))
+        {
+            try { value = Convert.ToDecimal(constant.Value, CultureInfo.InvariantCulture); return true; }
+            catch { }
+        }
+        value = 0;
+        return false;
+    }
     private static bool IsNumeric(Type type) => Type.GetTypeCode(Nullable.GetUnderlyingType(type) ?? type) is TypeCode.Byte or TypeCode.SByte or TypeCode.Int16 or TypeCode.UInt16 or TypeCode.Int32 or TypeCode.UInt32 or TypeCode.Int64 or TypeCode.UInt64 or TypeCode.Single or TypeCode.Double or TypeCode.Decimal;
     private static string Friendly(Type type) => type.IsGenericType ? $"{type.Name[..type.Name.IndexOf('`')]}<{string.Join(',', type.GetGenericArguments().Select(Friendly))}>" : type.Name;
     private static string DescribeTypes(IReadOnlyList<Type> types) => types.Count == 0 ? "any" : string.Join(", ", types.Select(Friendly));
