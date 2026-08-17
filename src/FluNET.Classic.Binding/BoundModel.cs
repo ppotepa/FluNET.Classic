@@ -10,7 +10,7 @@ public sealed record BoundBlock(IReadOnlyList<BoundStatement> Statements, TextSp
 public sealed record BoundPipeline(IReadOnlyList<BoundStage> Stages, Type? ResultType, TextSpan Span) : BoundStatement(Span);
 public abstract record BoundStage(Type ResultType, TextSpan Span);
 public sealed record BoundSentence(VerbDescriptor Verb, VerbImplementationDescriptor Implementation, SentencePattern Pattern, IReadOnlyList<BoundRole> Roles, string? ResultAlias, int Cost, TextSpan Span) : BoundStage(Implementation.ResultType, Span);
-public sealed record BoundFilter(BoundValue Source, BoundExpression Predicate, Type ElementType, string? ResultAlias, TextSpan Span) : BoundStage(ElementType.MakeArrayType(), Span);
+public sealed record BoundFilter(BoundValue Source, BoundExpression Predicate, Type ElementType, string? ResultAlias, Type CollectionResultType, TextSpan Span) : BoundStage(CollectionResultType, Span);
 public sealed record BoundCheck(BoundExpression Condition, string? ResultAlias, TextSpan Span) : BoundStage(typeof(bool), Span);
 public sealed record BoundCollection(string Operation, BoundValue Source, Type ElementType, BoundExpression? Argument, string? ResultAlias, Type CollectionResultType, TextSpan Span) : BoundStage(CollectionResultType, Span);
 public sealed record BoundFlowVariable(string Name, Type Type);
