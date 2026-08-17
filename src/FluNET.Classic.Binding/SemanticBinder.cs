@@ -180,7 +180,14 @@ public sealed class SemanticBinder
 
     private BoundExpression BindUnary(UnaryExpression unary, SymbolScope symbols, Type? itemType)
     {
-        BoundExpression operand = BindExpression(unary.Operand, symbols, itemType); if (!_language.TryGetOperator(unary.Operator, out OperatorDescriptor descriptor) || descriptor.Arity != OperatorArity.Unary) { _diagnostics.Add(new("FLU-BIND-154", $"Unknown unary operator '{unary.Operator}'.", unary.Span)); return new BoundUnaryExpression(unary.Operator, operand, typeof(bool), unary.Span); } if (descriptor.Semantic == OperatorSemanticKind.Logical && operand.Type != typeof(bool)) _diagnostics.Add(new("FLU-BIND-155", $"Operator '{descriptor.Name}' requires BOOLEAN, got {Friendly(operand.Type)}.", unary.Span)); return new BoundUnaryExpression(descriptor.Name, operand, typeof(bool), unary.Span);
+        BoundExpression operand = BindExpression(unary.Operand, symbols, itemType);
+        if (!_language.TryGetOperator(unary.Operator, out OperatorDescriptor descriptor) || descriptor.Arity != OperatorArity.Unary)
+        {
+            descriptor = new OperatorDescriptor($"operator:unknown:{unary.Operator.ToLowerInvariant()}", unary.Operator, 1, OperatorArity.Unary);
+            _diagnostics.Add(new("FLU-BIND-154", $"Unknown unary operator '{unary.Operator}'.", unary.Span));
+        }
+        ValidateOperatorCompatibility(descriptor, operand, null, unary.Span);
+        return new BoundUnaryExpression(descriptor, operand, unary.Span);
     }
     private BoundExpression BindPredicate(PredicateExpression predicate, SymbolScope symbols, Type? itemType)
     {
@@ -190,16 +197,51 @@ public sealed class SemanticBinder
     private BoundExpression BindPredicateOperand(ExpressionNode expression, PredicateDescriptor descriptor, SymbolScope symbols, Type? itemType) { if (expression is ReferenceExpression && descriptor.ReferenceOperandType is { } referenceType && TryBindValue(expression, referenceType, RoleDirection.Input, "EXPRESSION", null, symbols, out BoundValue? resolved, out _)) return new BoundValueExpression(resolved!, expression.Span); return BindExpression(expression, symbols, itemType); }
     private BoundExpression BindBinary(BinaryExpression binary, SymbolScope symbols, Type? itemType)
     {
-        BoundExpression left = BindExpression(binary.Left, symbols, itemType); BoundExpression right = BindExpression(binary.Right, symbols, itemType); if (!_language.TryGetOperator(binary.Operator, out OperatorDescriptor descriptor) || descriptor.Arity != OperatorArity.Binary) { descriptor = new OperatorDescriptor($"operator:unknown:{binary.Operator.ToLowerInvariant()}", binary.Operator, 1); _diagnostics.Add(new("FLU-BIND-156", $"Unknown binary operator '{binary.Operator}'.", binary.Span)); } ValidateBinaryOperator(descriptor, left, right, binary.Span); return new BoundBinaryExpression(left, descriptor, right, typeof(bool), binary.Span);
+        BoundExpression left = BindExpression(binary.Left, symbols, itemType); BoundExpression right = BindExpression(binary.Right, symbols, itemType);
+        if (!_language.TryGetOperator(binary.Operator, out OperatorDescriptor descriptor) || descriptor.Arity != OperatorArity.Binary)
+        {
+            descriptor = new OperatorDescriptor($"operator:unknown:{binary.Operator.ToLowerInvariant()}", binary.Operator, 1);
+            _diagnostics.Add(new("FLU-BIND-156", $"Unknown binary operator '{binary.Operator}'.", binary.Span));
+        }
+        ValidateOperatorCompatibility(descriptor, left, right, binary.Span);
+        return new BoundBinaryExpression(left, descriptor, right, binary.Span);
     }
     private BoundExpression BindBetween(BetweenExpression between, SymbolScope symbols, Type? itemType)
     {
-        BoundExpression operand = BindExpression(between.Operand, symbols, itemType); BoundExpression lower = BindExpression(between.Lower, symbols, itemType); BoundExpression upper = BindExpression(between.Upper, symbols, itemType); if (!AreOrderCompatible(operand.Type, lower.Type) || !AreOrderCompatible(operand.Type, upper.Type)) _diagnostics.Add(new("FLU-BIND-157", $"BETWEEN requires comparable bounds; got {Friendly(operand.Type)}, {Friendly(lower.Type)}, {Friendly(upper.Type)}.", between.Span)); return new BoundBetweenExpression(operand, lower, upper, between.Span);
+        BoundExpression operand = BindExpression(between.Operand, symbols, itemType); BoundExpression lower = BindExpression(between.Lower, symbols, itemType); BoundExpression upper = BindExpression(between.Upper, symbols, itemType);
+        if (!_language.TryGetOperator(between.Operator, out OperatorDescriptor descriptor) || descriptor.Arity != OperatorArity.Ternary)
+        {
+            descriptor = new OperatorDescriptor($"operator:unknown:{between.Operator.ToLowerInvariant()}", between.Operator, 1, OperatorArity.Ternary);
+            _diagnostics.Add(new("FLU-BIND-159", $"Unknown ternary operator '{between.Operator}'.", between.Span));
+        }
+        bool valid = IsOperatorCompatible(descriptor.Compatibility, operand.Type, lower.Type) && IsOperatorCompatible(descriptor.Compatibility, operand.Type, upper.Type);
+        if (!valid) _diagnostics.Add(new("FLU-BIND-157", $"Operator '{descriptor.Name}' requires compatible bounds; got {Friendly(operand.Type)}, {Friendly(lower.Type)}, {Friendly(upper.Type)}.", between.Span));
+        return new BoundBetweenExpression(descriptor, operand, lower, upper, between.Span);
     }
-    private void ValidateBinaryOperator(OperatorDescriptor descriptor, BoundExpression left, BoundExpression right, TextSpan span)
+    private void ValidateOperatorCompatibility(OperatorDescriptor descriptor, BoundExpression left, BoundExpression? right, TextSpan span)
     {
-        bool valid = descriptor.Semantic switch { OperatorSemanticKind.Custom => true, OperatorSemanticKind.Logical => left.Type == typeof(bool) && right.Type == typeof(bool), OperatorSemanticKind.Equality => AreComparable(left.Type, right.Type), OperatorSemanticKind.Ordering => AreOrderCompatible(left.Type, right.Type), OperatorSemanticKind.Contains => CanContain(left.Type, right.Type), OperatorSemanticKind.StartsWith or OperatorSemanticKind.EndsWith or OperatorSemanticKind.RegexMatch => left.Type == typeof(string) && right.Type == typeof(string), OperatorSemanticKind.Membership => CanContain(right.Type, left.Type) && right.Type != typeof(string), OperatorSemanticKind.Temporal => IsTemporal(left.Type) && IsTemporal(right.Type) && AreComparable(left.Type, right.Type), OperatorSemanticKind.Between => false, _ => false }; if (!valid) _diagnostics.Add(new("FLU-BIND-158", $"Operator '{descriptor.Name}' is not valid for {Friendly(left.Type)} and {Friendly(right.Type)}.", span));
+        bool valid = right is null
+            ? descriptor.Compatibility is OperatorCompatibilityRule.Any || descriptor.Compatibility == OperatorCompatibilityRule.BooleanOperand && left.Type == typeof(bool)
+            : IsOperatorCompatible(descriptor.Compatibility, left.Type, right.Type);
+        if (!valid)
+        {
+            string operands = right is null ? Friendly(left.Type) : $"{Friendly(left.Type)} and {Friendly(right.Type)}";
+            _diagnostics.Add(new("FLU-BIND-158", $"Operator '{descriptor.Name}' is not valid for {operands}.", span));
+        }
     }
+    private bool IsOperatorCompatible(OperatorCompatibilityRule rule, Type left, Type right) => rule switch
+    {
+        OperatorCompatibilityRule.Any => true,
+        OperatorCompatibilityRule.BooleanOperand => left == typeof(bool),
+        OperatorCompatibilityRule.BooleanPair => left == typeof(bool) && right == typeof(bool),
+        OperatorCompatibilityRule.ComparablePair => AreComparable(left, right),
+        OperatorCompatibilityRule.OrderedPair => AreOrderCompatible(left, right),
+        OperatorCompatibilityRule.ContainerContainsValue => CanContain(left, right),
+        OperatorCompatibilityRule.ValueInContainer => right != typeof(string) && CanContain(right, left),
+        OperatorCompatibilityRule.StringPair => left == typeof(string) && right == typeof(string),
+        OperatorCompatibilityRule.TemporalPair => IsTemporal(left) && IsTemporal(right) && AreComparable(left, right),
+        _ => false
+    };
     private bool CanContain(Type containerType, Type valueType) { Type container = Nullable.GetUnderlyingType(containerType) ?? containerType; Type value = Nullable.GetUnderlyingType(valueType) ?? valueType; if (container == typeof(string)) return value == typeof(string); if (typeof(IDictionary).IsAssignableFrom(container)) return true; Type? element = ClrTypeShape.GetElementType(container); return element is not null && AreComparable(element, value); }
     private bool AreComparable(Type left, Type right) { Type a = Nullable.GetUnderlyingType(left) ?? left; Type b = Nullable.GetUnderlyingType(right) ?? right; if (a == typeof(object) || b == typeof(object)) return true; if (a == b || a.IsAssignableFrom(b) || b.IsAssignableFrom(a)) return true; if (IsNumeric(a) && IsNumeric(b)) return true; return _conversions.CanConvert(a, b, out _, out _) || _conversions.CanConvert(b, a, out _, out _); }
     private bool AreOrderCompatible(Type left, Type right) { if (!AreComparable(left, right)) return false; Type a = Nullable.GetUnderlyingType(left) ?? left; Type b = Nullable.GetUnderlyingType(right) ?? right; return IsNumeric(a) && IsNumeric(b) || IsTemporal(a) && IsTemporal(b) || typeof(IComparable).IsAssignableFrom(a) && (a == b || a.IsAssignableFrom(b) || b.IsAssignableFrom(a)); }
