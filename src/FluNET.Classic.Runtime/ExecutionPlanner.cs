@@ -40,15 +40,39 @@ public sealed class ExecutionPlanner
         BoundSentence sentence => new("sentence", sentence.Verb.Name, sentence.Implementation.ImplementationType.FullName, sentence.Pattern.StableId, TypeName(sentence.ResultType), sentence.ResultAlias, sentence.Cost, sentence.Implementation.Traits.Contains(ExecutionTrait.Streaming) ? "Streaming" : null, sentence.Implementation.Capabilities, sentence.Implementation.Traits, sentence.Roles.Select(role => new ExecutionPlanRole(role.Slot.Name, role.Slot.Direction.ToString(), role.Slot.Cardinality.ToString(), TypeName(role.Slot.ValueType)!, role.Values.Select(DescribeValue).ToArray())).ToArray(), Array.Empty<ExecutionPlanStep>()),
         BoundFilter filter => new("filter", "FILTER", null, null, TypeName(filter.ResultType), filter.ResultAlias, null, ClrTypeShape.IsAsyncEnumerableType(filter.Source.Type) ? "Streaming" : "Materializing", ExpressionCapabilities(filter.Predicate), new[] { ExecutionTrait.Pure }, new[] { new ExecutionPlanRole("WHAT", "Input", "One", TypeName(filter.Source.Type)!, new[] { DescribeValue(filter.Source) }) }, Array.Empty<ExecutionPlanStep>()),
         BoundCheck check => new("check", "CHECK", null, null, TypeName(check.ResultType), check.ResultAlias, null, "Scalar", ExpressionCapabilities(check.Condition), new[] { ExecutionTrait.Pure }, Array.Empty<ExecutionPlanRole>(), Array.Empty<ExecutionPlanStep>()),
-        BoundCollection collection => new("collection", collection.Operation, null, null, TypeName(collection.ResultType), collection.ResultAlias, null, IntrinsicExecutionMode(collection.Operation), Array.Empty<string>(), new[] { ExecutionTrait.Pure }, new[] { new ExecutionPlanRole("WHAT", "Input", "One", TypeName(collection.Source.Type)!, new[] { DescribeValue(collection.Source) }), new ExecutionPlanRole(collection.Operation is "SORT" or "GROUP" or "DISTINCT" ? "BY" : "WITH", "Input", "ZeroOrOne", TypeName(collection.Argument?.Type) ?? "-", Array.Empty<ExecutionPlanValue>()) }, Array.Empty<ExecutionPlanStep>()),
+        BoundCollection collection => new("collection", collection.Operation, null, null, TypeName(collection.ResultType), collection.ResultAlias, null, IntrinsicExecutionMode(collection.Operation), Array.Empty<string>(), new[] { ExecutionTrait.Pure }, CollectionRoles(collection), Array.Empty<ExecutionPlanStep>()),
         _ => Empty(stage.GetType().Name, TypeName(stage.ResultType))
     };
+
+    private IReadOnlyList<ExecutionPlanRole> CollectionRoles(BoundCollection collection)
+    {
+        var roles = new List<ExecutionPlanRole>
+        {
+            new("WHAT", "Input", "One", TypeName(collection.Source.Type)!, new[] { DescribeValue(collection.Source) })
+        };
+
+        if (collection.Argument is not null)
+        {
+            string argumentRole = collection.Operation is "SORT" or "GROUP" or "DISTINCT" ? "BY" : "WITH";
+            roles.Add(new(argumentRole, "Input", "One", TypeName(collection.Argument.Type)!, Array.Empty<ExecutionPlanValue>()));
+        }
+
+        if (collection.Strategy is not null)
+        {
+            string strategyRole = _language.TryGetIntrinsic(collection.Operation, out IntrinsicDescriptor intrinsic)
+                ? intrinsic.StrategyRole
+                : "USING";
+            roles.Add(new(strategyRole, "Input", "One", TypeName(collection.Strategy.Type)!, new[] { DescribeValue(collection.Strategy) }));
+        }
+
+        return roles;
+    }
 
     private string? IntrinsicExecutionMode(string operation) => _language.TryGetIntrinsic(operation, out IntrinsicDescriptor intrinsic) ? intrinsic.Execution.ToString() : null;
     private static ExecutionPlanStep Empty(string kind, string? resultType = null) => new(kind, null, null, null, resultType, null, null, null, Array.Empty<string>(), Array.Empty<ExecutionTrait>(), Array.Empty<ExecutionPlanRole>(), Array.Empty<ExecutionPlanStep>());
     private static ExecutionPlanValue DescribeValue(BoundValue value) => value switch
     {
-        BoundConstantValue constant => new(constant.Kind == ConversionKind.Resolution ? "resolved" : "constant", TypeName(constant.Type)!, constant.Value is ISensitiveValue ? "***" : null, constant.Kind == ConversionKind.Exact ? null : constant.Kind.ToString(), constant.Cost),
+        BoundConstantValue constant => new(constant.Kind == ConversionKind.Resolution ? "resolved" : "constant", TypeName(constant.Type)!, constant.Value is ISensitiveValue ? "***" : constant.Value?.ToString(), constant.Kind == ConversionKind.Exact ? null : constant.Kind.ToString(), constant.Cost),
         BoundVariableValue variable => new(variable.IsOutput ? "output" : "variable", TypeName(variable.Type)!, variable.Name), BoundPipelineValue pipeline => new("pipeline", TypeName(pipeline.Type)!), BoundPropertyValue property => new("property", TypeName(property.Type)!, property.Property), BoundInterpolatedValue interpolation => new("interpolation", TypeName(interpolation.Type)!, $"{interpolation.Parts.Count} part(s)"), BoundConversionValue conversion => new("conversion", TypeName(conversion.Type)!, $"{TypeName(conversion.Source.Type)} -> {TypeName(conversion.TargetType)}", conversion.Kind.ToString(), conversion.Cost), _ => new(value.GetType().Name, TypeName(value.Type)!)
     };
     private static string[] ExpressionCapabilities(BoundExpression expression) => EnumerateExpressionCapabilities(expression).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
