@@ -23,6 +23,10 @@ public sealed class LanguageCompatibilityAnalyzer
         CompareMap(previous.Verbs.ToDictionary(x => x.StableId), current.Verbs.ToDictionary(x => x.StableId), "verb", changes, CompareVerb);
         CompareMap(previous.Qualifiers.ToDictionary(x => x.StableId), current.Qualifiers.ToDictionary(x => x.StableId), "qualifier", changes, CompareQualifier);
         CompareMap(previous.Modules.ToDictionary(x => x.StableId), current.Modules.ToDictionary(x => x.StableId), "module", changes, CompareModule);
+        CompareMap(previous.Predicates.ToDictionary(x => x.StableId), current.Predicates.ToDictionary(x => x.StableId), "predicate", changes, ComparePredicate);
+        CompareMap(previous.Operators.ToDictionary(x => x.StableId), current.Operators.ToDictionary(x => x.StableId), "operator", changes, CompareOperator);
+        CompareMap(previous.Intrinsics.ToDictionary(x => x.StableId), current.Intrinsics.ToDictionary(x => x.StableId), "intrinsic", changes, CompareIntrinsic);
+
         var oldImpl = previous.Verbs.SelectMany(x => x.Implementations).ToDictionary(x => x.StableId); var newImpl = current.Verbs.SelectMany(x => x.Implementations).ToDictionary(x => x.StableId);
         CompareMap(oldImpl, newImpl, "implementation", changes, CompareImplementation);
         var oldPatterns = previous.Verbs.SelectMany(x => x.Implementations).SelectMany(x => x.Patterns).ToDictionary(x => x.StableId); var newPatterns = current.Verbs.SelectMany(x => x.Implementations).SelectMany(x => x.Patterns).ToDictionary(x => x.StableId);
@@ -45,10 +49,42 @@ public sealed class LanguageCompatibilityAnalyzer
     {
         if (!oldValue.Name.Equals(newValue.Name, StringComparison.OrdinalIgnoreCase)) changes.Add(new(CompatibilitySeverity.Breaking, "qualifier-name", oldValue.StableId, $"Qualifier name changed from {oldValue.Name} to {newValue.Name}."));
         if (oldValue.TargetType != newValue.TargetType) changes.Add(new(CompatibilitySeverity.Breaking, "qualifier-type", oldValue.StableId, $"Qualifier target changed from {oldValue.TargetType?.FullName ?? "-"} to {newValue.TargetType?.FullName ?? "-"}."));
+        foreach (string alias in oldValue.AllAliases.Except(newValue.AllAliases, StringComparer.OrdinalIgnoreCase)) changes.Add(new(CompatibilitySeverity.Breaking, "removed-qualifier-alias", oldValue.StableId, $"Removed qualifier alias '{alias}'."));
     }
     private static void CompareModule(ModuleDescriptor oldValue, ModuleDescriptor newValue, ICollection<LanguageCompatibilityChange> changes)
     {
         foreach (string dependency in oldValue.Dependencies.Except(newValue.Dependencies, StringComparer.OrdinalIgnoreCase)) changes.Add(new(CompatibilitySeverity.Warning, "removed-dependency", oldValue.StableId, $"Removed module dependency '{dependency}'."));
+    }
+    private static void ComparePredicate(PredicateDescriptor oldValue, PredicateDescriptor newValue, ICollection<LanguageCompatibilityChange> changes)
+    {
+        if (!oldValue.Name.Equals(newValue.Name, StringComparison.OrdinalIgnoreCase) || oldValue.Syntax != newValue.Syntax || oldValue.Precedence != newValue.Precedence)
+            changes.Add(new(CompatibilitySeverity.Breaking, "predicate-syntax", oldValue.StableId, $"Predicate '{oldValue.Name}' syntax contract changed."));
+        foreach (string surface in oldValue.AllSurfaceNames.Except(newValue.AllSurfaceNames, StringComparer.OrdinalIgnoreCase))
+            changes.Add(new(CompatibilitySeverity.Breaking, "removed-predicate-surface", oldValue.StableId, $"Predicate '{oldValue.Name}' no longer accepts '{surface}'."));
+        foreach (Type type in oldValue.SupportedOperandTypes.Except(newValue.SupportedOperandTypes))
+            changes.Add(new(CompatibilitySeverity.Breaking, "predicate-operand", oldValue.StableId, $"Predicate '{oldValue.Name}' no longer accepts operand type '{type.FullName}'."));
+        foreach (string capability in newValue.RequiredCapabilities.Except(oldValue.RequiredCapabilities, StringComparer.OrdinalIgnoreCase))
+            changes.Add(new(CompatibilitySeverity.Breaking, "predicate-capability", oldValue.StableId, $"Predicate '{oldValue.Name}' now requires capability '{capability}'."));
+        if (oldValue.ReferenceOperandType != newValue.ReferenceOperandType)
+            changes.Add(new(CompatibilitySeverity.Breaking, "predicate-reference-type", oldValue.StableId, $"Predicate '{oldValue.Name}' reference operand type changed."));
+    }
+    private static void CompareOperator(OperatorDescriptor oldValue, OperatorDescriptor newValue, ICollection<LanguageCompatibilityChange> changes)
+    {
+        if (!oldValue.Name.Equals(newValue.Name, StringComparison.OrdinalIgnoreCase) || oldValue.Precedence != newValue.Precedence || oldValue.Arity != newValue.Arity || oldValue.Associativity != newValue.Associativity)
+            changes.Add(new(CompatibilitySeverity.Breaking, "operator-syntax", oldValue.StableId, $"Operator '{oldValue.Name}' syntax or precedence changed."));
+        if (oldValue.Compatibility != newValue.Compatibility || oldValue.Evaluation != newValue.Evaluation || oldValue.EffectiveResultType != newValue.EffectiveResultType)
+            changes.Add(new(CompatibilitySeverity.Breaking, "operator-semantics", oldValue.StableId, $"Operator '{oldValue.Name}' semantic contract changed."));
+        foreach (string surface in oldValue.AllSurfaceNames.Except(newValue.AllSurfaceNames, StringComparer.OrdinalIgnoreCase))
+            changes.Add(new(CompatibilitySeverity.Breaking, "removed-operator-surface", oldValue.StableId, $"Operator '{oldValue.Name}' no longer accepts '{surface}'."));
+    }
+    private static void CompareIntrinsic(IntrinsicDescriptor oldValue, IntrinsicDescriptor newValue, ICollection<LanguageCompatibilityChange> changes)
+    {
+        if (!oldValue.Name.Equals(newValue.Name, StringComparison.OrdinalIgnoreCase) || oldValue.Syntax != newValue.Syntax)
+            changes.Add(new(CompatibilitySeverity.Breaking, "intrinsic-syntax", oldValue.StableId, $"Intrinsic '{oldValue.Name}' syntax contract changed."));
+        if (oldValue.Semantic != newValue.Semantic || oldValue.Execution != newValue.Execution || oldValue.StrategyType != newValue.StrategyType || !oldValue.StrategyRole.Equals(newValue.StrategyRole, StringComparison.OrdinalIgnoreCase))
+            changes.Add(new(CompatibilitySeverity.Breaking, "intrinsic-semantics", oldValue.StableId, $"Intrinsic '{oldValue.Name}' execution or strategy contract changed."));
+        foreach (string surface in oldValue.AllSurfaceNames.Except(newValue.AllSurfaceNames, StringComparer.OrdinalIgnoreCase))
+            changes.Add(new(CompatibilitySeverity.Breaking, "removed-intrinsic-surface", oldValue.StableId, $"Intrinsic '{oldValue.Name}' no longer accepts '{surface}'."));
     }
     private static void CompareImplementation(VerbImplementationDescriptor oldValue, VerbImplementationDescriptor newValue, ICollection<LanguageCompatibilityChange> changes)
     {
