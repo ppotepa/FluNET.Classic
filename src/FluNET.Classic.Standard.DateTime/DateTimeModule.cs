@@ -17,7 +17,7 @@ public sealed class SystemClock : IClock
 }
 
 public enum TimeZoneTarget { UTC, LOCAL }
-public enum DateBoundary { START_OF_DAY, END_OF_DAY, START_OF_MONTH, END_OF_MONTH }
+public enum DateBoundary { START_OF_DAY, END_OF_DAY, START_OF_WEEK, END_OF_WEEK, START_OF_MONTH, END_OF_MONTH, START_OF_YEAR, END_OF_YEAR }
 
 public sealed class TimeZoneSpec
 {
@@ -47,7 +47,7 @@ public sealed class DateTimeModule : LanguageModule
     {
         new("qualifier:now", "NOW", typeof(DateTimeOffset)), new("qualifier:today", "TODAY", typeof(DateOnly)), new("qualifier:date", "DATE", typeof(DateOnly)),
         new("qualifier:time", "TIME", typeof(TimeOnly)), new("qualifier:datetime", "DATETIME", typeof(DateTimeOffset)), new("qualifier:duration", "DURATION", typeof(TimeSpan)),
-        new("qualifier:date-range", "RANGE", typeof(DateRange))
+        new("qualifier:date-range", "RANGE", typeof(DateRange)), new("qualifier:range-start", "START", typeof(DateTimeOffset)), new("qualifier:range-end", "END", typeof(DateTimeOffset))
     };
 }
 
@@ -63,6 +63,28 @@ public sealed class GetToday : IVerb<DateOnly>, IGet, IWhat<DateOnly>, IPipeline
 {
     private readonly IClock _clock; public GetToday([What] DateOnly what, [FromServices] IClock clock) => _clock = clock;
     public ValueTask<DateOnly> ExecuteAsync(VerbExecutionContext context, CancellationToken cancellationToken = default) => ValueTask.FromResult(_clock.Today);
+}
+
+[Verb("CREATE"), Qualifier("RANGE"), ExecutionTrait(ExecutionTrait.Pure)]
+public sealed class CreateDateRange : IVerb<DateRange>, ICreate, IFrom<DateTimeOffset>, ITo<DateTimeOffset>, IPipelineProducer<DateRange>
+{
+    private readonly DateTimeOffset _start; private readonly DateTimeOffset _end;
+    public CreateDateRange([From] DateTimeOffset start, [To] DateTimeOffset end) { _start = start; _end = end; }
+    public ValueTask<DateRange> ExecuteAsync(VerbExecutionContext context, CancellationToken cancellationToken = default) => ValueTask.FromResult(new DateRange(_start, _end));
+}
+
+[Verb("GET"), Qualifier("START"), ExecutionTrait(ExecutionTrait.Pure)]
+public sealed class GetRangeStart : IVerb<DateTimeOffset>, IGet, IFrom<DateRange>, IPipelineConsumer<DateRange>, IPipelineProducer<DateTimeOffset>
+{
+    private readonly DateRange _range; public GetRangeStart([From] DateRange range) => _range = range;
+    public ValueTask<DateTimeOffset> ExecuteAsync(VerbExecutionContext context, CancellationToken cancellationToken = default) => ValueTask.FromResult(_range.Start);
+}
+
+[Verb("GET"), Qualifier("END"), ExecutionTrait(ExecutionTrait.Pure)]
+public sealed class GetRangeEnd : IVerb<DateTimeOffset>, IGet, IFrom<DateRange>, IPipelineConsumer<DateRange>, IPipelineProducer<DateTimeOffset>
+{
+    private readonly DateRange _range; public GetRangeEnd([From] DateRange range) => _range = range;
+    public ValueTask<DateTimeOffset> ExecuteAsync(VerbExecutionContext context, CancellationToken cancellationToken = default) => ValueTask.FromResult(_range.End);
 }
 
 [Verb("PARSE"), Qualifier("DATE"), ExecutionTrait(ExecutionTrait.Pure)]
@@ -141,12 +163,18 @@ public sealed class TransformDateBoundary : IVerb<DateTimeOffset>, ITransform, I
     private readonly DateTimeOffset _value; private readonly DateBoundary _boundary; public TransformDateBoundary([What] DateTimeOffset value, [Using] DateBoundary boundary) { _value = value; _boundary = boundary; }
     public ValueTask<DateTimeOffset> ExecuteAsync(VerbExecutionContext context, CancellationToken cancellationToken = default)
     {
+        DateTimeOffset startOfDay = new(_value.Year, _value.Month, _value.Day, 0, 0, 0, _value.Offset);
+        int mondayOffset = ((int)startOfDay.DayOfWeek + 6) % 7;
         DateTimeOffset result = _boundary switch
         {
-            DateBoundary.START_OF_DAY => new(_value.Year, _value.Month, _value.Day, 0, 0, 0, _value.Offset),
-            DateBoundary.END_OF_DAY => new DateTimeOffset(_value.Year, _value.Month, _value.Day, 0, 0, 0, _value.Offset).AddDays(1).AddTicks(-1),
+            DateBoundary.START_OF_DAY => startOfDay,
+            DateBoundary.END_OF_DAY => startOfDay.AddDays(1).AddTicks(-1),
+            DateBoundary.START_OF_WEEK => startOfDay.AddDays(-mondayOffset),
+            DateBoundary.END_OF_WEEK => startOfDay.AddDays(-mondayOffset + 7).AddTicks(-1),
             DateBoundary.START_OF_MONTH => new(_value.Year, _value.Month, 1, 0, 0, 0, _value.Offset),
             DateBoundary.END_OF_MONTH => new DateTimeOffset(_value.Year, _value.Month, 1, 0, 0, 0, _value.Offset).AddMonths(1).AddTicks(-1),
+            DateBoundary.START_OF_YEAR => new(_value.Year, 1, 1, 0, 0, 0, _value.Offset),
+            DateBoundary.END_OF_YEAR => new DateTimeOffset(_value.Year, 1, 1, 0, 0, 0, _value.Offset).AddYears(1).AddTicks(-1),
             _ => _value
         };
         return ValueTask.FromResult(result);
