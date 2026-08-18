@@ -21,6 +21,8 @@ public sealed class ModuleArtifactGenerator
             id = $"module:{Slug(module.Name)}",
             name = module.Name,
             version = module.Version.ToString(),
+            languageVersion = snapshot.LanguageVersion.Name,
+            grammarId = snapshot.LanguageVersion.GrammarId,
             dependencies = module.Dependencies,
             assemblies = module.Assemblies.Select(x => x.GetName().Name).Where(x => x is not null),
             qualifiers = module.Qualifiers.Select(q => new { id = q.StableId, name = q.Name, type = q.TargetType?.FullName, sensitive = q.TargetType is not null && SensitiveValueMetadata.IsSensitiveType(q.TargetType), aliases = q.AllAliases }),
@@ -104,6 +106,7 @@ public sealed class ModuleArtifactGenerator
         text.AppendLine($"# {module.Name}");
         text.AppendLine();
         text.AppendLine($"Version: `{module.Version}`");
+        text.AppendLine($"Language: `{snapshot.LanguageVersion.Name}` (`{snapshot.LanguageVersion.GrammarId}`)");
         if (module.Dependencies.Count > 0) text.AppendLine($"Dependencies: {string.Join(", ", module.Dependencies.Select(x => $"`{x}`"))}");
         text.AppendLine();
 
