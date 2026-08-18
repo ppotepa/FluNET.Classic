@@ -20,8 +20,15 @@ public sealed class ClassicParser
 
     public ParseResult Parse(string? source)
     {
-        source ??= string.Empty; _tokens = _lexer.Lex(source); _position = 0; _diagnostics.Clear(); List<StatementNode> statements = ParseStatements(false);
-        TextSpan span = statements.Count == 0 ? new(0, source.Length) : TextSpan.FromBounds(statements[0].Span.Start, statements[^1].Span.End); return new(new ScriptNode(statements, span), _diagnostics.ToArray());
+        source ??= string.Empty;
+        _diagnostics.Clear();
+        LexResult lex = _lexer.LexDetailed(source);
+        _tokens = lex.Tokens;
+        _position = 0;
+        _diagnostics.AddRange(lex.Diagnostics.Select(x => new SyntaxDiagnostic(x.Code, x.Message, x.Span)));
+        List<StatementNode> statements = ParseStatements(false);
+        TextSpan span = statements.Count == 0 ? new(0, source.Length) : TextSpan.FromBounds(statements[0].Span.Start, statements[^1].Span.End);
+        return new(new ScriptNode(statements, span), _diagnostics.ToArray());
     }
 
     private List<StatementNode> ParseStatements(bool stopAtRightBrace)
