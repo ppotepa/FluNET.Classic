@@ -9,6 +9,11 @@ public sealed class JsonModule : LanguageModule
 {
     public override string Name => "json";
     public override IReadOnlyCollection<string> Dependencies => new[] { "files" };
+    public override IReadOnlyCollection<QualifierDescriptor> Qualifiers => new QualifierDescriptor[]
+    {
+        new("qualifier:json-properties", "PROPERTIES", typeof(JsonProperty[])),
+        new("qualifier:json-items", "ITEMS", typeof(JsonItem[]))
+    };
 }
 
 [Qualifier("JSON")]
