@@ -21,8 +21,11 @@ public sealed class LanguageSnapshot
         IEnumerable<ModuleDescriptor> modules,
         IEnumerable<PredicateDescriptor> predicates,
         IEnumerable<OperatorDescriptor> operators,
-        IEnumerable<IntrinsicDescriptor> intrinsics)
+        IEnumerable<IntrinsicDescriptor> intrinsics,
+        LanguageVersionDescriptor? languageVersion = null)
     {
+        LanguageVersion = languageVersion ?? ClassicLanguageVersions.Current;
+
         Dictionary<string, VerbDescriptor> verbLookup = new(StringComparer.OrdinalIgnoreCase);
         foreach (VerbDescriptor verb in verbs)
         {
@@ -58,6 +61,7 @@ public sealed class LanguageSnapshot
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
     }
 
+    public LanguageVersionDescriptor LanguageVersion { get; }
     public IReadOnlyList<VerbDescriptor> Verbs { get; }
     public IReadOnlyList<QualifierDescriptor> Qualifiers { get; }
     public IReadOnlyList<PredicateDescriptor> Predicates { get; }
