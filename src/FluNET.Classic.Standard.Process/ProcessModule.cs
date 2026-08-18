@@ -3,10 +3,24 @@ using FluNET.Classic.Core;
 
 namespace FluNET.Classic.Standard.Process;
 
-public sealed record ProcessSpec(string FileName, string? Arguments = null, DirectoryInfo? WorkingDirectory = null, IReadOnlyDictionary<string, string?>? Environment = null, TimeSpan? Timeout = null);
+public sealed record CommandLine(string Value)
+{
+    public static bool TryParse(string value, out CommandLine? result) { result = new(value ?? string.Empty); return true; }
+    public override string ToString() => Value;
+}
+
+public sealed record ProcessSpec(string FileName, string? Arguments = null, DirectoryInfo? WorkingDirectory = null, IReadOnlyDictionary<string, string?>? Environment = null, TimeSpan? Timeout = null)
+{
+    public static bool TryParse(string value, out ProcessSpec? result)
+    {
+        if (string.IsNullOrWhiteSpace(value)) { result = null; return false; }
+        result = new(value.Trim()); return true;
+    }
+}
 public sealed record ProcessResult(int ExitCode, string StdOut, string StdErr, TimeSpan Duration) : IOkState { public bool IsOk => ExitCode == 0; }
 public sealed record ProcessInfo(int Id, string Name);
 public enum ProcessRunMode { BACKGROUND }
+public enum ProcessStopMode { GRACEFUL, FORCE }
 public sealed record ProcessHandle(int Id, ProcessSpec Spec, DateTimeOffset StartedAt) : IExistenceState
 {
     public bool Exists { get { try { using var process = System.Diagnostics.Process.GetProcessById(Id); return !process.HasExited; } catch (ArgumentException) { return false; } } }
@@ -15,7 +29,19 @@ public sealed record ProcessHandle(int Id, ProcessSpec Spec, DateTimeOffset Star
 public sealed class ProcessModule : LanguageModule
 {
     public override string Name => "process";
-    public override IReadOnlyCollection<QualifierDescriptor> Qualifiers => new QualifierDescriptor[] { new("qualifier:stdout", "STDOUT", typeof(string)), new("qualifier:stderr", "STDERR", typeof(string)), new("qualifier:exitcode", "EXITCODE", typeof(int)), new("qualifier:processes", "PROCESSES", typeof(ProcessInfo[])), new("qualifier:process-handle", "PROCESS", typeof(ProcessHandle)) };
+    public override IReadOnlyCollection<QualifierDescriptor> Qualifiers => new QualifierDescriptor[]
+    {
+        new("qualifier:stdout", "STDOUT", typeof(string)), new("qualifier:stderr", "STDERR", typeof(string)), new("qualifier:exitcode", "EXITCODE", typeof(int)),
+        new("qualifier:processes", "PROCESSES", typeof(ProcessInfo[])), new("qualifier:process-handle", "PROCESS", null)
+    };
+}
+
+[Verb("CREATE"), Qualifier("PROCESS"), ExecutionTrait(ExecutionTrait.Pure)]
+public sealed class CreateProcessSpec : IVerb<ProcessSpec>, ICreate, IFrom<string>, IWith<CommandLine>, IPipelineProducer<ProcessSpec>
+{
+    private readonly string _fileName; private readonly CommandLine? _arguments;
+    public CreateProcessSpec([From] string fileName, [With] CommandLine? arguments = null) { _fileName = fileName; _arguments = arguments; }
+    public ValueTask<ProcessSpec> ExecuteAsync(VerbExecutionContext context, CancellationToken cancellationToken = default) => ValueTask.FromResult(new ProcessSpec(_fileName, _arguments?.Value));
 }
 
 [Verb("RUN"), RequiresCapability(StandardCapabilities.ProcessExecute), ExecutionTrait(ExecutionTrait.LongRunning)]
@@ -67,10 +93,25 @@ public sealed class StopProcess : IVerb<bool>, IStop, IWhat<ProcessInfo>, IPipel
 }
 
 [Verb("STOP"), Qualifier("PROCESS"), RequiresCapability(StandardCapabilities.ProcessTerminate)]
-public sealed class StopProcessHandle : IVerb<bool>, IStop, IWhat<ProcessHandle>, IPipelineConsumer<ProcessHandle>, IPipelineProducer<bool>
+public sealed class StopProcessHandle : IVerb<bool>, IStop, IWhat<ProcessHandle>, IUsing<ProcessStopMode>, IPipelineConsumer<ProcessHandle>, IPipelineProducer<bool>
 {
-    private readonly ProcessHandle _process; public StopProcessHandle([What] ProcessHandle process) => _process = process;
-    public ValueTask<bool> ExecuteAsync(VerbExecutionContext context, CancellationToken cancellationToken = default) { try { using System.Diagnostics.Process process = System.Diagnostics.Process.GetProcessById(_process.Id); if (process.HasExited) return ValueTask.FromResult(false); process.Kill(true); return ValueTask.FromResult(true); } catch (ArgumentException) { return ValueTask.FromResult(false); } }
+    private readonly ProcessHandle _process; private readonly ProcessStopMode _mode;
+    public StopProcessHandle([What] ProcessHandle process, [Using] ProcessStopMode mode = ProcessStopMode.FORCE) { _process = process; _mode = mode; }
+    public async ValueTask<bool> ExecuteAsync(VerbExecutionContext context, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            using System.Diagnostics.Process process = System.Diagnostics.Process.GetProcessById(_process.Id);
+            if (process.HasExited) return false;
+            if (_mode == ProcessStopMode.GRACEFUL && process.CloseMainWindow())
+            {
+                using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken); timeout.CancelAfter(TimeSpan.FromSeconds(2));
+                try { await process.WaitForExitAsync(timeout.Token).ConfigureAwait(false); return true; } catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested) { }
+            }
+            process.Kill(true); return true;
+        }
+        catch (ArgumentException) { return false; }
+    }
 }
 
 [Verb("WAIT"), RequiresCapability(StandardCapabilities.ProcessInspect), ExecutionTrait(ExecutionTrait.LongRunning)]
