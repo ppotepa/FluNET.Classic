@@ -17,6 +17,7 @@ public enum TokenKind
     RightBrace,
     Comma,
     Period,
+    Comment,
     NewLine,
     Semicolon,
     End
@@ -35,7 +36,15 @@ public sealed class ClassicLexer
         {
             char ch = source[i];
             if (ch is ' ' or '\t' or '\r') { i++; continue; }
-            if (ch == '#') { while (i < source.Length && source[i] != '\n') i++; continue; }
+            if (ch == '#')
+            {
+                int start = i++;
+                int contentStart = i;
+                while (i < source.Length && source[i] != '\n') i++;
+                string value = source[contentStart..i].Trim();
+                tokens.Add(new(TokenKind.Comment, source[start..i], value, new(start, i - start)));
+                continue;
+            }
             if (ch == '\n') { tokens.Add(new(TokenKind.NewLine, "\n", null, new(i++, 1))); continue; }
             if (ch == ';') { tokens.Add(new(TokenKind.Semicolon, ";", null, new(i++, 1))); continue; }
             if (ch == ',') { tokens.Add(new(TokenKind.Comma, ",", null, new(i++, 1))); continue; }
