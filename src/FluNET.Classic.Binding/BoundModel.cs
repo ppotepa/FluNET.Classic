@@ -3,8 +3,14 @@ using FluNET.Classic.Syntax;
 
 namespace FluNET.Classic.Binding;
 
-public sealed record BindingDiagnostic(string Code, string Message, TextSpan Span, IReadOnlyList<string>? Candidates = null);
-public sealed record BoundScript(IReadOnlyList<BoundStatement> Statements, IReadOnlyList<BindingDiagnostic> Diagnostics);
+public enum BindingDiagnosticSeverity { Info, Warning, Error }
+public sealed record BindingDiagnostic(string Code, string Message, TextSpan Span, IReadOnlyList<string>? Candidates = null, BindingDiagnosticSeverity Severity = BindingDiagnosticSeverity.Error);
+public sealed record BoundScript(IReadOnlyList<BoundStatement> Statements, IReadOnlyList<BindingDiagnostic> Diagnostics)
+{
+    public bool HasErrors => Diagnostics.Any(x => x.Severity == BindingDiagnosticSeverity.Error);
+    public IReadOnlyList<BindingDiagnostic> Errors => Diagnostics.Where(x => x.Severity == BindingDiagnosticSeverity.Error).ToArray();
+    public IReadOnlyList<BindingDiagnostic> Warnings => Diagnostics.Where(x => x.Severity == BindingDiagnosticSeverity.Warning).ToArray();
+}
 public abstract record BoundStatement(TextSpan Span);
 public sealed record BoundBlock(IReadOnlyList<BoundStatement> Statements, TextSpan Span);
 public sealed record BoundPipeline(IReadOnlyList<BoundStage> Stages, Type? ResultType, TextSpan Span) : BoundStatement(Span);
