@@ -28,9 +28,12 @@ internal sealed class DocumentSymbolIndex
 
             int scopeId = InnermostScope(scopes, token.Span.Start);
             string root = RootName(token);
-            IteratorScope? iterator = iteratorScopes.FirstOrDefault(x =>
-                token.Span.Start >= x.PrefixStart && token.Span.End <= x.PrefixEnd &&
-                root.Equals(x.Name, StringComparison.OrdinalIgnoreCase));
+            bool followsEach = PreviousWord(tokens, index) == "EACH";
+            IteratorScope? iterator = followsEach
+                ? iteratorScopes.FirstOrDefault(x =>
+                    token.Span.Start >= x.PrefixStart && token.Span.End <= x.PrefixEnd &&
+                    root.Equals(x.Name, StringComparison.OrdinalIgnoreCase))
+                : null;
             if (iterator is not null) scopeId = iterator.ScopeId;
 
             variables.Add((token, scopeId));
