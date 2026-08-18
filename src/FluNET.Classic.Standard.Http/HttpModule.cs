@@ -45,9 +45,11 @@ public sealed class HttpModule : LanguageModule
     public override IReadOnlyCollection<string> Dependencies => new[] { "json" };
     public override IReadOnlyCollection<QualifierDescriptor> Qualifiers => new QualifierDescriptor[]
     {
+        new("qualifier:http-request", "REQUEST", typeof(HttpRequest)),
         new("qualifier:http-response", "RESPONSE", typeof(HttpResponse)),
         new("qualifier:http-status", "STATUS", typeof(HttpStatus)),
-        new("qualifier:http-headers", "HEADERS", typeof(HttpHeaders))
+        new("qualifier:http-headers", "HEADERS", typeof(HttpHeaders)),
+        new("qualifier:http-etag", "ETAG", typeof(ETag))
     };
 }
 
