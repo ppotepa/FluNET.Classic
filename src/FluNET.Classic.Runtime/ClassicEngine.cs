@@ -7,7 +7,7 @@ namespace FluNET.Classic.Runtime;
 
 public sealed record CheckResult(ParseResult Parse, BoundScript? Bound)
 {
-    public bool Success => Parse.Success && Bound is not null && Bound.Diagnostics.Count == 0;
+    public bool Success => Parse.Success && Bound is not null && !Bound.HasErrors;
 }
 
 public sealed class ClassicEngine
