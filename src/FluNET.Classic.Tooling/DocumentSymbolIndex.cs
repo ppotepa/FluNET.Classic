@@ -27,7 +27,10 @@ internal sealed class DocumentSymbolIndex
             if (token.Kind != TokenKind.Variable) continue;
 
             int scopeId = InnermostScope(scopes, token.Span.Start);
-            IteratorScope? iterator = iteratorScopes.FirstOrDefault(x => x.VariableSpan.Start == token.Span.Start && x.VariableSpan.Length == token.Span.Length);
+            string root = RootName(token);
+            IteratorScope? iterator = iteratorScopes.FirstOrDefault(x =>
+                token.Span.Start >= x.PrefixStart && token.Span.End <= x.PrefixEnd &&
+                root.Equals(x.Name, StringComparison.OrdinalIgnoreCase));
             if (iterator is not null) scopeId = iterator.ScopeId;
 
             variables.Add((token, scopeId));
@@ -117,19 +120,11 @@ internal sealed class DocumentSymbolIndex
                     break;
                 case ForEachNode loop:
                     int bodyId = AddScope(scopes, parentId, loop.Body.Span);
-                    // Iterator token sits before the body span, so bind it explicitly to the loop-body scope later.
-                    iterators.Add(new(loop.Variable, bodyId, FindIteratorSpan(loop)));
+                    iterators.Add(new(loop.Variable, bodyId, loop.Span.Start, loop.Body.Span.Start));
                     BuildScopes(loop.Body.Statements, bodyId, scopes, iterators);
                     break;
             }
         }
-    }
-
-    private static TextSpan FindIteratorSpan(ForEachNode loop)
-    {
-        // Parser stores the iterator variable name but not its token span. Use the statement prefix as a narrow lookup range.
-        int approximateLength = Math.Max(0, loop.Body.Span.Start - loop.Span.Start);
-        return new TextSpan(loop.Span.Start, approximateLength);
     }
 
     private static int AddScope(List<ScopeInfo> scopes, int parentId, TextSpan span)
@@ -159,7 +154,7 @@ internal sealed class DocumentSymbolIndex
     private static bool SameSpan(TextSpan left, TextSpan right) => left.Start == right.Start && left.Length == right.Length;
 
     private sealed record ScopeInfo(int Id, int? ParentId, TextSpan Span);
-    private sealed record IteratorScope(string Name, int ScopeId, TextSpan VariableSpan);
+    private sealed record IteratorScope(string Name, int ScopeId, int PrefixStart, int PrefixEnd);
     private sealed record DefinitionSeed(SyntaxToken Token, int ScopeId, string Kind, Guid SymbolId);
     private sealed record IndexedOccurrence(string Name, string Kind, TextSpan Span, bool IsDefinition, Guid? SymbolId, int ScopeId);
 }
