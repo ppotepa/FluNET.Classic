@@ -54,6 +54,15 @@ public sealed class LanguageSnapshot
         Modules = modules.OrderBy(x => x.Name, StringComparer.OrdinalIgnoreCase).ToArray();
         StructuralSyntax = StandardLanguageSurface.StructuralSyntax.ToArray();
         LiteralWords = StandardLanguageSurface.LiteralWords.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        Capabilities = Verbs.SelectMany(x => x.Implementations).SelectMany(x => x.Capabilities)
+            .Concat(Predicates.SelectMany(x => x.RequiredCapabilities))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(x => x, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        ExecutionTraits = Verbs.SelectMany(x => x.Implementations).SelectMany(x => x.Traits)
+            .Distinct()
+            .OrderBy(x => x)
+            .ToArray();
         ReservedWords = StandardLanguageSurface.ReservedWords
             .Concat(Predicates.SelectMany(x => x.AllSurfaceNames).SelectMany(SplitSurface))
             .Concat(Operators.SelectMany(x => x.AllSurfaceNames).SelectMany(SplitSurface))
@@ -70,6 +79,8 @@ public sealed class LanguageSnapshot
     public IReadOnlyList<ModuleDescriptor> Modules { get; }
     public IReadOnlyList<string> StructuralSyntax { get; }
     public IReadOnlySet<string> LiteralWords { get; }
+    public IReadOnlyList<string> Capabilities { get; }
+    public IReadOnlyList<ExecutionTrait> ExecutionTraits { get; }
     public IReadOnlySet<string> ReservedWords { get; }
 
     public bool TryGetVerb(string name, out VerbDescriptor descriptor) => _verbs.TryGetValue(name, out descriptor!);
