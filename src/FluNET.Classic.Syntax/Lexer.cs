@@ -24,13 +24,18 @@ public enum TokenKind
 }
 
 public sealed record SyntaxToken(TokenKind Kind, string Text, object? Value, TextSpan Span);
+public sealed record LexicalDiagnostic(string Code, string Message, TextSpan Span);
+public sealed record LexResult(IReadOnlyList<SyntaxToken> Tokens, IReadOnlyList<LexicalDiagnostic> Diagnostics);
 
 public sealed class ClassicLexer
 {
-    public IReadOnlyList<SyntaxToken> Lex(string? source)
+    public IReadOnlyList<SyntaxToken> Lex(string? source) => LexDetailed(source).Tokens;
+
+    public LexResult LexDetailed(string? source)
     {
         source ??= string.Empty;
         var tokens = new List<SyntaxToken>();
+        var diagnostics = new List<LexicalDiagnostic>();
         int i = 0;
         while (i < source.Length)
         {
@@ -64,6 +69,7 @@ public sealed class ClassicLexer
                     if (source[i] == '}') { depth--; if (depth == 0) { i++; break; } sb.Append(source[i++]); continue; }
                     sb.Append(source[i++]);
                 }
+                if (depth > 0) diagnostics.Add(new("FLU-LEX-001", "Unterminated {reference}; expected closing '}'.", new(start, i - start)));
                 tokens.Add(new(TokenKind.Reference, source[start..i], sb.ToString(), new(start, i - start)));
                 continue;
             }
@@ -72,7 +78,9 @@ public sealed class ClassicLexer
                 int start = i++;
                 var sb = new StringBuilder();
                 while (i < source.Length && source[i] != ']') sb.Append(source[i++]);
-                if (i < source.Length && source[i] == ']') i++;
+                bool closed = i < source.Length && source[i] == ']';
+                if (closed) i++;
+                else diagnostics.Add(new("FLU-LEX-002", "Unterminated [variable]; expected closing ']'.", new(start, i - start)));
                 tokens.Add(new(TokenKind.Variable, source[start..i], sb.ToString().Trim(), new(start, i - start)));
                 continue;
             }
@@ -81,16 +89,32 @@ public sealed class ClassicLexer
                 int start = i++;
                 char quote = ch;
                 var sb = new StringBuilder();
-                while (i < source.Length && source[i] != quote)
+                bool closed = false;
+                while (i < source.Length)
                 {
-                    if (source[i] == '\\' && i + 1 < source.Length)
+                    if (source[i] == quote) { i++; closed = true; break; }
+                    if (source[i] == '\\')
                     {
-                        i++;
-                        sb.Append(source[i++] switch { 'n' => '\n', 'r' => '\r', 't' => '\t', '\\' => '\\', '"' => '"', '\'' => '\'', var c => c });
+                        int escapeStart = i++;
+                        if (i >= source.Length) break;
+                        char escaped = source[i++];
+                        switch (escaped)
+                        {
+                            case 'n': sb.Append('\n'); break;
+                            case 'r': sb.Append('\r'); break;
+                            case 't': sb.Append('\t'); break;
+                            case '\\': sb.Append('\\'); break;
+                            case '"': sb.Append('"'); break;
+                            case '\'': sb.Append('\''); break;
+                            default:
+                                diagnostics.Add(new("FLU-LEX-004", $"Unknown escape sequence '\\{escaped}'.", new(escapeStart, 2)));
+                                sb.Append(escaped);
+                                break;
+                        }
                     }
                     else sb.Append(source[i++]);
                 }
-                if (i < source.Length && source[i] == quote) i++;
+                if (!closed) diagnostics.Add(new("FLU-LEX-003", $"Unterminated string literal; expected closing '{quote}'.", new(start, i - start)));
                 tokens.Add(new(TokenKind.String, source[start..i], sb.ToString(), new(start, i - start)));
                 continue;
             }
@@ -134,7 +158,7 @@ public sealed class ClassicLexer
             tokens.Add(new(TokenKind.Word, word, word, new(wordStart, i - wordStart)));
         }
         tokens.Add(new(TokenKind.End, string.Empty, null, new(source.Length, 0)));
-        return tokens;
+        return new(tokens, diagnostics);
     }
 
     private static bool IsInternalPathDot(string source, int index, int wordStart)
