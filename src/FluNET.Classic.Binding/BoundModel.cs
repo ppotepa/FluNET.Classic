@@ -5,11 +5,13 @@ namespace FluNET.Classic.Binding;
 
 public enum BindingDiagnosticSeverity { Info, Warning, Error }
 public sealed record BindingDiagnostic(string Code, string Message, TextSpan Span, IReadOnlyList<string>? Candidates = null, BindingDiagnosticSeverity Severity = BindingDiagnosticSeverity.Error);
-public sealed record BoundScript(IReadOnlyList<BoundStatement> Statements, IReadOnlyList<BindingDiagnostic> Diagnostics)
+public sealed record BoundScript(IReadOnlyList<BoundStatement> Statements, IReadOnlyList<BindingDiagnostic> AllDiagnostics)
 {
-    public bool HasErrors => Diagnostics.Any(x => x.Severity == BindingDiagnosticSeverity.Error);
-    public IReadOnlyList<BindingDiagnostic> Errors => Diagnostics.Where(x => x.Severity == BindingDiagnosticSeverity.Error).ToArray();
-    public IReadOnlyList<BindingDiagnostic> Warnings => Diagnostics.Where(x => x.Severity == BindingDiagnosticSeverity.Warning).ToArray();
+    public IReadOnlyList<BindingDiagnostic> Diagnostics => Errors;
+    public bool HasErrors => AllDiagnostics.Any(x => x.Severity == BindingDiagnosticSeverity.Error);
+    public IReadOnlyList<BindingDiagnostic> Errors => AllDiagnostics.Where(x => x.Severity == BindingDiagnosticSeverity.Error).ToArray();
+    public IReadOnlyList<BindingDiagnostic> Warnings => AllDiagnostics.Where(x => x.Severity == BindingDiagnosticSeverity.Warning).ToArray();
+    public IReadOnlyList<BindingDiagnostic> Infos => AllDiagnostics.Where(x => x.Severity == BindingDiagnosticSeverity.Info).ToArray();
 }
 public abstract record BoundStatement(TextSpan Span);
 public sealed record BoundBlock(IReadOnlyList<BoundStatement> Statements, TextSpan Span);
