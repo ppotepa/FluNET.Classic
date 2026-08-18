@@ -22,21 +22,21 @@ public sealed class OSModule : LanguageModule
 [Verb("GET")]
 [Qualifier("ENV")]
 [RequiresCapability(StandardCapabilities.EnvironmentRead)]
-public sealed class GetEnvironmentVariable : IVerb<string?>, IGet, IWhat<string?>, IFrom<string>, IPipelineProducer<string?>
+public sealed class GetEnvironmentVariable : IVerb<string?>, IGet, IWhat<string?>, IFrom<EnvironmentVariableName>, IPipelineProducer<string?>
 {
-    private readonly string _name;
-    public GetEnvironmentVariable([What] string? what, [From] string name) => _name = name;
-    public ValueTask<string?> ExecuteAsync(VerbExecutionContext context, CancellationToken cancellationToken = default) => ValueTask.FromResult(Environment.GetEnvironmentVariable(_name));
+    private readonly EnvironmentVariableName _name;
+    public GetEnvironmentVariable([What] string? what, [From] EnvironmentVariableName name) => _name = name;
+    public ValueTask<string?> ExecuteAsync(VerbExecutionContext context, CancellationToken cancellationToken = default) => ValueTask.FromResult(Environment.GetEnvironmentVariable(_name.Value));
 }
 
 [Qualifier("ENV")]
 [RequiresCapability(StandardCapabilities.EnvironmentWrite)]
-public sealed class SaveEnvironmentVariable : Save<string, string>
+public sealed class SaveEnvironmentVariable : Save<string, EnvironmentVariableName>
 {
-    public SaveEnvironmentVariable([What] string value, [To] string name) : base(value, name) { }
-    protected override ValueTask SaveAsync(string what, string to, CancellationToken cancellationToken)
+    public SaveEnvironmentVariable([What] string value, [To] EnvironmentVariableName name) : base(value, name) { }
+    protected override ValueTask SaveAsync(string what, EnvironmentVariableName to, CancellationToken cancellationToken)
     {
-        Environment.SetEnvironmentVariable(to, what);
+        Environment.SetEnvironmentVariable(to.Value, what);
         return ValueTask.CompletedTask;
     }
 }
