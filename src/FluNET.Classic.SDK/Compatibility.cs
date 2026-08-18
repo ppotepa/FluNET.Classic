@@ -15,6 +15,11 @@ public sealed class LanguageCompatibilityAnalyzer
     public LanguageCompatibilityReport Compare(LanguageSnapshot previous, LanguageSnapshot current)
     {
         ArgumentNullException.ThrowIfNull(previous); ArgumentNullException.ThrowIfNull(current); var changes = new List<LanguageCompatibilityChange>();
+        if (!previous.LanguageVersion.IsCompatibleWith(current.LanguageVersion))
+            changes.Add(new(CompatibilitySeverity.Breaking, "language-version", previous.LanguageVersion.GrammarId, $"Language contract changed from {previous.LanguageVersion.Name} ({previous.LanguageVersion.GrammarId}) to {current.LanguageVersion.Name} ({current.LanguageVersion.GrammarId})."));
+        else if (!Equals(previous.LanguageVersion, current.LanguageVersion))
+            changes.Add(new(CompatibilitySeverity.Info, "language-version", previous.LanguageVersion.GrammarId, $"Language patch contract changed from {previous.LanguageVersion.Name} to {current.LanguageVersion.Name}."));
+
         CompareMap(previous.Verbs.ToDictionary(x => x.StableId), current.Verbs.ToDictionary(x => x.StableId), "verb", changes, CompareVerb);
         CompareMap(previous.Qualifiers.ToDictionary(x => x.StableId), current.Qualifiers.ToDictionary(x => x.StableId), "qualifier", changes, CompareQualifier);
         CompareMap(previous.Modules.ToDictionary(x => x.StableId), current.Modules.ToDictionary(x => x.StableId), "module", changes, CompareModule);
@@ -50,6 +55,16 @@ public sealed class LanguageCompatibilityAnalyzer
         if (oldValue.ResultType != newValue.ResultType) changes.Add(new(CompatibilitySeverity.Breaking, "result-type", oldValue.StableId, $"Result type changed from {oldValue.ResultType.FullName} to {newValue.ResultType.FullName}."));
         foreach (string capability in newValue.Capabilities.Except(oldValue.Capabilities, StringComparer.OrdinalIgnoreCase)) changes.Add(new(CompatibilitySeverity.Breaking, "added-capability", oldValue.StableId, $"Implementation now requires capability '{capability}'."));
         foreach (ExecutionTrait trait in oldValue.Traits.Except(newValue.Traits)) changes.Add(new(CompatibilitySeverity.Warning, "removed-trait", oldValue.StableId, $"Execution trait '{trait}' was removed."));
+        foreach (ExecutionTrait trait in newValue.Traits.Except(oldValue.Traits))
+        {
+            CompatibilitySeverity severity = trait switch
+            {
+                ExecutionTrait.SideEffecting or ExecutionTrait.Transactional => CompatibilitySeverity.Breaking,
+                ExecutionTrait.NonDeterministic or ExecutionTrait.LongRunning or ExecutionTrait.Retryable => CompatibilitySeverity.Warning,
+                _ => CompatibilitySeverity.Info
+            };
+            changes.Add(new(severity, "added-trait", oldValue.StableId, $"Execution trait '{trait}' was added."));
+        }
     }
     private static void ComparePattern(SentencePattern oldValue, SentencePattern newValue, ICollection<LanguageCompatibilityChange> changes)
     {
@@ -58,6 +73,7 @@ public sealed class LanguageCompatibilityAnalyzer
         {
             if (!newRoles.TryGetValue(id, out RoleSlotDescriptor? newRole)) { changes.Add(new(CompatibilitySeverity.Breaking, "removed-role", oldValue.StableId, $"Removed role '{oldRole.Name}'.")); continue; }
             if (oldRole.ValueType != newRole.ValueType || oldRole.Direction != newRole.Direction || oldRole.Cardinality != newRole.Cardinality || oldRole.Required != newRole.Required) changes.Add(new(CompatibilitySeverity.Breaking, "role-contract", oldValue.StableId, $"Role '{oldRole.Name}' contract changed."));
+            if (!Equals(oldRole.OutputProjection, newRole.OutputProjection)) changes.Add(new(CompatibilitySeverity.Breaking, "output-projection", oldValue.StableId, $"Role '{oldRole.Name}' output projection changed."));
             foreach (string surface in oldRole.AllSurfaceNames.Except(newRole.AllSurfaceNames, StringComparer.OrdinalIgnoreCase)) changes.Add(new(CompatibilitySeverity.Breaking, "removed-role-surface", oldValue.StableId, $"Role '{oldRole.Name}' no longer accepts '{surface}'."));
         }
         foreach (RoleSlotDescriptor role in newValue.Roles.Where(x => !oldRoles.ContainsKey(x.StableId) && x.Required)) changes.Add(new(CompatibilitySeverity.Breaking, "added-required-role", oldValue.StableId, $"Added required role '{role.Name}'."));
