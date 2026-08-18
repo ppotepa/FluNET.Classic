@@ -111,55 +111,29 @@ public sealed class ClassicDocumentService
             .ToArray();
     }
 
-    public IReadOnlyList<DocumentSymbolInfo> Symbols(string source)
-    {
-        IReadOnlyList<SyntaxToken> tokens = _lexer.Lex(source ?? string.Empty);
-        var result = new List<DocumentSymbolInfo>();
-        for (int i = 0; i < tokens.Count; i++)
-        {
-            SyntaxToken token = tokens[i];
-            if (token.Kind != TokenKind.Variable) continue;
-            string root = RootName(token);
-            bool resultDefinition = i > 0 && tokens[i - 1].Kind == TokenKind.Word &&
-                (tokens[i - 1].Text.Equals("INTO", StringComparison.OrdinalIgnoreCase) || tokens[i - 1].Text.Equals("AS", StringComparison.OrdinalIgnoreCase));
-            bool loopDefinition = i > 0 && tokens[i - 1].Kind == TokenKind.Word && tokens[i - 1].Text.Equals("EACH", StringComparison.OrdinalIgnoreCase);
-            if (resultDefinition || loopDefinition)
-                result.Add(new(root, loopDefinition ? "iterator" : "variable", token.Span));
-        }
-        return result;
-    }
+    public IReadOnlyList<DocumentSymbolInfo> Symbols(string source) => SymbolIndex(source).Definitions;
 
-    public DocumentSymbolInfo? Definition(string source, int position)
-    {
-        SyntaxToken? token = TokenAt(source ?? string.Empty, position);
-        if (token?.Kind != TokenKind.Variable) return null;
-        string name = RootName(token);
-        return Symbols(source).FirstOrDefault(x => x.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
-    }
+    public DocumentSymbolInfo? Definition(string source, int position) =>
+        SymbolIndex(source ?? string.Empty).DefinitionAt(position);
 
     public IReadOnlyList<DocumentSymbolInfo> References(string source, string name) =>
-        _lexer.Lex(source ?? string.Empty)
-            .Where(x => x.Kind == TokenKind.Variable && RootName(x).Equals(name, StringComparison.OrdinalIgnoreCase))
-            .Select(x => new DocumentSymbolInfo(name, "reference", x.Span))
-            .ToArray();
+        SymbolIndex(source ?? string.Empty).ReferencesByName(name);
 
     public IReadOnlyList<DocumentTextEdit> Rename(string source, int position, string newName)
     {
         if (string.IsNullOrWhiteSpace(newName) || newName.Any(ch => !(char.IsLetterOrDigit(ch) || ch is '_' or '-')))
             throw new ArgumentException("Variable name contains unsupported characters.", nameof(newName));
-        SyntaxToken? token = TokenAt(source ?? string.Empty, position);
-        if (token?.Kind != TokenKind.Variable) return Array.Empty<DocumentTextEdit>();
-        string oldName = RootName(token);
-        return _lexer.Lex(source)
-            .Where(x => x.Kind == TokenKind.Variable && RootName(x).Equals(oldName, StringComparison.OrdinalIgnoreCase))
-            .Select(x =>
-            {
-                string value = x.Value?.ToString() ?? oldName;
-                int dot = value.IndexOf('.');
-                string suffix = dot >= 0 ? value[dot..] : string.Empty;
-                return new DocumentTextEdit(x.Span, $"[{newName}{suffix}]");
-            })
-            .ToArray();
+
+        source ??= string.Empty;
+        IReadOnlyList<TextSpan> spans = SymbolIndex(source).RenameSpansAt(position);
+        return spans.Select(span =>
+        {
+            string text = source.Substring(span.Start, span.Length);
+            string inner = text.Length >= 2 && text[0] == '[' && text[^1] == ']' ? text[1..^1] : text;
+            int dot = inner.IndexOf('.');
+            string suffix = dot >= 0 ? inner[dot..] : string.Empty;
+            return new DocumentTextEdit(span, $"[{newName}{suffix}]");
+        }).ToArray();
     }
 
     public SignatureHelpInfo? SignatureHelp(string source, int position)
@@ -181,6 +155,8 @@ public sealed class ClassicDocumentService
     }
 
     public ExecutionPlan Plan(string source, IReadOnlyDictionary<string, Type>? variableTypes = null) => Analyze(source, variableTypes).Plan;
+
+    private DocumentSymbolIndex SymbolIndex(string source) => DocumentSymbolIndex.Build(source ?? string.Empty, _lexer, _parser);
 
     private VerbDescriptor? CurrentVerb(string source, int position)
     {
@@ -226,8 +202,6 @@ public sealed class ClassicDocumentService
         while (start > 0 && (char.IsLetterOrDigit(source[start - 1]) || source[start - 1] is '_' or '-')) start--;
         return source[start..position];
     }
-
-    private static string RootName(SyntaxToken token) => (token.Value?.ToString() ?? string.Empty).Split('.', 2)[0];
 
     private string Classify(
         SyntaxToken token,
