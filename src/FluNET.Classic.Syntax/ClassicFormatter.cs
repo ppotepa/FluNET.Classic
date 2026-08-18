@@ -12,7 +12,14 @@ public sealed class ClassicFormatter
     public ClassicFormatter(LanguageSnapshot language) => _language = language;
 
     public string Format(ScriptNode script) => string.Join(Environment.NewLine, script.Statements.Select(FormatStatement));
-    private string FormatStatement(StatementNode statement) => statement switch { PipelineNode pipeline => FormatPipeline(pipeline) + ".", IfNode conditional => FormatIf(conditional), ForEachNode loop => FormatForEach(loop), _ => string.Empty };
+    private string FormatStatement(StatementNode statement) => statement switch
+    {
+        PipelineNode pipeline => FormatPipeline(pipeline) + ".",
+        IfNode conditional => FormatIf(conditional),
+        ForEachNode loop => FormatForEach(loop),
+        CommentStatementNode comment => $"# {comment.Text}".TrimEnd(),
+        _ => string.Empty
+    };
     private string FormatPipeline(PipelineNode pipeline) { if (pipeline.Stages.Count == 0) return string.Empty; var sb = new StringBuilder(FormatStage(pipeline.Stages[0])); foreach (PipelineStageNode stage in pipeline.Stages.Skip(1)) sb.Append(",").AppendLine().Append("THEN ").Append(FormatStage(stage)); return sb.ToString(); }
     private string FormatStage(PipelineStageNode stage) => stage switch { SentenceNode sentence => FormatSentence(sentence), FilterStageNode filter => FormatFilter(filter), CheckStageNode check => FormatCheck(check), CollectionStageNode collection => FormatCollection(collection), _ => string.Empty };
     private string FormatSentence(SentenceNode sentence)
