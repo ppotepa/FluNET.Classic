@@ -48,4 +48,28 @@ public class ToolingScopeTests
         Assert.That(definition!.Kind, Is.EqualTo("iterator"));
         Assert.That(definition.Span.Start, Is.EqualTo(expected));
     }
+
+    [Test]
+    public void Promoted_if_variable_is_one_logical_symbol_across_both_branches_and_following_code()
+    {
+        using ServiceProvider host = FluNetHost.Create();
+        ClassicDocumentService tooling = host.GetRequiredService<ClassicDocumentService>();
+        string source = """
+            IF true THEN {
+                CHECK IF true INTO [result].
+            } ELSE {
+                CHECK IF false INTO [result].
+            }
+            CHECK IF [result] IS true.
+            """;
+
+        int afterIf = source.LastIndexOf("[result]", StringComparison.Ordinal) + 2;
+        IReadOnlyList<DocumentTextEdit> edits = tooling.Rename(source, afterIf, "decision");
+        DocumentSymbolInfo? definition = tooling.Definition(source, afterIf);
+
+        Assert.That(edits, Has.Count.EqualTo(3));
+        Assert.That(edits.All(x => x.NewText == "[decision]"), Is.True);
+        Assert.That(definition, Is.Not.Null);
+        Assert.That(definition!.Span.Start, Is.EqualTo(source.IndexOf("[result]", StringComparison.Ordinal)));
+    }
 }
