@@ -18,7 +18,7 @@ public sealed class CollectionsModule : LanguageModule
         new("intrinsic:collections:group", "GROUP", IntrinsicSyntaxKind.CollectionBy, Execution: IntrinsicExecutionKind.Materializing, Semantic: IntrinsicSemanticKind.Group),
         new("intrinsic:collections:take", "TAKE", IntrinsicSyntaxKind.CollectionAmountFrom, Execution: IntrinsicExecutionKind.Streaming, Semantic: IntrinsicSemanticKind.Take),
         new("intrinsic:collections:skip", "SKIP", IntrinsicSyntaxKind.CollectionAmountFrom, Execution: IntrinsicExecutionKind.Streaming, Semantic: IntrinsicSemanticKind.Skip),
-        new("intrinsic:collections:distinct", "DISTINCT", IntrinsicSyntaxKind.CollectionDistinct, Execution: IntrinsicExecutionKind.Streaming, Semantic: IntrinsicSemanticKind.Distinct),
+        new("intrinsic:collections:distinct", "DISTINCT", IntrinsicSyntaxKind.CollectionDistinct, Execution: IntrinsicExecutionKind.Streaming, StrategyType: typeof(CollectionEquality), Semantic: IntrinsicSemanticKind.Distinct),
         new("intrinsic:collections:count", "COUNT", IntrinsicSyntaxKind.CollectionSourceOptional, Execution: IntrinsicExecutionKind.Scalar, Semantic: IntrinsicSemanticKind.Count)
     };
 }
