@@ -108,7 +108,7 @@ static string Format(object value) => value is string text ? text : JsonSerializ
 
 static int Usage()
 {
-    Console.Error.WriteLine("flu run|check|format|plan|explain <file|script> [--deny-by-default] [--allow capability]");
-    Console.Error.WriteLine("flu verbs | verb GET | qualifiers | modules | language");
+    Console.Error.WriteLine("fluc run|check|format|plan|explain <file|script> [--deny-by-default] [--allow capability]");
+    Console.Error.WriteLine("fluc verbs | verb GET | qualifiers | modules | language");
     return 2;
 }

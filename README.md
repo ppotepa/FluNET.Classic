@@ -105,13 +105,34 @@ source → lexer → parser → AST → binder → bound program → runtime
 The CLI exposes canonical formatting, static checking, planning and explanation:
 
 ```text
-flu check script.flu
-flu format script.flu
-flu plan script.flu
-flu explain script.flu
+fluc check script.flu
+fluc format script.flu
+fluc plan script.flu
+fluc explain script.flu
 ```
 
-`flu plan` does not execute the script. It exposes selected overloads, typed role bindings, resolution/conversion information, result types, required capabilities, and execution traits so a program can be inspected before runtime.
+## Install FluNET.Classic alongside the old `flunet`
+
+FluNET.Classic is distributed as the separate .NET tool package
+`FluNET.Classic.Cli` and installs the `fluc` command. The installer does not
+remove or overwrite an existing `flunet` installation.
+
+On Windows PowerShell:
+
+```powershell
+.\install.ps1
+```
+
+On macOS or Linux:
+
+```bash
+./install.sh
+```
+
+The installer requires the .NET 8 SDK. After installation, run `fluc --help` or
+`fluc run demo` from the repository root.
+
+`fluc plan` does not execute the script. It exposes selected overloads, typed role bindings, resolution/conversion information, result types, required capabilities, and execution traits so a program can be inspected before runtime.
 
 Module authors should reference `FluNET.Classic.SDK`. `FluNetModuleTestHarness` validates modules and their example sentences, while `ModuleArtifactGenerator` generates module manifests and Markdown documentation directly from `LanguageSnapshot` metadata. See `docs/SDK.md`.
 

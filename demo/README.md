@@ -13,10 +13,10 @@ The smaller scripts isolate the introductory examples:
 Run the showcase from the repository root:
 
 ```text
-flu check .
-flu format showcase.flu
-flu plan .
-flu run .
+fluc check .
+fluc format showcase.flu
+fluc plan .
+fluc run .
 ```
 
 The optional file read near the end intentionally targets a missing file. It
