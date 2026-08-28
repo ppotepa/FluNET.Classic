@@ -44,7 +44,7 @@ public class CollectionSortStrategyTests
         using ServiceProvider host = FluNetHost.Create();
         ClassicEngine engine = host.GetRequiredService<ClassicEngine>();
 
-        string formatted = engine.Format("sort [items] by Name using descending into [sorted]");
+        string formatted = engine.Format("sort [items] by Name using descending into [sorted].");
 
         Assert.That(formatted, Is.EqualTo("SORT [items] BY Name USING DESCENDING INTO [sorted]."));
     }

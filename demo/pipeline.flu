@@ -1,0 +1,7 @@
+GET TEXT FROM {demo/data/mission.txt} INTO [lines],
+THEN TRANSFORM USING TRIM INTO [trimmed],
+THEN TRANSFORM USING UPPER INTO [upper].
+
+FOR EACH [line] IN [upper], DO
+    SAY [line].
+END FOR.

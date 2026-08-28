@@ -18,7 +18,7 @@ Use semantic roles such as `[What]`, `[From]`, `[To]`, `[Using]`, `[With]`, `[As
 public ListFiles([In, RoleAlias("FROM")] DirectoryInfo directory) { ... }
 ```
 
-The parser preserves the accepted surface spelling, and the binder normalizes it against each candidate sentence pattern during overload resolution. `INTO` is reserved by the language for result binding and cannot be declared as a role alias.
+The parser preserves the accepted surface spelling, and the binder normalizes it against each candidate sentence pattern during overload resolution. `INTO` is reserved by the language for result binding and cannot be declared as a role alias. `THEN`, `DO`, and `END` are structural words and cannot be role aliases.
 
 For transformations, keep target, method, and result separate. `TransformTo<...>` models `TO`, while `TransformToUsing<...>` models both `TO` and `USING`; the language-level `INTO` binding remains independent of the CLR verb constructor.
 

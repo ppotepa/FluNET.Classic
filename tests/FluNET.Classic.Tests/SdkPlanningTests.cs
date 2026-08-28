@@ -48,7 +48,7 @@ public class SdkPlanningTests
     {
         using ServiceProvider host = FluNetHost.Create();
         ClassicEngine engine = host.GetRequiredService<ClassicEngine>();
-        ExecutionPlan plan = engine.Plan("GET RESPONSE FROM {https://example.com} INTO [response], THEN GET STATUS FROM [response] INTO [status]; CHECK IF [response] IS OK INTO [ok].");
+        ExecutionPlan plan = engine.Plan("GET RESPONSE FROM {https://example.com} INTO [response], THEN GET STATUS FROM [response] INTO [status]. CHECK IF [response] IS OK INTO [ok].");
 
         Assert.That(plan.Success, Is.True, string.Join("; ", plan.Diagnostics.Select(x => x.Message)));
         Assert.That(plan.RequiredCapabilities, Does.Contain("network"));

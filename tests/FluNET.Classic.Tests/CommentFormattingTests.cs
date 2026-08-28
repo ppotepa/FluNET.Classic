@@ -15,10 +15,10 @@ public class CommentFormattingTests
         string source = """
             # prepare value
             CHECK IF true INTO [ok]. # branch decision
-            IF [ok] IS true THEN {
+            IF [ok] IS true, THEN
                 # inside block
                 CHECK IF true.
-            }
+            END IF.
             """;
 
         string formatted = engine.Format(source);

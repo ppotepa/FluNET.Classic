@@ -14,9 +14,9 @@ public class ToolingScopeTests
         ClassicDocumentService tooling = host.GetRequiredService<ClassicDocumentService>();
         string source = """
             CHECK IF true INTO [item].
-            FOR EACH [item] IN [items] THEN {
+            FOR EACH [item] IN [items], DO
                 CHECK IF [item.Value] > 0.
-            }
+            END FOR.
             CHECK IF [item] IS true.
             """;
 
@@ -35,9 +35,9 @@ public class ToolingScopeTests
         ClassicDocumentService tooling = host.GetRequiredService<ClassicDocumentService>();
         string source = """
             CHECK IF true INTO [item].
-            FOR EACH [item] IN [items] THEN {
+            FOR EACH [item] IN [items], DO
                 CHECK IF [item.Value] > 0.
-            }
+            END FOR.
             """;
 
         int referencePosition = source.IndexOf("[item.Value]", StringComparison.Ordinal) + 2;
@@ -55,11 +55,11 @@ public class ToolingScopeTests
         using ServiceProvider host = FluNetHost.Create();
         ClassicDocumentService tooling = host.GetRequiredService<ClassicDocumentService>();
         string source = """
-            IF true THEN {
+            IF true, THEN
                 CHECK IF true INTO [result].
-            } ELSE {
+            ELSE
                 CHECK IF false INTO [result].
-            }
+            END IF.
             CHECK IF [result] IS true.
             """;
 

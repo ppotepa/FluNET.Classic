@@ -19,7 +19,7 @@ public class OperatorDescriptorTests
 
         Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics.Select(x => x.Message)));
         Assert.That(result.State.Variables["ok"], Is.EqualTo(true));
-        Assert.That(engine.Format("CHECK IF 5 == 5 INTO [ok]"), Is.EqualTo("CHECK IF 5 = 5 INTO [ok]."));
+        Assert.That(engine.Format("CHECK IF 5 == 5 INTO [ok]."), Is.EqualTo("CHECK IF 5 = 5 INTO [ok]."));
     }
 
     [TestCase("CHECK IF \"abc\" STARTS WITH 1 INTO [ok].")]
@@ -88,7 +88,7 @@ public class OperatorDescriptorTests
         using ServiceProvider host = FluNetHost.Create(options);
         ClassicEngine engine = host.GetRequiredService<ClassicEngine>();
 
-        string formatted = engine.Format("CHECK IF false OR \"alpha\" SAME AS \"alpha\" INTO [same]");
+        string formatted = engine.Format("CHECK IF false OR \"alpha\" SAME AS \"alpha\" INTO [same].");
 
         Assert.That(formatted, Is.EqualTo("CHECK IF false OR \"alpha\" SAME AS \"alpha\" INTO [same]."));
     }
@@ -101,7 +101,7 @@ public class OperatorDescriptorTests
         using ServiceProvider host = FluNetHost.Create(options);
         ClassicEngine engine = host.GetRequiredService<ClassicEngine>();
 
-        string formatted = engine.Format("CHECK IF [value] PRESENT INTO [ok]");
+        string formatted = engine.Format("CHECK IF [value] PRESENT INTO [ok].");
 
         Assert.That(formatted, Is.EqualTo("CHECK IF [value] PRESENT INTO [ok]."));
     }
@@ -116,7 +116,7 @@ public class OperatorDescriptorTests
 
         Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics.Select(x => x.Message)));
         Assert.That(result.State.Variables["inside"], Is.EqualTo(true));
-        Assert.That(engine.Format("CHECK IF 5 BETWEEN 1 AND 10 INTO [inside]"), Is.EqualTo("CHECK IF 5 BETWEEN 1 AND 10 INTO [inside]."));
+        Assert.That(engine.Format("CHECK IF 5 BETWEEN 1 AND 10 INTO [inside]."), Is.EqualTo("CHECK IF 5 BETWEEN 1 AND 10 INTO [inside]."));
     }
 
     private sealed class TestOperatorModule : LanguageModule

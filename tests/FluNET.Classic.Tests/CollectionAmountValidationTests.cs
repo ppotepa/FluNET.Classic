@@ -45,7 +45,7 @@ public class CollectionAmountValidationTests
         using ServiceProvider host = FluNetHost.Create();
         ClassicEngine engine = host.GetRequiredService<ClassicEngine>();
 
-        string formatted = engine.Format("take -1 from [items] into [result]");
+        string formatted = engine.Format("take -1 from [items] into [result].");
 
         Assert.That(formatted, Is.EqualTo("TAKE -1 FROM [items] INTO [result]."));
     }

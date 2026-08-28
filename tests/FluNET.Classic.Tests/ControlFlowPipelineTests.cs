@@ -16,11 +16,11 @@ public class ControlFlowPipelineTests
         state.SetVariable("flag", true);
 
         RuntimeResult result = await engine.RunAsync("""
-            IF [flag] IS true THEN {
+            IF [flag] IS true, THEN
                 CHECK IF true INTO [inside].
-            } ELSE {
+            ELSE
                 CHECK IF false INTO [inside].
-            }
+            END IF.
             """, state);
 
         Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics.Select(x => x.Message)));
@@ -38,11 +38,11 @@ public class ControlFlowPipelineTests
         state.SetVariable("flag", true);
 
         RuntimeResult result = await engine.RunAsync("""
-            IF [flag] IS true THEN {
+            IF [flag] IS true, THEN
                 CHECK IF true INTO [temporary].
-            } ELSE {
+            ELSE
                 CHECK IF false.
-            }
+            END IF.
             """, state);
 
         Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics.Select(x => x.Message)));
@@ -58,9 +58,9 @@ public class ControlFlowPipelineTests
         state.SetVariable("items", new[] { "a", "b" });
 
         RuntimeResult result = await engine.RunAsync("""
-            FOR EACH [item] IN [items] THEN {
+            FOR EACH [item] IN [items], DO
                 SAY [item].
-            }
+            END FOR.
             """, state);
 
         Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics.Select(x => x.Message)));

@@ -1,0 +1,4 @@
+DEFINE RECORD USER, NAME AS TEXT, AGE AS INTEGER.
+
+MAKE USER WITH "Ada", 42 INTO [user].
+SAY "[user.NAME] is [user.AGE].".

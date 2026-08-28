@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><TargetFramework>net8.0</TargetFramework><ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable><LangVersion>latest</LangVersion><RootNamespace>FluNET.Classic.Standard</RootNamespace><AssemblyName>FluNET.Classic.Standard</AssemblyName></PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../../Engine/FluNET.Classic.Core/FluNET.Classic.Core.csproj" />
+    <ProjectReference Include="../FluNET.Classic.Standard.Text/FluNET.Classic.Standard.Text.csproj" />
+    <ProjectReference Include="../FluNET.Classic.Standard.Files/FluNET.Classic.Standard.Files.csproj" />
+    <ProjectReference Include="../FluNET.Classic.Standard.DateTime/FluNET.Classic.Standard.DateTime.csproj" />
+    <ProjectReference Include="../FluNET.Classic.Standard.OS/FluNET.Classic.Standard.OS.csproj" />
+    <ProjectReference Include="../FluNET.Classic.Standard.Process/FluNET.Classic.Standard.Process.csproj" />
+    <ProjectReference Include="../FluNET.Classic.Standard.Json/FluNET.Classic.Standard.Json.csproj" />
+    <ProjectReference Include="../FluNET.Classic.Standard.Http/FluNET.Classic.Standard.Http.csproj" />
+    <ProjectReference Include="../FluNET.Classic.Standard.Collections/FluNET.Classic.Standard.Collections.csproj" />
+  </ItemGroup>
+</Project>

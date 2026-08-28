@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>FluNET.Classic.Tooling</RootNamespace>
+    <AssemblyName>FluNET.Classic.Tooling</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../Engine/FluNET.Classic.Core/FluNET.Classic.Core.csproj" />
+    <ProjectReference Include="../../Engine/FluNET.Classic.Syntax/FluNET.Classic.Syntax.csproj" />
+    <ProjectReference Include="../../Engine/FluNET.Classic.Binding/FluNET.Classic.Binding.csproj" />
+    <ProjectReference Include="../../Engine/FluNET.Classic.Runtime/FluNET.Classic.Runtime.csproj" />
+  </ItemGroup>
+</Project>

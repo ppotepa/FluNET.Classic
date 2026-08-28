@@ -6,6 +6,6 @@
     <LangVersion>latest</LangVersion>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="../../src/FluNET.Classic.Core/FluNET.Classic.Core.csproj" />
+    <ProjectReference Include="../../src/Engine/FluNET.Classic.Core/FluNET.Classic.Core.csproj" />
   </ItemGroup>
 </Project>

@@ -1,6 +1,7 @@
 using FluNET.Classic.Core;
 using FluNET.Classic.Hosting;
 using FluNET.Classic.Runtime;
+using FluNET.Classic.Standard.Text;
 using FluNET.Classic.Syntax;
 using Microsoft.Extensions.DependencyInjection;
 using NUnit.Framework;
@@ -55,18 +56,18 @@ public class SyntaxEvolutionTests
     }
 
     [Test]
-    public void Semicolon_starts_an_independent_statement_instead_of_piping()
+    public void Semicolon_is_rejected_as_a_statement_marker()
     {
         using ServiceProvider host = FluNetHost.Create();
         ClassicEngine engine = host.GetRequiredService<ClassicEngine>();
         CheckResult check = engine.Check("GET TEXT FROM {a.txt} INTO [lines]; TRANSFORM USING UPPER INTO [upper].");
 
         Assert.That(check.Success, Is.False);
-        Assert.That(check.Bound?.Diagnostics.Any(x => x.Message.Contains("TRANSFORM", StringComparison.OrdinalIgnoreCase)), Is.True);
+        Assert.That(check.Parse.Diagnostics.Any(x => x.Code == "FLU-SYN-004"), Is.True);
     }
 
     [Test]
-    public async Task Legacy_as_result_binding_remains_compatible()
+    public async Task Result_binding_requires_into()
     {
         string file = Path.GetTempFileName();
         await File.WriteAllTextAsync(file, "hello");
@@ -74,9 +75,9 @@ public class SyntaxEvolutionTests
         {
             using ServiceProvider host = FluNetHost.Create();
             ClassicEngine engine = host.GetRequiredService<ClassicEngine>();
-            RuntimeResult result = await engine.RunAsync($"GET TEXT FROM {{{file}}} AS [lines]");
-            Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics.Select(x => x.Message)));
-            Assert.That(result.State.TryGetVariable("lines", out _), Is.True);
+            RuntimeResult result = await engine.RunAsync($"SAY \"hello\" AS [lines].");
+            Assert.That(result.Success, Is.False);
+            Assert.That(result.Diagnostics.Any(x => x.Code == "FLU-BIND-010"), Is.True);
         }
         finally { File.Delete(file); }
     }
@@ -207,14 +208,13 @@ public class SyntaxEvolutionTests
     }
 
     [Test]
-    public void And_then_is_a_surface_alias_for_pipeline_continuation()
+    public void And_then_is_not_a_second_pipeline_spelling()
     {
         using ServiceProvider host = FluNetHost.Create();
         ClassicEngine engine = host.GetRequiredService<ClassicEngine>();
         ParseResult parse = engine.Parse("GET TEXT FROM {a.txt}, AND THEN TRANSFORM USING UPPER INTO [upper].");
 
-        Assert.That(parse.Success, Is.True, string.Join("; ", parse.Diagnostics.Select(x => x.Message)));
-        Assert.That(((PipelineNode)parse.Script.Statements.Single()).Stages, Has.Count.EqualTo(2));
+        Assert.That(parse.Success, Is.False);
     }
 
     [Test]
@@ -262,7 +262,7 @@ public class SyntaxEvolutionTests
         using ServiceProvider host = FluNetHost.Create();
         ClassicEngine engine = host.GetRequiredService<ClassicEngine>();
 
-        RuntimeResult result = await engine.RunAsync("GET OS INTO [os]; GET CWD INTO [cwd].");
+        RuntimeResult result = await engine.RunAsync("GET OS INTO [os]. GET CWD INTO [cwd].");
 
         Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics.Select(x => x.Message)));
         Assert.That(result.State.TryGetVariable("os", out _), Is.True);
@@ -292,16 +292,111 @@ public class SyntaxEvolutionTests
     }
 
     [Test]
-    public void Formatter_normalizes_legacy_result_alias_and_pipeline_style()
+    public void Formatter_emits_canonical_pipeline_style()
     {
         using ServiceProvider host = FluNetHost.Create();
         ClassicEngine engine = host.GetRequiredService<ClassicEngine>();
 
-        string formatted = engine.Format("GET TEXT FROM {input.txt} AS [lines] THEN TRANSFORM [lines] USING UPPER AS [upper]");
+        string formatted = engine.Format("GET TEXT FROM {input.txt} INTO [lines], THEN TRANSFORM [lines] USING UPPER INTO [upper].");
 
         Assert.That(formatted, Does.Contain("GET TEXT FROM {input.txt} INTO [lines]"));
         Assert.That(formatted, Does.Contain("THEN TRANSFORM [lines] USING UPPER INTO [upper]."));
     }
 
+    [Test]
+    public void Newline_does_not_end_a_sentence_without_a_period()
+    {
+        using ServiceProvider host = FluNetHost.Create();
+        ClassicEngine engine = host.GetRequiredService<ClassicEngine>();
+
+        ParseResult parse = engine.Parse("CHECK IF true INTO [first]\nCHECK IF false INTO [second].");
+
+        Assert.That(parse.Success, Is.False);
+        Assert.That(parse.Diagnostics.Any(x => x.Code == "FLU-SYN-005"), Is.True);
+    }
+
+    [Test]
+    public void Control_flow_uses_named_endings_and_periods()
+    {
+        using ServiceProvider host = FluNetHost.Create();
+        ClassicEngine engine = host.GetRequiredService<ClassicEngine>();
+
+        ParseResult parse = engine.Parse("IF true, THEN\nCHECK IF true INTO [ok].\nEND IF.");
+
+        Assert.That(parse.Success, Is.True, string.Join("; ", parse.Diagnostics.Select(x => x.Message)));
+        Assert.That(engine.Format(parse.Script), Does.Contain("END IF."));
+    }
+
+    [Test]
+    public void Try_uses_named_failure_and_finally_sections()
+    {
+        using ServiceProvider host = FluNetHost.Create();
+        ClassicEngine engine = host.GetRequiredService<ClassicEngine>();
+
+        ParseResult parse = engine.Parse("TRY, DO\nCHECK IF true.\nON FAILURE\nCHECK IF false.\nFINALLY\nCHECK IF true.\nEND TRY.");
+
+        Assert.That(parse.Success, Is.True, string.Join("; ", parse.Diagnostics.Select(x => x.Message)));
+        Assert.That(engine.Format(parse.Script), Does.Contain("ON FAILURE"));
+        Assert.That(engine.Format(parse.Script), Does.Contain("FINALLY"));
+    }
+
+    [Test]
+    public async Task Typed_function_definition_can_be_invoked_as_a_sentence()
+    {
+        using ServiceProvider host = FluNetHost.Create();
+        ClassicEngine engine = host.GetRequiredService<ClassicEngine>();
+
+        RuntimeResult result = await engine.RunAsync("""
+            DEFINE FUNCTION NORMALIZE, WHAT [value] AS TEXT, RETURNING TEXT, DO
+                RETURN [value].
+            END FUNCTION.
+            NORMALIZE "hello" INTO [normalized].
+            """);
+
+        Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics.Select(x => x.Message)));
+        Assert.That(result.State.TryGetVariable("normalized", out object? normalized), Is.True);
+        Assert.That(normalized, Is.EqualTo("hello"));
+    }
+
+    [Test]
+    public async Task For_each_can_run_with_explicit_bounded_parallelism()
+    {
+        var writer = new CaptureWriter();
+        using ServiceProvider host = FluNetHost.Create(configure: services => services.AddSingleton<IOutputWriter>(writer));
+        ClassicEngine engine = host.GetRequiredService<ClassicEngine>();
+        var state = new RuntimeState();
+        state.SetVariable("items", new[] { 1, 2, 3, 4 });
+
+        RuntimeResult result = await engine.RunAsync("FOR EACH [item] IN [items], PARALLEL 2, DO\nSAY \"item\".\nEND FOR.", state);
+
+        Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics.Select(x => x.Message)));
+        Assert.That(writer.Lines, Has.Count.EqualTo(4));
+    }
+
+    [Test]
+    public async Task Record_declaration_creates_an_immutable_typed_value()
+    {
+        using ServiceProvider host = FluNetHost.Create();
+        ClassicEngine engine = host.GetRequiredService<ClassicEngine>();
+
+        RuntimeResult result = await engine.RunAsync("DEFINE RECORD USER, NAME AS TEXT, AGE AS INTEGER.\nMAKE USER WITH \"Ada\", 42 INTO [user].");
+
+        Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics.Select(x => x.Message)));
+        Assert.That(result.State.TryGetVariable("user", out object? value), Is.True);
+        Assert.That(value, Is.TypeOf<FluRecord>());
+        Assert.That(((FluRecord)value!).Get("NAME"), Is.EqualTo("Ada"));
+        Assert.That(((FluRecord)value).Get("AGE"), Is.EqualTo(42));
+    }
+
     private sealed record PredicateState(bool IsOk, bool IsValid) : IOkState, IValidState;
+
+    private sealed class CaptureWriter : IOutputWriter
+    {
+        public List<string> Lines { get; } = [];
+        public ValueTask WriteLineAsync(string text, CancellationToken cancellationToken = default)
+        {
+            Lines.Add(text);
+            return ValueTask.CompletedTask;
+        }
+    }
 }

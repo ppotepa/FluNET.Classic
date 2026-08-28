@@ -1,0 +1,14 @@
+{
+  "entry": "showcase.flu",
+  "sources": ["showcase.flu"],
+  "modules": {
+    "standard": "1.0.0"
+  },
+  "capabilities": [
+    "filesystem.read"
+  ],
+  "execution": {
+    "timeout": "00:00:10",
+    "parallelism": 4
+  }
+}

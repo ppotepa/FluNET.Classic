@@ -91,9 +91,9 @@ public class AsyncCollectionTests
         state.SetVariable("items", Numbers(new EnumerationCounter()));
 
         RuntimeResult result = await engine.RunAsync("""
-            FOR EACH [item] IN [items] THEN {
+            FOR EACH [item] IN [items], DO
                 CHECK IF [item.Value] > 0.
-            }
+            END FOR.
             """, state);
 
         Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics.Select(x => x.Message)));

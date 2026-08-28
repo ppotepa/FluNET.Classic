@@ -1,0 +1,56 @@
+DEFINE RECORD RELEASE, NAME AS TEXT, CHANNEL AS TEXT, SCORE AS INTEGER.
+
+DEFINE FUNCTION EMPHASIZE, WHAT [value] AS TEXT, RETURNING TEXT, DO
+    TRANSFORM [value] USING UPPER INTO [emphasized].
+    RETURN [emphasized].
+END FUNCTION.
+
+SAY "FluNET.Classic language showcase".
+
+GET TEXT FROM {demo/data/mission.txt} INTO [missionLines],
+THEN TRANSFORM USING TRIM INTO [trimmedMission],
+THEN TRANSFORM USING UPPER INTO [loudMission].
+
+COUNT [loudMission] INTO [missionLineCount].
+SAY "Loaded [missionLineCount] mission lines:".
+
+FOR EACH [line] IN [loudMission], DO
+    SAY "  [line]".
+END FOR.
+
+PARSE JSON FROM "{\"stability\":9,\"clarity\":10,\"speed\":8,\"composability\":10,\"tooling\":9}" INTO [scorecard].
+LIST PROPERTIES FROM [scorecard] INTO [properties],
+THEN SORT BY Name INTO [orderedProperties],
+THEN TAKE 4 INTO [headlineProperties].
+
+COUNT [properties] INTO [propertyCount].
+CHECK IF [propertyCount] >= 5 INTO [hasFullScorecard].
+
+IF [hasFullScorecard] IS true, THEN
+    SAY "The scorecard is complete.".
+ELSE
+    SAY "The scorecard needs more dimensions.".
+END IF.
+
+SAY "Headline dimensions, processed with bounded parallelism:".
+FOR EACH [property] IN [headlineProperties], PARALLEL 2, DO
+    EMPHASIZE [property.Name] INTO [label].
+    SAY "  [label] = [property.Value]".
+END FOR.
+
+MAKE RELEASE WITH "Aurora", "preview", 96 INTO [release].
+SAY "Candidate: [release.NAME] / [release.CHANNEL] / score [release.SCORE]".
+
+TRY, DO
+    GET TEXT FROM {demo/data/optional-note.txt} INTO [optionalNote].
+    SAY "Optional note loaded.".
+ON FAILURE
+    SAY "Optional note is absent; the showcase recovered cleanly.".
+FINALLY
+    SAY "Showcase complete.".
+END TRY.
+
+SKIP [propertyCount] FROM [properties] INTO [completedWork].
+FOR EACH [completedItem] IN [completedWork], DO
+    SAY [completedItem.Name].
+END FOR.

@@ -14,11 +14,11 @@ public class FlowScopeTests
         ClassicEngine engine = host.GetRequiredService<ClassicEngine>();
 
         const string source = """
-            IF [flag] IS true THEN {
+            IF [flag] IS true, THEN
                 CHECK IF true INTO [shared].
-            } ELSE {
+            ELSE
                 CHECK IF false INTO [shared].
-            }
+            END IF.
             CHECK IF [shared] IS true INTO [after].
             """;
 
@@ -34,11 +34,11 @@ public class FlowScopeTests
         ClassicEngine engine = host.GetRequiredService<ClassicEngine>();
 
         const string source = """
-            IF [flag] IS true THEN {
+            IF [flag] IS true, THEN
                 CHECK IF true INTO [onlyThen].
-            } ELSE {
+            ELSE
                 CHECK IF false.
-            }
+            END IF.
             CHECK IF [onlyThen] IS true INTO [after].
             """;
 
@@ -55,11 +55,11 @@ public class FlowScopeTests
         ClassicEngine engine = host.GetRequiredService<ClassicEngine>();
 
         const string source = """
-            IF [flag] IS true THEN {
+            IF [flag] IS true, THEN
                 CHECK IF true INTO [value].
-            } ELSE {
+            ELSE
                 PARSE DATE FROM "2026-08-17" INTO [value].
-            }
+            END IF.
             """;
 
         CheckResult result = engine.Check(source, new Dictionary<string, Type> { ["flag"] = typeof(bool) });
@@ -75,9 +75,9 @@ public class FlowScopeTests
         ClassicEngine engine = host.GetRequiredService<ClassicEngine>();
 
         const string source = """
-            FOR EACH [item] IN [items] THEN {
+            FOR EACH [item] IN [items], DO
                 SAY [item].
-            }
+            END FOR.
             SAY [item].
             """;
 

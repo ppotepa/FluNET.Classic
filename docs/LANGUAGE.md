@@ -10,15 +10,13 @@ The exact roles are supplied by CLR sentence patterns rather than a global gramm
 
 ## Result binding
 
-`INTO` always binds the result of the current stage:
+`INTO` always binds the result of the current stage and is the only result-binding form:
 
 ```text
 GET TEXT FROM {file.txt} INTO [lines].
 PARSE [text] AS JSON INTO [data].
 CHECK IF [response.status] IS 200 INTO [ok].
 ```
-
-The former `AS [variable]` spelling remains accepted for compatibility, but the formatter normalizes it to `INTO [variable]`.
 
 `AS` is otherwise available as a representation/interpretation role:
 
@@ -59,15 +57,39 @@ TRANSFORM [text] TO JSON INTO [json].
 ```text
 GET TEXT FROM {input.txt},
 THEN TRANSFORM USING TRIM,
-AND THEN TRANSFORM USING UPPER,
+THEN TRANSFORM USING UPPER,
 THEN SAVE TO {output.txt}.
 ```
 
-- `THEN` and `AND THEN` pass the typed result of the previous stage into a compatible missing input role of the next stage.
-- `;` begins an independent statement and does **not** pass a pipeline value.
-- `.` ends a complete statement. It may be omitted at EOF.
-- `,` is a soft separator for role values, clauses, and a continued pipeline.
-- A newline normally separates statements, except when the syntax clearly continues with `THEN`/`AND THEN` or follows a comma.
+- `, THEN` passes the typed result of the previous stage into a compatible missing input role of the next stage.
+- `.` is mandatory and ends a complete statement, including the final statement in a file or block.
+- `,` separates role values and introduces a pipeline continuation only when followed by `THEN`.
+- Newlines are formatting whitespace and never terminate a statement.
+- `;` and `AND THEN` are invalid; use a period and `THEN` respectively.
+- Operational blocks use named endings: `TRY, DO ... ON FAILURE ... FINALLY ... END TRY.`.
+
+## Script definitions
+
+Script functions and tasks use typed role contracts and direct sentence invocation. A definition must declare `RETURNING TYPE`, and a non-void definition must contain an explicit `RETURN`:
+
+```text
+DEFINE FUNCTION NORMALIZE, WHAT [value] AS TEXT, RETURNING TEXT, DO
+    RETURN [value].
+END FUNCTION.
+
+NORMALIZE "hello" INTO [normalized].
+```
+
+Functions execute in isolated nested state and can participate in pipelines through their `WHAT` role. Tasks use the same call surface but are intended for effectful orchestration.
+
+Records are immutable schema-backed values:
+
+```text
+DEFINE RECORD USER, NAME AS TEXT, AGE AS INTEGER.
+MAKE USER WITH "Ada", 42 INTO [user].
+```
+
+Collection concurrency is explicit: `FOR EACH [item] IN [items], PARALLEL 4, DO ... END FOR.`. Iterations do not share local binding scopes.
 
 Variadic values can be written naturally:
 

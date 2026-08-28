@@ -1,6 +1,7 @@
 using FluNET.Classic.Hosting;
 using FluNET.Classic.OutputProjectionFixture;
 using FluNET.Classic.Runtime;
+using FluNET.Classic.Syntax;
 using Microsoft.Extensions.DependencyInjection;
 using NUnit.Framework;
 
@@ -23,14 +24,15 @@ public class AsRoleDisambiguationTests
     }
 
     [Test]
-    public void Legacy_AS_result_alias_remains_accepted_when_AS_is_not_a_role()
+    public void AS_without_a_declared_role_is_rejected_as_result_binding()
     {
         using ServiceProvider host = FluNetHost.Create();
         ClassicEngine engine = host.GetRequiredService<ClassicEngine>();
 
-        string formatted = engine.Format("SAY \"hello\" AS [result]");
+        CheckResult check = engine.Check("SAY \"hello\" AS [result].");
 
-        Assert.That(formatted, Is.EqualTo("SAY \"hello\" INTO [result]."));
+        Assert.That(check.Success, Is.False);
+        Assert.That(check.Bound?.Diagnostics.Any(x => x.Code == "FLU-BIND-010"), Is.True);
     }
 
     [Test]
@@ -39,7 +41,7 @@ public class AsRoleDisambiguationTests
         using ServiceProvider host = CreateHost();
         ClassicEngine engine = host.GetRequiredService<ClassicEngine>();
 
-        string formatted = engine.Format("INTERPRET \"payload\" AS [representation] INTO [result]");
+        string formatted = engine.Format("INTERPRET \"payload\" AS [representation] INTO [result].");
 
         Assert.That(formatted, Is.EqualTo("INTERPRET \"payload\" AS [representation] INTO [result]."));
     }

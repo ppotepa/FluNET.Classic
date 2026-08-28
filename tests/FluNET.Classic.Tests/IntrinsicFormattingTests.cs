@@ -16,7 +16,7 @@ public class IntrinsicFormattingTests
         using ServiceProvider host = FluNetHost.Create(options);
         ClassicEngine engine = host.GetRequiredService<ClassicEngine>();
 
-        string formatted = engine.Format("top 3 from [items] into [result]");
+        string formatted = engine.Format("top 3 from [items] into [result].");
 
         Assert.That(formatted, Is.EqualTo("TOP 3 FROM [items] INTO [result]."));
     }
