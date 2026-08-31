@@ -42,7 +42,10 @@ public sealed class FilesModule : LanguageModule
         new("qualifier:file-metadata", "METADATA", typeof(FileMetadata)),
         new("qualifier:file-length", "LENGTH", typeof(long)),
         new("qualifier:file-extension", "EXTENSION", typeof(string)),
-        new("qualifier:file-readonly", "READONLY", typeof(bool))
+        new("qualifier:file-readonly", "READONLY", typeof(bool)),
+        new("qualifier:directory-file-count", "FILECOUNT", typeof(int)),
+        new("qualifier:directory-count", "DIRECTORYCOUNT", typeof(int)),
+        new("qualifier:directory-exists", "EXISTS", typeof(bool))
     };
 }
 

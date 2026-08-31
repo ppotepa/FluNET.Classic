@@ -37,6 +37,8 @@ The format follows the spirit of [Keep a Changelog](https://keepachangelog.com/e
 - Process results expose elapsed execution time through the typed `GET DURATION` projection.
 - Process specifications now validate file names/timeouts and snapshot argument/environment collections.
 - File metadata now supports typed `GET LENGTH`, `GET EXTENSION`, and `GET READONLY` projections.
+- Directory metadata now supports typed count/existence projections.
+- Explicit qualifier surfaces no longer match unrelated verbs solely because their result types happen to be equal.
 - Typed HTTP status and ETag values now reject invalid CLR construction inputs.
 - Non-idempotent HTTP operations no longer opt into automatic retries that could duplicate side effects.
 - Previous-pipeline (`THEM`) and current-loop-item (`IT`) bindings.

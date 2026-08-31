@@ -1002,6 +1002,8 @@ public sealed class SemanticBinder
             return true;
         if (implementation.Qualifiers.Contains(qualifier.Name, StringComparer.OrdinalIgnoreCase))
             return true;
+        if (implementation.Qualifiers.Count > 0)
+            return false;
         if (qualifier.TargetType is null)
             return false;
         Type target = qualifier.TargetType;

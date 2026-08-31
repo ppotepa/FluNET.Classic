@@ -51,3 +51,27 @@ public sealed class GetDirectoryMetadata : IVerb<DirectoryMetadata>, IGet, IFrom
             exists));
     }
 }
+
+[Qualifier("FILECOUNT")]
+[ExecutionTrait(ExecutionTrait.Pure)]
+public sealed class GetDirectoryFileCount : Get<int, DirectoryMetadata>
+{
+    public GetDirectoryFileCount([From] DirectoryMetadata from) : base(from) { }
+    protected override ValueTask<int> ActAsync(DirectoryMetadata from, CancellationToken cancellationToken) => ValueTask.FromResult(from.FileCount);
+}
+
+[Qualifier("DIRECTORYCOUNT")]
+[ExecutionTrait(ExecutionTrait.Pure)]
+public sealed class GetDirectoryCount : Get<int, DirectoryMetadata>
+{
+    public GetDirectoryCount([From] DirectoryMetadata from) : base(from) { }
+    protected override ValueTask<int> ActAsync(DirectoryMetadata from, CancellationToken cancellationToken) => ValueTask.FromResult(from.DirectoryCount);
+}
+
+[Qualifier("EXISTS")]
+[ExecutionTrait(ExecutionTrait.Pure)]
+public sealed class GetDirectoryExists : Get<bool, DirectoryMetadata>
+{
+    public GetDirectoryExists([From] DirectoryMetadata from) : base(from) { }
+    protected override ValueTask<bool> ActAsync(DirectoryMetadata from, CancellationToken cancellationToken) => ValueTask.FromResult(from.Exists);
+}

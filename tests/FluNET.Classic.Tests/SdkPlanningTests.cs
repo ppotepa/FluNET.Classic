@@ -1,3 +1,4 @@
+using FluNET.Classic.Binding;
 using FluNET.Classic.Hosting;
 using FluNET.Classic.Runtime;
 using FluNET.Classic.SDK;
@@ -84,6 +85,23 @@ public class SdkPlanningTests
         Assert.That(steps.Any(x => x.ResultType == typeof(FileMetadata).FullName), Is.True);
         Assert.That(steps.Any(x => x.ResultType == typeof(long).FullName), Is.True);
         Assert.That(steps.Any(x => x.ResultType == typeof(string).FullName), Is.True);
+        Assert.That(steps.Any(x => x.ResultType == typeof(bool).FullName), Is.True);
+    }
+
+    [Test]
+    public void Directory_metadata_properties_bind_through_typed_sentence_projections()
+    {
+        using ServiceProvider host = FluNetHost.Create();
+        ClassicEngine engine = host.GetRequiredService<ClassicEngine>();
+        const string source = "GET METADATA FROM [directory] INTO [metadata], THEN GET FILECOUNT FROM [metadata] INTO [files], THEN GET DIRECTORYCOUNT FROM [metadata] INTO [directories], THEN GET EXISTS FROM [metadata] INTO [exists].";
+        var variables = new Dictionary<string, Type> { ["directory"] = typeof(DirectoryInfo) };
+        CheckResult check = engine.Check(source, variables);
+        ExecutionPlan plan = engine.Plan(source, variables);
+
+        Assert.That(plan.Success, Is.True, string.Join("; ", check.Bound?.Diagnostics.SelectMany(x => x.CandidateDetails ?? Array.Empty<CandidateDetail>()).Select(x => x.PatternId) ?? Array.Empty<string>()));
+        ExecutionPlanStep[] steps = Flatten(plan.Steps).ToArray();
+        Assert.That(steps.Any(x => x.ResultType == typeof(DirectoryMetadata).FullName), Is.True);
+        Assert.That(steps.Count(x => x.ResultType == typeof(int).FullName), Is.EqualTo(2));
         Assert.That(steps.Any(x => x.ResultType == typeof(bool).FullName), Is.True);
     }
 
