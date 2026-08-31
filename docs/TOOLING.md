@@ -31,6 +31,22 @@ Tooling behavior remains downstream of the production compiler. Diagnostics, ove
 `DocumentDiagnostic` carries a `LanguageDiagnosticSeverity` (`Info`, `Warning`, or `Error`) in addition to source, code, message, and span.
 
 - Syntax diagnostics are surfaced as errors.
+
+## CLI introspection
+
+The CLI exposes the same compiled snapshot used by document services:
+
+    fluc verbs
+    fluc verb GET
+    fluc qualifiers
+    fluc modules
+    fluc language
+
+The text commands include stable identifiers and composition details. The verb
+command reports implementation types, qualifiers, capabilities, execution
+traits, and role shapes. The qualifiers command marks a shared surface with ?
+when target types conflict across modules. Use language for the complete
+machine-readable JSON snapshot.
 - Binding diagnostics preserve their binder severity; warnings and informational diagnostics are not discarded.
 - LSP publishing maps `Error`/`Warning`/`Info` to protocol severity 1/2/3 instead of inferring severity from the diagnostic source string.
 

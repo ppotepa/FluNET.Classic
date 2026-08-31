@@ -91,7 +91,7 @@ switch (command)
         return 0;
     case "verbs":
         foreach (VerbDescriptor verb in language.Verbs)
-            Console.WriteLine(verb.Name);
+            Console.WriteLine($"{verb.Name}\t{verb.StableId}\toverloads={verb.Implementations.Count}\taliases=[{string.Join(',', verb.Aliases)}]");
         return 0;
     case "verb":
         if (rest.Length == 0)
@@ -100,11 +100,11 @@ switch (command)
         return 0;
     case "qualifiers":
         foreach (QualifierDescriptor qualifier in language.Qualifiers)
-            Console.WriteLine($"{qualifier.Name}\t{qualifier.TargetType?.Name ?? "-"}");
+            Console.WriteLine($"{qualifier.Name}\t{qualifier.TargetType?.Name ?? "?"}\t{qualifier.StableId}\taliases=[{string.Join(',', qualifier.AllAliases)}]");
         return 0;
     case "modules":
         foreach (ModuleDescriptor module in language.Modules)
-            Console.WriteLine($"{module.Name}\t{module.Version}\tdeps=[{string.Join(',', module.Dependencies)}]");
+            Console.WriteLine($"{module.Name}\t{module.Version}\t{module.StableId}\tdeps=[{string.Join(',', module.Dependencies)}]\tassemblies=[{string.Join(',', module.Assemblies)}]");
         return 0;
     case "language":
         Console.WriteLine(introspection.ToJson());

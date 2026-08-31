@@ -101,7 +101,7 @@ public sealed class LanguageIntrospectionService(LanguageSnapshot snapshot)
     {
         VerbDescriptor verb = Snapshot.GetVerb(name);
         return string.Join(Environment.NewLine, verb.Implementations.SelectMany(i => i.Patterns.Select(p =>
-            $"{verb.Name} {string.Join(" ", p.Roles.Select(r => $"{r.Name}:{Friendly(r.ValueType)}[{r.Cardinality}]{ProjectionSuffix(r.OutputProjection)}"))} -> {Friendly(i.ResultType)}")));
+            $"{verb.Name} {string.Join(" ", p.Roles.Select(r => $"{r.Name}:{Friendly(r.ValueType)}[{r.Cardinality}]{ProjectionSuffix(r.OutputProjection)}"))} -> {Friendly(i.ResultType)} | implementation={i.ImplementationType.FullName} | id={i.StableId} | qualifiers=[{string.Join(',', i.Qualifiers)}] | capabilities=[{string.Join(',', i.Capabilities)}] | traits=[{string.Join(',', i.Traits)}]")));
     }
 
     private static string? Projection(OutputProjectionDescriptor? projection) => projection?.Kind switch

@@ -60,6 +60,7 @@ The format follows the spirit of [Keep a Changelog](https://keepachangelog.com/e
 - Email addresses and messages now expose typed address, subject, body, HTML, and attachment projections.
 - Conflicting shared qualifier surfaces now merge deterministically and omit misleading target types.
 - Public demo and executable documentation examples now pass the production CLI `check`, `format`, `plan`, and `run` audit.
+- CLI text introspection now includes stable IDs and module, qualifier, overload, capability, and execution metadata.
 - Explicit qualifier surfaces no longer match unrelated verbs solely because their result types happen to be equal.
 - Typed HTTP status and ETag values now reject invalid CLR construction inputs.
 - HTTP responses and statuses now expose typed `CODE`, `REASON`, and `CONTENTTYPE` projections.
