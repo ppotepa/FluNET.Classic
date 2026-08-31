@@ -61,7 +61,7 @@ public sealed class ProcessModule : LanguageModule
     public override string Name => "process";
     public override IReadOnlyCollection<QualifierDescriptor> Qualifiers => new QualifierDescriptor[]
     {
-        new("qualifier:stdout", "STDOUT", typeof(string)), new("qualifier:stderr", "STDERR", typeof(string)), new("qualifier:exitcode", "EXITCODE", typeof(int)),
+        new("qualifier:stdout", "STDOUT", typeof(string)), new("qualifier:stderr", "STDERR", typeof(string)), new("qualifier:exitcode", "EXITCODE", typeof(int)), new("qualifier:duration", "DURATION", typeof(TimeSpan)),
         new("qualifier:processes", "PROCESSES", typeof(ProcessInfo[])), new("qualifier:process-handle", "PROCESS", null)
     };
 }
@@ -217,6 +217,14 @@ public sealed class GetExitCode : Get<int, ProcessResult>
 {
     public GetExitCode([From] ProcessResult from) : base(from) { }
     protected override ValueTask<int> ActAsync(ProcessResult from, CancellationToken cancellationToken) => ValueTask.FromResult(from.ExitCode);
+}
+
+[Qualifier("DURATION")]
+[ExecutionTrait(ExecutionTrait.Pure)]
+public sealed class GetProcessDuration : Get<TimeSpan, ProcessResult>
+{
+    public GetProcessDuration([From] ProcessResult from) : base(from) { }
+    protected override ValueTask<TimeSpan> ActAsync(ProcessResult from, CancellationToken cancellationToken) => ValueTask.FromResult(from.Duration);
 }
 
 [Verb("LIST")]
