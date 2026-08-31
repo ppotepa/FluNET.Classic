@@ -12,5 +12,6 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="../../docs/examples/*.flu" Link="docs/examples/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../demo/*.flu" Link="demo/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>
