@@ -122,6 +122,24 @@ public class RuntimeTests
     }
 
     [Test]
+    public async Task Caller_cancellation_keeps_the_cancellation_diagnostic()
+    {
+        var options = new FluNetOptions
+        {
+            ConfigureExecution = policy => policy.DefaultTimeout = TimeSpan.FromSeconds(5)
+        };
+        using ServiceProvider host = FluNetHost.Create(options, services => services.AddSingleton(new HttpClient(new DelayingHandler())));
+        ClassicEngine engine = host.GetRequiredService<ClassicEngine>();
+        using var cancellation = new CancellationTokenSource(TimeSpan.FromMilliseconds(25));
+
+        RuntimeResult result = await engine.RunAsync("GET RESPONSE FROM {https://example.com} INTO [response].", cancellationToken: cancellation.Token);
+
+        Assert.That(result.Success, Is.False);
+        Assert.That(result.Diagnostics.Select(x => x.Code), Does.Contain("FLU-RUN-020"));
+        Assert.That(result.Diagnostics.Select(x => x.Code), Does.Not.Contain("FLU-RUN-021"));
+    }
+
+    [Test]
     public void Parser_builds_control_flow_ast_directly()
     {
         using ServiceProvider host = FluNetHost.Create();
