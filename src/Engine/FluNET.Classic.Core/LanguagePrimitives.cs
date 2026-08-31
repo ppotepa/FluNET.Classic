@@ -19,7 +19,6 @@ public interface IAt<out TValue> : IRole { }
 public interface IFor<out TValue> : IRole { }
 public interface IUntil<out TValue> : IRole { }
 public interface IBy<out TValue> : IRole { }
-public interface IThen<out TValue> : IRole { }
 
 public enum RoleDirection { Input, Output, InputOutput }
 public enum RoleCardinality { One, ZeroOrOne, OneOrMore, ZeroOrMore }
