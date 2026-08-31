@@ -7,8 +7,16 @@ public enum CompatibilitySeverity
     Info, Warning, Breaking
 }
 public sealed record LanguageCompatibilityChange(CompatibilitySeverity Severity, string Kind, string StableId, string Message);
-public sealed record LanguageCompatibilityReport(IReadOnlyList<LanguageCompatibilityChange> Changes)
+public sealed record LanguageCompatibilityReport
 {
+    public IReadOnlyList<LanguageCompatibilityChange> Changes
+    {
+        get;
+    }
+
+    public LanguageCompatibilityReport(IReadOnlyList<LanguageCompatibilityChange> Changes) =>
+        this.Changes = (Changes ?? throw new ArgumentNullException(nameof(Changes))).ToArray();
+
     public bool IsCompatible => Changes.All(x => x.Severity != CompatibilitySeverity.Breaking);
     public IReadOnlyList<LanguageCompatibilityChange> BreakingChanges => Changes.Where(x => x.Severity == CompatibilitySeverity.Breaking).ToArray();
 }

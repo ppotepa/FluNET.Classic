@@ -10,11 +10,33 @@ public sealed record ModuleValidationDiagnostic(
     string? Example = null,
     LanguageDiagnosticSeverity Severity = LanguageDiagnosticSeverity.Error);
 
-public sealed record ModuleValidationResult(
-    LanguageSnapshot? Snapshot,
-    IReadOnlyList<LanguageDiagnostic> LanguageDiagnostics,
-    IReadOnlyList<ModuleValidationDiagnostic> Diagnostics)
+public sealed record ModuleValidationResult
 {
+    public LanguageSnapshot? Snapshot
+    {
+        get;
+    }
+
+    public IReadOnlyList<LanguageDiagnostic> LanguageDiagnostics
+    {
+        get;
+    }
+
+    public IReadOnlyList<ModuleValidationDiagnostic> Diagnostics
+    {
+        get;
+    }
+
+    public ModuleValidationResult(
+        LanguageSnapshot? Snapshot,
+        IReadOnlyList<LanguageDiagnostic> LanguageDiagnostics,
+        IReadOnlyList<ModuleValidationDiagnostic> Diagnostics)
+    {
+        this.Snapshot = Snapshot;
+        this.LanguageDiagnostics = (LanguageDiagnostics ?? throw new ArgumentNullException(nameof(LanguageDiagnostics))).ToArray();
+        this.Diagnostics = (Diagnostics ?? throw new ArgumentNullException(nameof(Diagnostics))).ToArray();
+    }
+
     public bool Success => Snapshot is not null
         && LanguageDiagnostics.All(x => x.Severity != LanguageDiagnosticSeverity.Error)
         && Diagnostics.All(x => x.Severity != LanguageDiagnosticSeverity.Error);
