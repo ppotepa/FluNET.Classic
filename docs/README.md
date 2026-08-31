@@ -14,6 +14,7 @@ This directory contains maintained technical documentation for FluNET.Classic. E
 | [`examples/language-surface.flu`](examples/language-surface.flu) | Executable documentation fixture for the maintained structural language surface. |
 | [`../ROADMAP.md`](../ROADMAP.md) | Planned development milestones and completion criteria. |
 | [`../CHANGELOG.md`](../CHANGELOG.md) | Completed user-visible changes by package version. |
+| [`RELEASE-NOTES-0.2.md`](RELEASE-NOTES-0.2.md) | Prepared 0.2 release notes generated from the changelog’s current Unreleased entries. |
 | [`../README.md`](../README.md) | Concise project entry point, installation, quick start, and links to the documents above. |
 | [`../demo/README.md`](../demo/README.md) | Runnable examples and demo-specific instructions. |
 

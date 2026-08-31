@@ -96,7 +96,7 @@ Goal: close correctness, documentation, packaging, and usability gaps before the
 - [x] Review package metadata, installer behavior, demo projects, and first-run experience.
 - [x] Bring README, language, architecture, SDK, tooling, and generated module documentation into agreement with the code.
 - [x] Classify remaining breaking changes as either required for 0.2 or explicitly deferred to 0.3.
-- [ ] Produce release notes from the accumulated `CHANGELOG.md` entries instead of reconstructing history at release time.
+- [x] Produce release notes from the accumulated `CHANGELOG.md` entries instead of reconstructing history at release time.
 
 Exit criterion: no known blocker remains for using FluNET.Classic as a coherent pre-1.0 language/runtime/SDK release.
 
