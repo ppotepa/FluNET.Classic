@@ -21,6 +21,7 @@ public sealed class FluNetOptions
     public Action<PredicateRegistry>? ConfigurePredicates { get; set; }
     public Action<OperatorEvaluatorRegistry>? ConfigureOperatorEvaluators { get; set; }
     public Action<ExecutionPolicy>? ConfigureExecution { get; set; }
+    public IExecutionObserver? ExecutionObserver { get; set; }
 }
 
 public static class FluNetHostingExtensions
@@ -44,6 +45,7 @@ public static class FluNetHostingExtensions
         services.AddSingleton(sp => { var registry = new PredicateRegistry(); options.ConfigurePredicates?.Invoke(registry); return registry; });
         services.AddSingleton(sp => { var registry = new OperatorEvaluatorRegistry(); options.ConfigureOperatorEvaluators?.Invoke(registry); return registry; });
         services.AddSingleton(sp => { var policy = new ExecutionPolicy(); options.ConfigureExecution?.Invoke(policy); return policy; });
+        services.AddSingleton<IExecutionObserver>(_ => options.ExecutionObserver ?? NullExecutionObserver.Instance);
         services.AddSingleton<ICapabilityPolicy>(_ => options.CapabilityPolicy ?? (options.AllowedCapabilities is null ? new AllowAllCapabilityPolicy() : new CapabilitySetPolicy(options.AllowedCapabilities)));
         services.AddSingleton<IClock, SystemClock>();
         services.AddSingleton(new HttpClient());

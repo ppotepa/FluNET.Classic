@@ -1,4 +1,5 @@
 using FluNET.Classic.Hosting;
+using FluNET.Classic.Core;
 using FluNET.Classic.Runtime;
 using FluNET.Classic.Standard.Process;
 using Microsoft.Extensions.DependencyInjection;
@@ -15,7 +16,7 @@ public sealed class NativeProcessTests
         ProcessResult result = await RunFixtureAsync("arguments", "hello world", "", "-flag", "quote\"value");
 
         Assert.That(result.IsOk, Is.True);
-        Assert.That(JsonSerializer.Deserialize<string[]>(result.Output), Is.EqualTo(new[] { "hello world", "", "-flag", "quote\"value" }));
+        Assert.That(JsonSerializer.Deserialize<string[]>(result.StdOut), Is.EqualTo(new[] { "hello world", "", "-flag", "quote\"value" }));
     }
 
     [Test]
@@ -24,8 +25,8 @@ public sealed class NativeProcessTests
         ProcessResult streams = await RunFixtureAsync("streams");
         ProcessResult exit = await RunFixtureAsync("exit", "7");
 
-        Assert.That(streams.Output, Does.Contain("fixture stdout"));
-        Assert.That(streams.Error, Does.Contain("fixture stderr"));
+        Assert.That(streams.StdOut, Does.Contain("fixture stdout"));
+        Assert.That(streams.StdErr, Does.Contain("fixture stderr"));
         Assert.That(exit.ExitCode, Is.EqualTo(7));
         Assert.That(exit.IsOk, Is.False);
     }
@@ -40,7 +41,7 @@ public sealed class NativeProcessTests
         Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics.Select(x => x.Message)));
         Assert.That(result.State.TryGetVariable("version", out object? value), Is.True);
         Assert.That(value, Is.TypeOf<ProcessResult>());
-        Assert.That(((ProcessResult)value!).Output, Is.Not.Empty);
+        Assert.That(((ProcessResult)value!).StdOut, Is.Not.Empty);
     }
 
     [Test]
@@ -76,7 +77,9 @@ public sealed class NativeProcessTests
     {
         string fixture = Path.Combine(AppContext.BaseDirectory, "FluNET.Classic.ProcessFixture.dll");
         Assert.That(File.Exists(fixture), Is.True, $"Fixture was not copied to {fixture}.");
-        var runner = new SystemProcessRunner(new SystemExecutableResolver());
-        return await runner.RunAsync(new ProcessRequest(new Executable("dotnet"), new ProcessArguments(new[] { fixture }.Concat(arguments).ToArray())), cancellationToken);
+        var process = new RunProcess(new ProcessSpec("dotnet", string.Join(" ", new[] { fixture }.Concat(arguments).Select(Quote))));
+        return await process.ExecuteAsync(new VerbExecutionContext(null, new Dictionary<string, object?>(), null), cancellationToken);
     }
+
+    private static string Quote(string value) => $"\"{value.Replace("\\", "\\\\").Replace("\"", "\\\"")}\"";
 }
