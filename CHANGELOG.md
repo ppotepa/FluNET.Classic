@@ -66,6 +66,7 @@ The format follows the spirit of [Keep a Changelog](https://keepachangelog.com/e
 - Test fixture projects are now explicitly excluded from solution NuGet packing, keeping release output limited to runtime, module, tooling, host, CLI, and language-server packages.
 - Resolver and converter registrations now support explicit stable IDs and deterministic fallback IDs for explainable diagnostics and execution plans.
 - Predicate evaluator registration now supports priorities and stable IDs; equal-priority matches fail explicitly instead of depending on registration order.
+- Architecture and packaging audits now verify the document service/LSP boundary and exclude test-only projects from release output.
 - Explicit qualifier surfaces no longer match unrelated verbs solely because their result types happen to be equal.
 - Typed HTTP status and ETag values now reject invalid CLR construction inputs.
 - HTTP responses and statuses now expose typed `CODE`, `REASON`, and `CONTENTTYPE` projections.
