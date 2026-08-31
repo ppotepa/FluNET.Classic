@@ -63,10 +63,10 @@ public sealed record ExecutionPlan
         string? ResultType)
     {
         this.Success = Success;
-        this.Diagnostics = (Diagnostics ?? throw new ArgumentNullException(nameof(Diagnostics))).ToArray();
-        this.Steps = (Steps ?? throw new ArgumentNullException(nameof(Steps))).Select(SnapshotStep).ToArray();
-        this.RequiredCapabilities = (RequiredCapabilities ?? throw new ArgumentNullException(nameof(RequiredCapabilities))).ToArray();
-        this.Traits = (Traits ?? throw new ArgumentNullException(nameof(Traits))).ToArray();
+        this.Diagnostics = Array.AsReadOnly((Diagnostics ?? throw new ArgumentNullException(nameof(Diagnostics))).ToArray());
+        this.Steps = Array.AsReadOnly((Steps ?? throw new ArgumentNullException(nameof(Steps))).Select(SnapshotStep).ToArray());
+        this.RequiredCapabilities = Array.AsReadOnly((RequiredCapabilities ?? throw new ArgumentNullException(nameof(RequiredCapabilities))).ToArray());
+        this.Traits = Array.AsReadOnly((Traits ?? throw new ArgumentNullException(nameof(Traits))).ToArray());
         this.ResultType = ResultType;
     }
 
@@ -79,10 +79,10 @@ public sealed record ExecutionPlan
         step.ResultAlias,
         step.BindingCost,
         step.ExecutionMode,
-        step.Capabilities.ToArray(),
-        step.Traits.ToArray(),
-        step.Roles.Select(SnapshotRole).ToArray(),
-        step.Children.Select(SnapshotStep).ToArray(),
+        Array.AsReadOnly(step.Capabilities.ToArray()),
+        Array.AsReadOnly(step.Traits.ToArray()),
+        Array.AsReadOnly(step.Roles.Select(SnapshotRole).ToArray()),
+        Array.AsReadOnly(step.Children.Select(SnapshotStep).ToArray()),
         step.Sensitive);
 
     private static ExecutionPlanRole SnapshotRole(ExecutionPlanRole role) => new(
@@ -90,7 +90,7 @@ public sealed record ExecutionPlan
         role.Direction,
         role.Cardinality,
         role.ValueType,
-        role.Values.Select(SnapshotValue).ToArray(),
+        Array.AsReadOnly(role.Values.Select(SnapshotValue).ToArray()),
         role.Sensitive,
         role.Projection);
 
@@ -101,7 +101,9 @@ public sealed record ExecutionPlan
         value.Conversion,
         value.Cost,
         value.Sensitive,
-        value.ConversionSteps?.Select(step => new ExecutionPlanConversionStep(step.SourceType, step.TargetType, step.Kind, step.Cost)).ToArray());
+        value.ConversionSteps is null
+            ? null
+            : Array.AsReadOnly(value.ConversionSteps.Select(step => new ExecutionPlanConversionStep(step.SourceType, step.TargetType, step.Kind, step.Cost)).ToArray()));
 }
 
 public sealed class ExecutionPlanner

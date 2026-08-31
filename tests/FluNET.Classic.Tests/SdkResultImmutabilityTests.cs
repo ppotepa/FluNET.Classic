@@ -18,6 +18,7 @@ public sealed class SdkResultImmutabilityTests
         changes.Clear();
 
         Assert.That(report.Changes, Has.Count.EqualTo(1));
+        Assert.That(() => ((IList<LanguageCompatibilityChange>)report.Changes).Add(new(CompatibilitySeverity.Info, "test", "test:two", "two")), Throws.TypeOf<NotSupportedException>());
     }
 
     [Test]

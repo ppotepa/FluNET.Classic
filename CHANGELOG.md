@@ -28,7 +28,7 @@ The format follows the spirit of [Keep a Changelog](https://keepachangelog.com/e
 - Language snapshots now expose immutable collection implementations and copy nested descriptor inputs for tooling consumers.
 - SDK compatibility and module-validation reports now snapshot diagnostic collections defensively.
 - Document-tooling analysis and signature-help results now snapshot returned collections defensively.
-- Execution-plan results now snapshot their complete nested result tree defensively.
+- Execution-plan results now expose a read-only snapshot of their complete nested result tree.
 - Generated module manifests and documentation now use stable ordering for collections and overloads.
 - `HttpEndpoint` now accepts only absolute HTTP and HTTPS URIs and rejects invalid schemes during binding.
 - Invalid textual HTTP endpoints now expose a stable `FormatException` domain error.

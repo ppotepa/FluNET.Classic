@@ -33,8 +33,8 @@ public sealed record ModuleValidationResult
         IReadOnlyList<ModuleValidationDiagnostic> Diagnostics)
     {
         this.Snapshot = Snapshot;
-        this.LanguageDiagnostics = (LanguageDiagnostics ?? throw new ArgumentNullException(nameof(LanguageDiagnostics))).ToArray();
-        this.Diagnostics = (Diagnostics ?? throw new ArgumentNullException(nameof(Diagnostics))).ToArray();
+        this.LanguageDiagnostics = Array.AsReadOnly((LanguageDiagnostics ?? throw new ArgumentNullException(nameof(LanguageDiagnostics))).ToArray());
+        this.Diagnostics = Array.AsReadOnly((Diagnostics ?? throw new ArgumentNullException(nameof(Diagnostics))).ToArray());
     }
 
     public bool Success => Snapshot is not null

@@ -58,6 +58,7 @@ public sealed class ToolingResultImmutabilityTests
         diagnostics.Clear();
 
         Assert.That(plan.Diagnostics, Has.Count.EqualTo(1));
+        Assert.That(() => ((IList<ExecutionPlanDiagnostic>)plan.Diagnostics).Add(new("test", "OTHER", "other")), Throws.TypeOf<NotSupportedException>());
     }
 
     [Test]

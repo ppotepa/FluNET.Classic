@@ -37,7 +37,7 @@ public sealed record DocumentAnalysis
     {
         this.Success = Success;
         this.CanonicalSource = CanonicalSource;
-        this.Diagnostics = (Diagnostics ?? throw new ArgumentNullException(nameof(Diagnostics))).ToArray();
+        this.Diagnostics = Array.AsReadOnly((Diagnostics ?? throw new ArgumentNullException(nameof(Diagnostics))).ToArray());
         this.Plan = Plan ?? throw new ArgumentNullException(nameof(Plan));
     }
 }
@@ -59,7 +59,7 @@ public sealed record SignatureHelpInfo
 
     public SignatureHelpInfo(IReadOnlyList<SignatureInfo> Signatures, int ActiveSignature = 0)
     {
-        this.Signatures = (Signatures ?? throw new ArgumentNullException(nameof(Signatures))).ToArray();
+        this.Signatures = Array.AsReadOnly((Signatures ?? throw new ArgumentNullException(nameof(Signatures))).ToArray());
         this.ActiveSignature = ActiveSignature;
     }
 }

@@ -15,7 +15,7 @@ public sealed record LanguageCompatibilityReport
     }
 
     public LanguageCompatibilityReport(IReadOnlyList<LanguageCompatibilityChange> Changes) =>
-        this.Changes = (Changes ?? throw new ArgumentNullException(nameof(Changes))).ToArray();
+        this.Changes = Array.AsReadOnly((Changes ?? throw new ArgumentNullException(nameof(Changes))).ToArray());
 
     public bool IsCompatible => Changes.All(x => x.Severity != CompatibilitySeverity.Breaking);
     public IReadOnlyList<LanguageCompatibilityChange> BreakingChanges => Changes.Where(x => x.Severity == CompatibilitySeverity.Breaking).ToArray();
