@@ -57,8 +57,24 @@ public sealed record HttpStatus(int Code, string? ReasonPhrase) : IOkState
     public override string ToString() => ReasonPhrase is { Length: > 0 } ? $"{Code} {ReasonPhrase}" : Code.ToString();
 }
 
-public sealed record HttpHeaders(IReadOnlyDictionary<string, string[]> Values)
+public sealed record HttpHeaders
 {
+    public IReadOnlyDictionary<string, string[]> Values
+    {
+        get;
+    }
+
+    public HttpHeaders(IReadOnlyDictionary<string, string[]> values)
+    {
+        ArgumentNullException.ThrowIfNull(values);
+        Values = values
+            .GroupBy(x => x.Key, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(
+                group => group.First().Key,
+                group => group.SelectMany(x => x.Value).ToArray(),
+                StringComparer.OrdinalIgnoreCase);
+    }
+
     public bool TryGet(string name, out IReadOnlyList<string> values)
     {
         if (Values.TryGetValue(name, out string[]? found))
