@@ -242,4 +242,9 @@ The CLI can run with deny-by-default capability selection and explicit `--allow`
 
 `FluNET.Classic.SDK` is the intended module-authoring boundary. Do not require module authors to depend on CLI, language-server, or host implementation projects. During the pre-1.0 `0.2.x` line the SDK may still be refined, but each change should move the public surface toward a smaller and more intentional long-term contract.
 
+The supported public signature surface is the `FluNET.Classic.SDK` namespace plus
+the language contracts and extension registries it consumes from Core/Binding.
+Syntax and Runtime implementation types are intentionally absent from exported SDK
+signatures; the repository tests enforce this boundary.
+
 When adding a new extension point, prefer one that can be validated, introspected, planned, formatted, and documented from the same metadata the runtime consumes. If an ordinary new sentence needs a parser branch rather than canonical role metadata, first treat that as a design smell; grammar changes should represent genuinely new structural constructs.

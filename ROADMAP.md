@@ -71,7 +71,7 @@ Exit criterion: the standard modules form a coherent reference implementation of
 
 Goal: make the public authoring and tooling surfaces stable enough for external consumers to build against.
 
-- [ ] Review the public SDK surface and remove implementation details that should not become compatibility obligations.
+- [x] Review the public SDK surface and remove implementation details that should not become compatibility obligations.
 - [x] Stabilize module dependency, discovery, validation, resolver/converter, predicate, and capability extension points.
 - [x] Stabilize generated module manifest/documentation schemas for the 0.2 line.
 - [x] Keep `ClassicDocumentService` as the single semantic source for editor integrations.
