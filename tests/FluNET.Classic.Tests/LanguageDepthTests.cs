@@ -103,6 +103,7 @@ public sealed class LanguageDepthTests
     private sealed class BToC : ValueConverter<B, C> { public override bool TryConvert(B value, out C? result) { result = new C(value.Value); return true; } }
     private sealed class ResolvedResolver(string result) : IValueResolver<Resolved>
     {
-        public Type TargetType => typeof(Resolved); public bool TryResolve(string source, ResolutionContext context, out Resolved? value) { value = new Resolved(result); return true; } bool IValueResolver.TryResolve(string source, ResolutionContext context, out object? value) { bool ok = TryResolve(source, context, out Resolved? typed); value = typed; return ok; }
+        public Type TargetType => typeof(Resolved); public bool TryResolve(string source, ResolutionContext context, out Resolved? value) { value = new Resolved(result); return true; }
+        bool IValueResolver.TryResolve(string source, ResolutionContext context, out object? value) { bool ok = TryResolve(source, context, out Resolved? typed); value = typed; return ok; }
     }
 }

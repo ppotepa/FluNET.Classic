@@ -1,5 +1,5 @@
-using System.Reflection;
 using FluNET.Classic.Core;
+using System.Reflection;
 
 namespace FluNET.Classic.OutputProjectionFixture;
 

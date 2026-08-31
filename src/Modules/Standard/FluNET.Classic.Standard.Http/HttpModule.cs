@@ -1,6 +1,6 @@
+using FluNET.Classic.Core;
 using System.Text;
 using System.Text.Json.Nodes;
-using FluNET.Classic.Core;
 
 namespace FluNET.Classic.Standard.Http;
 

@@ -118,12 +118,12 @@ public static class FluNetModuleTestHarness
         {
             var owners = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             foreach (RoleSlotDescriptor role in pattern.Roles)
-            foreach (string surface in role.AllSurfaceNames)
-            {
-                if (owners.TryGetValue(surface, out string? existing) && !existing.Equals(role.Name, StringComparison.OrdinalIgnoreCase))
-                    diagnostics.Add(new("FLU-SDK-002", $"Pattern '{pattern.StableId}' maps surface word '{surface}' to both '{existing}' and '{role.Name}'."));
-                else owners[surface] = role.Name;
-            }
+                foreach (string surface in role.AllSurfaceNames)
+                {
+                    if (owners.TryGetValue(surface, out string? existing) && !existing.Equals(role.Name, StringComparison.OrdinalIgnoreCase))
+                        diagnostics.Add(new("FLU-SDK-002", $"Pattern '{pattern.StableId}' maps surface word '{surface}' to both '{existing}' and '{role.Name}'."));
+                    else owners[surface] = role.Name;
+                }
         }
     }
 

@@ -1,6 +1,6 @@
+using FluNET.Classic.Core;
 using System.Globalization;
 using System.Text;
-using FluNET.Classic.Core;
 
 namespace FluNET.Classic.Syntax;
 

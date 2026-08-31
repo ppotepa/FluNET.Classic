@@ -1,7 +1,6 @@
 using System.ComponentModel;
 using System.Globalization;
 using System.Reflection;
-using FluNET.Classic.Core;
 
 namespace FluNET.Classic.Binding;
 

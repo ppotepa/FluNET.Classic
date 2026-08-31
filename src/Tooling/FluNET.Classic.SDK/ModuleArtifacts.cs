@@ -1,6 +1,6 @@
+using FluNET.Classic.Core;
 using System.Text;
 using System.Text.Json;
-using FluNET.Classic.Core;
 
 namespace FluNET.Classic.SDK;
 
@@ -141,17 +141,17 @@ public sealed class ModuleArtifactGenerator
             text.AppendLine($"## {verb.Key}");
             text.AppendLine();
             foreach (VerbImplementationDescriptor implementation in verb.OrderBy(x => x.StableId, StringComparer.Ordinal))
-            foreach (SentencePattern pattern in implementation.Patterns)
-            {
-                string roles = string.Join(" ", pattern.Roles.OrderBy(x => x.Position).Select(FormatRole).Where(x => x.Length > 0));
-                text.AppendLine($"- `{verb.Key}{(roles.Length == 0 ? string.Empty : " " + roles)}` → `{Friendly(implementation.ResultType)}`");
-                if (SensitiveValueMetadata.IsSensitiveType(implementation.ResultType)) text.AppendLine("  - sensitive result: `true`");
-                foreach (RoleSlotDescriptor output in pattern.Roles.Where(x => x.Direction is RoleDirection.Output or RoleDirection.InputOutput && x.OutputProjection is not null))
-                    text.AppendLine($"  - output `{output.Name}` projection: `{Projection(output.OutputProjection)}`");
-                if (implementation.Qualifiers.Count > 0) text.AppendLine($"  - qualifiers: {string.Join(", ", implementation.Qualifiers.Select(x => $"`{x}`"))}");
-                if (implementation.Capabilities.Count > 0) text.AppendLine($"  - capabilities: {string.Join(", ", implementation.Capabilities.Select(x => $"`{x}`"))}");
-                if (implementation.Traits.Count > 0) text.AppendLine($"  - traits: {string.Join(", ", implementation.Traits.Select(x => $"`{x}`"))}");
-            }
+                foreach (SentencePattern pattern in implementation.Patterns)
+                {
+                    string roles = string.Join(" ", pattern.Roles.OrderBy(x => x.Position).Select(FormatRole).Where(x => x.Length > 0));
+                    text.AppendLine($"- `{verb.Key}{(roles.Length == 0 ? string.Empty : " " + roles)}` → `{Friendly(implementation.ResultType)}`");
+                    if (SensitiveValueMetadata.IsSensitiveType(implementation.ResultType)) text.AppendLine("  - sensitive result: `true`");
+                    foreach (RoleSlotDescriptor output in pattern.Roles.Where(x => x.Direction is RoleDirection.Output or RoleDirection.InputOutput && x.OutputProjection is not null))
+                        text.AppendLine($"  - output `{output.Name}` projection: `{Projection(output.OutputProjection)}`");
+                    if (implementation.Qualifiers.Count > 0) text.AppendLine($"  - qualifiers: {string.Join(", ", implementation.Qualifiers.Select(x => $"`{x}`"))}");
+                    if (implementation.Capabilities.Count > 0) text.AppendLine($"  - capabilities: {string.Join(", ", implementation.Capabilities.Select(x => $"`{x}`"))}");
+                    if (implementation.Traits.Count > 0) text.AppendLine($"  - traits: {string.Join(", ", implementation.Traits.Select(x => $"`{x}`"))}");
+                }
             text.AppendLine();
         }
 

@@ -1,8 +1,8 @@
+using FluNET.Classic.Core;
+using FluNET.Classic.Syntax;
 using System.Collections;
 using System.Globalization;
 using System.Reflection;
-using FluNET.Classic.Core;
-using FluNET.Classic.Syntax;
 
 namespace FluNET.Classic.Binding;
 
@@ -198,11 +198,11 @@ public sealed class SemanticBinder
         QualifierDescriptor? qualifier = null; if (sentence.Qualifier is not null && !_language.TryGetQualifier(sentence.Qualifier, out qualifier!)) { _diagnostics.Add(new("FLU-BIND-002", $"Unknown qualifier '{sentence.Qualifier}'.", sentence.Span)); return null; }
         var candidates = new List<Candidate>(); var rejected = new List<string>();
         foreach (VerbImplementationDescriptor implementation in verb.Implementations)
-        foreach (SentencePattern pattern in implementation.Patterns)
-        {
-            if (!QualifierMatches(qualifier, implementation, pattern)) { rejected.Add($"{Signature(implementation, pattern)}: qualifier mismatch"); continue; }
-            CandidateResult attempt = TryCandidate(sentence, verb, implementation, pattern, symbols, pipelineType, qualifier); if (attempt.Candidate is not null) candidates.Add(attempt.Candidate); else rejected.Add($"{Signature(implementation, pattern)}: {attempt.Reason}");
-        }
+            foreach (SentencePattern pattern in implementation.Patterns)
+            {
+                if (!QualifierMatches(qualifier, implementation, pattern)) { rejected.Add($"{Signature(implementation, pattern)}: qualifier mismatch"); continue; }
+                CandidateResult attempt = TryCandidate(sentence, verb, implementation, pattern, symbols, pipelineType, qualifier); if (attempt.Candidate is not null) candidates.Add(attempt.Candidate); else rejected.Add($"{Signature(implementation, pattern)}: {attempt.Reason}");
+            }
         if (candidates.Count == 0) { _diagnostics.Add(new("FLU-BIND-010", $"No overload of {verb.Name} matches this sentence.", sentence.Span, rejected)); return null; }
         Candidate[] ordered = candidates.OrderBy(x => x.Cost).ThenByDescending(CandidateFit).ThenBy(x => x.Implementation.StableId, StringComparer.Ordinal).ThenBy(x => x.Pattern.StableId, StringComparer.Ordinal).ToArray();
         if (ordered.Length > 1 && ordered[0].Cost == ordered[1].Cost && CandidateFit(ordered[0]) == CandidateFit(ordered[1])) { _diagnostics.Add(new("FLU-BIND-011", $"Ambiguous overload for {verb.Name} at cost {ordered[0].Cost}.", sentence.Span, ordered.Where(x => x.Cost == ordered[0].Cost).Select(x => Signature(x.Implementation, x.Pattern)).ToArray())); return null; }
@@ -362,7 +362,8 @@ public sealed class SemanticBinder
     private BoundValue? BindCollectionSource(ExpressionNode? sourceExpression, SymbolScope symbols, Type? pipelineType, TextSpan span, string operation, string code)
     {
         if (sourceExpression is null) { if (pipelineType is null) { _diagnostics.Add(new(code, $"{operation} requires a source or pipeline value.", span)); return null; } return new BoundPipelineValue(pipelineType, span); }
-        if (!TryBindValue(sourceExpression, null, RoleDirection.Input, operation, null, symbols, out BoundValue? source, out _)) { _diagnostics.Add(new(code, $"{operation} source cannot be bound.", sourceExpression.Span)); return null; } return source;
+        if (!TryBindValue(sourceExpression, null, RoleDirection.Input, operation, null, symbols, out BoundValue? source, out _)) { _diagnostics.Add(new(code, $"{operation} source cannot be bound.", sourceExpression.Span)); return null; }
+        return source;
     }
     private BoundCheck BindCheck(CheckStageNode check, SymbolScope symbols) { BoundExpression condition = BindExpression(check.Condition, symbols, null); if (condition.Type != typeof(bool)) _diagnostics.Add(new("FLU-BIND-124", "CHECK IF condition must be BOOLEAN.", check.Condition.Span)); return new(condition, check.ResultAlias, check.Span); }
 
@@ -417,13 +418,21 @@ public sealed class SemanticBinder
 
     private BoundForEach? BindForEach(ForEachNode node, SymbolScope symbols)
     {
-        if (!TryBindValue(node.Source, null, RoleDirection.Input, "FOR EACH", null, symbols, out BoundValue? source, out _)) { _diagnostics.Add(new("FLU-BIND-140", "FOR EACH source cannot be bound.", node.Source.Span)); return null; } Type? element = ClrTypeShape.GetElementType(source!.Type); if (element is null) { _diagnostics.Add(new("FLU-BIND-141", $"FOR EACH requires a collection, got {source.Type.Name}.", node.Source.Span)); return null; } var child = new SymbolScope(symbols); if (!child.Define(node.Variable, element)) { _diagnostics.Add(new("FLU-BIND-142", $"Iterator '[{node.Variable}]' conflicts with an existing binding.", node.Span)); child.DefineLocal(node.Variable, element); } return new(node.Variable, source, element, node.Parallelism, BindBlock(node.Body, child), node.Span);
+        if (!TryBindValue(node.Source, null, RoleDirection.Input, "FOR EACH", null, symbols, out BoundValue? source, out _)) { _diagnostics.Add(new("FLU-BIND-140", "FOR EACH source cannot be bound.", node.Source.Span)); return null; }
+        Type? element = ClrTypeShape.GetElementType(source!.Type); if (element is null) { _diagnostics.Add(new("FLU-BIND-141", $"FOR EACH requires a collection, got {source.Type.Name}.", node.Source.Span)); return null; }
+        var child = new SymbolScope(symbols); if (!child.Define(node.Variable, element)) { _diagnostics.Add(new("FLU-BIND-142", $"Iterator '[{node.Variable}]' conflicts with an existing binding.", node.Span)); child.DefineLocal(node.Variable, element); }
+        return new(node.Variable, source, element, node.Parallelism, BindBlock(node.Body, child), node.Span);
     }
     private BoundBlock BindBlock(BlockNode block, SymbolScope symbols) => new(block.Statements.Select(x => BindStatement(x, symbols)).Where(x => x is not null).Cast<BoundStatement>().ToArray(), block.Span);
 
     private BoundExpression BindExpression(ExpressionNode expression, SymbolScope symbols, Type? itemType) => expression switch
     {
-        BinaryExpression binary => BindBinary(binary, symbols, itemType), BetweenExpression between => BindBetween(between, symbols, itemType), UnaryExpression unary => BindUnary(unary, symbols, itemType), PredicateExpression predicate => BindPredicate(predicate, symbols, itemType), PropertyExpression property when itemType is not null => BindItemPropertyPath(property, itemType), IdentifierExpression identifier when itemType is not null => BindItemPropertyPath(identifier, itemType),
+        BinaryExpression binary => BindBinary(binary, symbols, itemType),
+        BetweenExpression between => BindBetween(between, symbols, itemType),
+        UnaryExpression unary => BindUnary(unary, symbols, itemType),
+        PredicateExpression predicate => BindPredicate(predicate, symbols, itemType),
+        PropertyExpression property when itemType is not null => BindItemPropertyPath(property, itemType),
+        IdentifierExpression identifier when itemType is not null => BindItemPropertyPath(identifier, itemType),
         _ => TryBindValue(expression, null, RoleDirection.Input, "EXPRESSION", null, symbols, out BoundValue? value, out _) ? new BoundValueExpression(value!, expression.Span) : ErrorExpression(expression)
     };
 
@@ -540,7 +549,8 @@ public sealed class SemanticBinder
                 if (expected is not null && ResolveText(string.Join('.', PropertySegments(property)), expected, property.Span, verb, qualifier, roleName, ResolutionSourceKind.Identifier, out bound, out cost)) return true;
                 bound = null; cost = 0; return false;
             case InterpolatedStringExpression interpolation:
-                var parts = new List<BoundValue>(); foreach (ExpressionNode part in interpolation.Parts) { if (!TryBindValue(part, null, RoleDirection.Input, verb, qualifier, symbols, out BoundValue? partValue, out _)) { bound = null; cost = 0; return false; } parts.Add(partValue!); } bound = new BoundInterpolatedValue(parts, interpolation.Span); return ApplyExpected(ref bound, expected, interpolation.Span, out cost);
+                var parts = new List<BoundValue>(); foreach (ExpressionNode part in interpolation.Parts) { if (!TryBindValue(part, null, RoleDirection.Input, verb, qualifier, symbols, out BoundValue? partValue, out _)) { bound = null; cost = 0; return false; } parts.Add(partValue!); }
+                bound = new BoundInterpolatedValue(parts, interpolation.Span); return ApplyExpected(ref bound, expected, interpolation.Span, out cost);
             case LiteralExpression literal:
                 if (literal.Value is null)
                 {
@@ -553,9 +563,11 @@ public sealed class SemanticBinder
                 if (_conversions.TryConvert(literal.Value, expected, out ConversionResult? conversion)) { bound = new BoundConstantValue(conversion!.Value, expected, literal.Span, conversion.Kind, conversion.Cost); cost = conversion.Cost; return true; }
                 return ResolveText(literal.Value.ToString() ?? string.Empty, expected, literal.Span, verb, qualifier, roleName, ResolutionSourceKind.Literal, out bound, out cost);
             case ReferenceExpression reference:
-                if (expected is null) { bound = new BoundConstantValue(reference.Value, typeof(string), reference.Span); cost = 0; return true; } return ResolveText(reference.Value, expected, reference.Span, verb, qualifier, roleName, ResolutionSourceKind.Reference, out bound, out cost);
+                if (expected is null) { bound = new BoundConstantValue(reference.Value, typeof(string), reference.Span); cost = 0; return true; }
+                return ResolveText(reference.Value, expected, reference.Span, verb, qualifier, roleName, ResolutionSourceKind.Reference, out bound, out cost);
             case IdentifierExpression identifier:
-                if (expected is null) { bound = new BoundConstantValue(identifier.Name, typeof(string), identifier.Span); cost = 0; return true; } return ResolveText(identifier.Name, expected, identifier.Span, verb, qualifier, roleName, ResolutionSourceKind.Identifier, out bound, out cost);
+                if (expected is null) { bound = new BoundConstantValue(identifier.Name, typeof(string), identifier.Span); cost = 0; return true; }
+                return ResolveText(identifier.Name, expected, identifier.Span, verb, qualifier, roleName, ResolutionSourceKind.Identifier, out bound, out cost);
             default: bound = null; cost = 0; return false;
         }
     }
@@ -612,7 +624,8 @@ public sealed class SemanticBinder
             accessor = instance => ((FluRecord)instance).Get(propertyName);
             return true;
         }
-        PropertyInfo? property = type.GetProperty(propertyName, BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase); if (property is null) { propertyType = null; accessor = null; return false; } var instanceParameter = System.Linq.Expressions.Expression.Parameter(typeof(object), "instance"); var cast = System.Linq.Expressions.Expression.Convert(instanceParameter, type); var read = System.Linq.Expressions.Expression.Property(cast, property); accessor = System.Linq.Expressions.Expression.Lambda<Func<object, object?>>(System.Linq.Expressions.Expression.Convert(read, typeof(object)), instanceParameter).Compile(); propertyType = property.PropertyType; return true;
+        PropertyInfo? property = type.GetProperty(propertyName, BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase); if (property is null) { propertyType = null; accessor = null; return false; }
+        var instanceParameter = System.Linq.Expressions.Expression.Parameter(typeof(object), "instance"); var cast = System.Linq.Expressions.Expression.Convert(instanceParameter, type); var read = System.Linq.Expressions.Expression.Property(cast, property); accessor = System.Linq.Expressions.Expression.Lambda<Func<object, object?>>(System.Linq.Expressions.Expression.Convert(read, typeof(object)), instanceParameter).Compile(); propertyType = property.PropertyType; return true;
     }
     private static bool TryGetConstantDecimal(BoundExpression expression, out decimal value)
     {

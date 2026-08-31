@@ -1,6 +1,6 @@
+using FluNET.Classic.Core;
 using System.Net;
 using System.Net.Sockets;
-using FluNET.Classic.Core;
 
 namespace FluNET.Classic.Network;
 

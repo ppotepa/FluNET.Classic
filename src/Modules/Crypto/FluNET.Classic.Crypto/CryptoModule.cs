@@ -1,6 +1,5 @@
-using System.Security.Cryptography;
-using System.Text;
 using FluNET.Classic.Core;
+using System.Security.Cryptography;
 
 namespace FluNET.Classic.Crypto;
 

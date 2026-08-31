@@ -15,9 +15,9 @@ public static class ModuleGraphValidator
         }
 
         foreach (ILanguageModule module in source)
-        foreach (string dependency in module.Dependencies)
-            if (!byName.ContainsKey(dependency))
-                diagnostics.Add(new("FLU-LANG-030", $"Module '{module.Name}' requires missing module '{dependency}'.", LanguageDiagnosticSeverity.Error));
+            foreach (string dependency in module.Dependencies)
+                if (!byName.ContainsKey(dependency))
+                    diagnostics.Add(new("FLU-LANG-030", $"Module '{module.Name}' requires missing module '{dependency}'.", LanguageDiagnosticSeverity.Error));
 
         var state = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
         var path = new Stack<string>();

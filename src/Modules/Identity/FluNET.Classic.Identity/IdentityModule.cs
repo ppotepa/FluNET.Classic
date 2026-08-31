@@ -1,5 +1,5 @@
-using System.Security.Claims;
 using FluNET.Classic.Core;
+using System.Security.Claims;
 
 namespace FluNET.Classic.Identity;
 

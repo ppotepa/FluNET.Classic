@@ -1,4 +1,3 @@
-using FluNET.Classic.Cache;
 using FluNET.Classic.Core;
 
 namespace FluNET.Classic.Cache.Redis;

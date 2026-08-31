@@ -91,8 +91,8 @@ public sealed class LanguageSnapshot
     {
         var result = new Dictionary<string, T>(StringComparer.OrdinalIgnoreCase);
         foreach (T item in items)
-        foreach (string surface in surfaces(item))
-            result[surface] = item;
+            foreach (string surface in surfaces(item))
+                result[surface] = item;
         return result;
     }
 

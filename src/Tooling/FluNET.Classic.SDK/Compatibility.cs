@@ -29,7 +29,7 @@ public sealed class LanguageCompatibilityAnalyzer
         return new(changes.OrderByDescending(x => x.Severity).ThenBy(x => x.StableId, StringComparer.Ordinal).ToArray());
     }
 
-    private static void CompareMap<T>(IReadOnlyDictionary<string,T> previous, IReadOnlyDictionary<string,T> current, string kind, ICollection<LanguageCompatibilityChange> changes, Action<T,T,ICollection<LanguageCompatibilityChange>> compare)
+    private static void CompareMap<T>(IReadOnlyDictionary<string, T> previous, IReadOnlyDictionary<string, T> current, string kind, ICollection<LanguageCompatibilityChange> changes, Action<T, T, ICollection<LanguageCompatibilityChange>> compare)
     {
         foreach ((string id, T oldValue) in previous) { if (!current.TryGetValue(id, out T? newValue)) changes.Add(new(CompatibilitySeverity.Breaking, $"removed-{kind}", id, $"Removed {kind} '{id}'.")); else compare(oldValue, newValue, changes); }
         foreach (string id in current.Keys.Except(previous.Keys, StringComparer.Ordinal)) changes.Add(new(CompatibilitySeverity.Info, $"added-{kind}", id, $"Added {kind} '{id}'."));
@@ -99,7 +99,7 @@ public sealed class LanguageCompatibilityAnalyzer
     }
     private static void ComparePattern(SentencePattern oldValue, SentencePattern newValue, ICollection<LanguageCompatibilityChange> changes)
     {
-        Dictionary<string,RoleSlotDescriptor> oldRoles = oldValue.Roles.ToDictionary(x => x.StableId); Dictionary<string,RoleSlotDescriptor> newRoles = newValue.Roles.ToDictionary(x => x.StableId);
+        Dictionary<string, RoleSlotDescriptor> oldRoles = oldValue.Roles.ToDictionary(x => x.StableId); Dictionary<string, RoleSlotDescriptor> newRoles = newValue.Roles.ToDictionary(x => x.StableId);
         foreach ((string id, RoleSlotDescriptor oldRole) in oldRoles)
         {
             if (!newRoles.TryGetValue(id, out RoleSlotDescriptor? newRole)) { changes.Add(new(CompatibilitySeverity.Breaking, "removed-role", oldValue.StableId, $"Removed role '{oldRole.Name}'.")); continue; }

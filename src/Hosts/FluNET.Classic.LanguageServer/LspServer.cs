@@ -1,9 +1,9 @@
-using System.Text;
-using System.Text.Json;
-using System.Text.Json.Nodes;
 using FluNET.Classic.Core;
 using FluNET.Classic.Syntax;
 using FluNET.Classic.Tooling;
+using System.Text;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 
 namespace FluNET.Classic.LanguageServer;
 
@@ -23,10 +23,21 @@ public sealed class LspServer
                 switch (method)
                 {
                     case "initialize": await ReplyAsync(id, new { capabilities = new { textDocumentSync = 1, completionProvider = new { resolveProvider = false }, hoverProvider = true, documentFormattingProvider = true, documentSymbolProvider = true, definitionProvider = true, referencesProvider = true, renameProvider = true, signatureHelpProvider = new { triggerCharacters = new[] { " " } }, semanticTokensProvider = new { legend = new { tokenTypes = SemanticTokenTypes, tokenModifiers = Array.Empty<string>() }, full = true } }, serverInfo = new { name = "FluNET.Classic", version = "main" } }, cancellationToken).ConfigureAwait(false); break;
-                    case "initialized": break; case "shutdown": await ReplyAsync(id, null, cancellationToken).ConfigureAwait(false); break; case "exit": return;
-                    case "textDocument/didOpen": await DidOpen(parameters, cancellationToken).ConfigureAwait(false); break; case "textDocument/didChange": await DidChange(parameters, cancellationToken).ConfigureAwait(false); break; case "textDocument/didClose": await DidClose(parameters, cancellationToken).ConfigureAwait(false); break;
-                    case "textDocument/completion": await Completion(id, parameters, cancellationToken).ConfigureAwait(false); break; case "textDocument/hover": await Hover(id, parameters, cancellationToken).ConfigureAwait(false); break; case "textDocument/formatting": await Formatting(id, parameters, cancellationToken).ConfigureAwait(false); break;
-                    case "textDocument/semanticTokens/full": await SemanticTokens(id, parameters, cancellationToken).ConfigureAwait(false); break; case "textDocument/documentSymbol": await DocumentSymbols(id, parameters, cancellationToken).ConfigureAwait(false); break; case "textDocument/definition": await Definition(id, parameters, cancellationToken).ConfigureAwait(false); break; case "textDocument/references": await References(id, parameters, cancellationToken).ConfigureAwait(false); break; case "textDocument/rename": await Rename(id, parameters, cancellationToken).ConfigureAwait(false); break; case "textDocument/signatureHelp": await SignatureHelp(id, parameters, cancellationToken).ConfigureAwait(false); break;
+                    case "initialized": break;
+                    case "shutdown": await ReplyAsync(id, null, cancellationToken).ConfigureAwait(false); break;
+                    case "exit": return;
+                    case "textDocument/didOpen": await DidOpen(parameters, cancellationToken).ConfigureAwait(false); break;
+                    case "textDocument/didChange": await DidChange(parameters, cancellationToken).ConfigureAwait(false); break;
+                    case "textDocument/didClose": await DidClose(parameters, cancellationToken).ConfigureAwait(false); break;
+                    case "textDocument/completion": await Completion(id, parameters, cancellationToken).ConfigureAwait(false); break;
+                    case "textDocument/hover": await Hover(id, parameters, cancellationToken).ConfigureAwait(false); break;
+                    case "textDocument/formatting": await Formatting(id, parameters, cancellationToken).ConfigureAwait(false); break;
+                    case "textDocument/semanticTokens/full": await SemanticTokens(id, parameters, cancellationToken).ConfigureAwait(false); break;
+                    case "textDocument/documentSymbol": await DocumentSymbols(id, parameters, cancellationToken).ConfigureAwait(false); break;
+                    case "textDocument/definition": await Definition(id, parameters, cancellationToken).ConfigureAwait(false); break;
+                    case "textDocument/references": await References(id, parameters, cancellationToken).ConfigureAwait(false); break;
+                    case "textDocument/rename": await Rename(id, parameters, cancellationToken).ConfigureAwait(false); break;
+                    case "textDocument/signatureHelp": await SignatureHelp(id, parameters, cancellationToken).ConfigureAwait(false); break;
                     default: if (id is not null) await ErrorAsync(id, -32601, $"Method '{method}' is not supported.", cancellationToken).ConfigureAwait(false); break;
                 }
             }
@@ -61,7 +72,8 @@ public sealed class LspServer
     private async Task<JsonObject?> ReadMessageAsync(CancellationToken ct)
     {
         int? length = null; while (true) { string? line = await ReadHeaderLineAsync(ct).ConfigureAwait(false); if (line is null) return null; if (line.Length == 0) break; int colon = line.IndexOf(':'); if (colon <= 0) continue; if (line[..colon].Trim().Equals("Content-Length", StringComparison.OrdinalIgnoreCase) && int.TryParse(line[(colon + 1)..].Trim(), out int parsed)) length = parsed; }
-        if (length is null || length < 0) throw new InvalidDataException("Missing Content-Length header."); byte[] body = new byte[length.Value]; int read = 0; while (read < body.Length) { int count = await _input.ReadAsync(body.AsMemory(read), ct).ConfigureAwait(false); if (count == 0) return null; read += count; } return JsonNode.Parse(Encoding.UTF8.GetString(body)) as JsonObject;
+        if (length is null || length < 0) throw new InvalidDataException("Missing Content-Length header."); byte[] body = new byte[length.Value]; int read = 0; while (read < body.Length) { int count = await _input.ReadAsync(body.AsMemory(read), ct).ConfigureAwait(false); if (count == 0) return null; read += count; }
+        return JsonNode.Parse(Encoding.UTF8.GetString(body)) as JsonObject;
     }
     private async Task<string?> ReadHeaderLineAsync(CancellationToken ct) { var bytes = new List<byte>(); byte[] one = new byte[1]; while (true) { int read = await _input.ReadAsync(one, ct).ConfigureAwait(false); if (read == 0) return bytes.Count == 0 ? null : Encoding.ASCII.GetString(bytes.ToArray()); byte value = one[0]; if (value == (byte)'\n') { if (bytes.Count > 0 && bytes[^1] == (byte)'\r') bytes.RemoveAt(bytes.Count - 1); return Encoding.ASCII.GetString(bytes.ToArray()); } bytes.Add(value); } }
     private Task ReplyAsync(JsonNode? id, object? result, CancellationToken ct) => WriteAsync(new JsonObject { ["jsonrpc"] = "2.0", ["id"] = id?.DeepClone(), ["result"] = result is JsonNode node ? node.DeepClone() : JsonSerializer.SerializeToNode(result) }, ct);

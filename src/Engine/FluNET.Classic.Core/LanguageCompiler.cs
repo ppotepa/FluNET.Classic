@@ -265,11 +265,11 @@ public sealed class LanguageCompiler
     {
         var owners = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         foreach (VerbDescriptor verb in verbs)
-        foreach (string surface in new[] { verb.Name }.Concat(verb.Aliases))
-        {
-            if (owners.TryGetValue(surface, out string? existing) && !existing.Equals(verb.Name, StringComparison.OrdinalIgnoreCase)) diagnostics.Add(new("FLU-LANG-020", $"Verb surface '{surface}' belongs to both '{existing}' and '{verb.Name}'.", LanguageDiagnosticSeverity.Error));
-            else owners[surface] = verb.Name;
-        }
+            foreach (string surface in new[] { verb.Name }.Concat(verb.Aliases))
+            {
+                if (owners.TryGetValue(surface, out string? existing) && !existing.Equals(verb.Name, StringComparison.OrdinalIgnoreCase)) diagnostics.Add(new("FLU-LANG-020", $"Verb surface '{surface}' belongs to both '{existing}' and '{verb.Name}'.", LanguageDiagnosticSeverity.Error));
+                else owners[surface] = verb.Name;
+            }
     }
 
     private static void ValidatePatterns(IEnumerable<VerbImplementationDescriptor> implementations, ICollection<LanguageDiagnostic> diagnostics)
@@ -278,12 +278,12 @@ public sealed class LanguageCompiler
         {
             var owners = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             foreach (RoleSlotDescriptor role in pattern.Roles)
-            foreach (string surface in role.AllSurfaceNames)
-            {
-                if (ForbiddenRoleSurfaces.Contains(surface)) diagnostics.Add(new("FLU-LANG-021", $"Role surface '{surface}' in pattern '{pattern.StableId}' is reserved by language syntax.", LanguageDiagnosticSeverity.Error, pattern.Constructor.Constructor.DeclaringType));
-                if (owners.TryGetValue(surface, out string? existing) && !existing.Equals(role.Name, StringComparison.OrdinalIgnoreCase)) diagnostics.Add(new("FLU-LANG-022", $"Pattern '{pattern.StableId}' maps '{surface}' to both '{existing}' and '{role.Name}'.", LanguageDiagnosticSeverity.Error, pattern.Constructor.Constructor.DeclaringType));
-                else owners[surface] = role.Name;
-            }
+                foreach (string surface in role.AllSurfaceNames)
+                {
+                    if (ForbiddenRoleSurfaces.Contains(surface)) diagnostics.Add(new("FLU-LANG-021", $"Role surface '{surface}' in pattern '{pattern.StableId}' is reserved by language syntax.", LanguageDiagnosticSeverity.Error, pattern.Constructor.Constructor.DeclaringType));
+                    if (owners.TryGetValue(surface, out string? existing) && !existing.Equals(role.Name, StringComparison.OrdinalIgnoreCase)) diagnostics.Add(new("FLU-LANG-022", $"Pattern '{pattern.StableId}' maps '{surface}' to both '{existing}' and '{role.Name}'.", LanguageDiagnosticSeverity.Error, pattern.Constructor.Constructor.DeclaringType));
+                    else owners[surface] = role.Name;
+                }
         }
     }
 
@@ -303,11 +303,11 @@ public sealed class LanguageCompiler
     {
         var owners = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         foreach ((string name, IReadOnlyList<string> surfaces) in items)
-        foreach (string surface in surfaces)
-        {
-            if (owners.TryGetValue(surface, out string? owner) && !owner.Equals(name, StringComparison.OrdinalIgnoreCase)) diagnostics.Add(new("FLU-LANG-040", $"{kind} surface '{surface}' belongs to both '{owner}' and '{name}'.", LanguageDiagnosticSeverity.Error));
-            else owners[surface] = name;
-        }
+            foreach (string surface in surfaces)
+            {
+                if (owners.TryGetValue(surface, out string? owner) && !owner.Equals(name, StringComparison.OrdinalIgnoreCase)) diagnostics.Add(new("FLU-LANG-040", $"{kind} surface '{surface}' belongs to both '{owner}' and '{name}'.", LanguageDiagnosticSeverity.Error));
+                else owners[surface] = name;
+            }
     }
 
     private static void ValidateStableIds(IEnumerable<ModuleDescriptor> modules, IEnumerable<QualifierDescriptor> qualifiers, IEnumerable<VerbDescriptor> verbs, IEnumerable<PredicateDescriptor> predicates, IEnumerable<OperatorDescriptor> operators, IEnumerable<IntrinsicDescriptor> intrinsics, ICollection<LanguageDiagnostic> diagnostics)

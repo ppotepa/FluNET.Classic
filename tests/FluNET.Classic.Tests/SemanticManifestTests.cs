@@ -1,10 +1,10 @@
-using System.Text.Json;
 using FluNET.Classic.Core;
 using FluNET.Classic.Hosting;
 using FluNET.Classic.OutputProjectionFixture;
 using FluNET.Classic.SDK;
 using Microsoft.Extensions.DependencyInjection;
 using NUnit.Framework;
+using System.Text.Json;
 
 namespace FluNET.Classic.Tests;
 

@@ -214,22 +214,22 @@ public sealed class ClassicDocumentService
         HashSet<string> predicateWords,
         HashSet<string> operatorWords,
         HashSet<string> intrinsicWords) => token.Kind switch
-    {
-        TokenKind.Variable => "variable",
-        TokenKind.Reference => "reference",
-        TokenKind.String => "string",
-        TokenKind.Number => "number",
-        TokenKind.Operator => "operator",
-        TokenKind.Word when _language.TryGetVerb(token.Text, out _) => "verb",
-        TokenKind.Word when _language.TryGetQualifier(token.Text, out _) => "qualifier",
-        TokenKind.Word when roles.Contains(token.Text) => "role",
-        TokenKind.Word when predicateWords.Contains(token.Text) => "predicate",
-        TokenKind.Word when intrinsicWords.Contains(token.Text) => "intrinsic",
-        TokenKind.Word when operatorWords.Contains(token.Text) => "operator",
-        TokenKind.Word when _language.LiteralWords.Contains(token.Text) || _language.StructuralSyntax.Any(x => SplitSurface(x).Contains(token.Text, StringComparer.OrdinalIgnoreCase)) => "keyword",
-        TokenKind.Word => "identifier",
-        _ => "operator"
-    };
+        {
+            TokenKind.Variable => "variable",
+            TokenKind.Reference => "reference",
+            TokenKind.String => "string",
+            TokenKind.Number => "number",
+            TokenKind.Operator => "operator",
+            TokenKind.Word when _language.TryGetVerb(token.Text, out _) => "verb",
+            TokenKind.Word when _language.TryGetQualifier(token.Text, out _) => "qualifier",
+            TokenKind.Word when roles.Contains(token.Text) => "role",
+            TokenKind.Word when predicateWords.Contains(token.Text) => "predicate",
+            TokenKind.Word when intrinsicWords.Contains(token.Text) => "intrinsic",
+            TokenKind.Word when operatorWords.Contains(token.Text) => "operator",
+            TokenKind.Word when _language.LiteralWords.Contains(token.Text) || _language.StructuralSyntax.Any(x => SplitSurface(x).Contains(token.Text, StringComparer.OrdinalIgnoreCase)) => "keyword",
+            TokenKind.Word => "identifier",
+            _ => "operator"
+        };
 
     private static string Signature(VerbDescriptor verb, VerbImplementationDescriptor implementation, SentencePattern pattern)
     {

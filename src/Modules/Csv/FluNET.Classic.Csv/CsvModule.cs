@@ -1,5 +1,5 @@
-using System.Text;
 using FluNET.Classic.Core;
+using System.Text;
 
 namespace FluNET.Classic.Csv;
 

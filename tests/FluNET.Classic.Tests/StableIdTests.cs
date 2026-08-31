@@ -1,8 +1,8 @@
-using System.Reflection;
 using FluNET.Classic.Core;
 using FluNET.Classic.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 using NUnit.Framework;
+using System.Reflection;
 
 namespace FluNET.Classic.Tests;
 

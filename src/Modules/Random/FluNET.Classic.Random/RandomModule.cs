@@ -1,5 +1,5 @@
-using System.Security.Cryptography;
 using FluNET.Classic.Core;
+using System.Security.Cryptography;
 
 namespace FluNET.Classic.Random;
 

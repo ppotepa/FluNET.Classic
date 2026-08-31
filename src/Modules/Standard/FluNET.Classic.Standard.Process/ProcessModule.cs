@@ -1,5 +1,5 @@
-using System.Diagnostics;
 using FluNET.Classic.Core;
+using System.Diagnostics;
 
 namespace FluNET.Classic.Standard.Process;
 
@@ -59,7 +59,8 @@ public sealed class RunProcess : IVerb<ProcessResult>, IRun, IWhat<ProcessSpec>,
     internal static ProcessStartInfo BuildStartInfo(ProcessSpec spec, string? arguments, bool redirect)
     {
         var info = new ProcessStartInfo { FileName = spec.FileName, Arguments = arguments ?? spec.Arguments ?? string.Empty, UseShellExecute = false, RedirectStandardOutput = redirect, RedirectStandardError = redirect, CreateNoWindow = true };
-        if (spec.WorkingDirectory is not null) info.WorkingDirectory = spec.WorkingDirectory.FullName; if (spec.Environment is not null) foreach ((string key, string? value) in spec.Environment) { if (value is null) info.Environment.Remove(key); else info.Environment[key] = value; } return info;
+        if (spec.WorkingDirectory is not null) info.WorkingDirectory = spec.WorkingDirectory.FullName; if (spec.Environment is not null) foreach ((string key, string? value) in spec.Environment) { if (value is null) info.Environment.Remove(key); else info.Environment[key] = value; }
+        return info;
     }
 }
 

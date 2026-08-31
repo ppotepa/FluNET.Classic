@@ -224,7 +224,15 @@ public sealed class ValueConversionRegistry
     private static bool IsInteger(Type type) => Type.GetTypeCode(Normalize(type)) is TypeCode.Byte or TypeCode.SByte or TypeCode.Int16 or TypeCode.UInt16 or TypeCode.Int32 or TypeCode.UInt32 or TypeCode.Int64 or TypeCode.UInt64;
     private static (int Bits, bool Signed) IntegerShape(Type type) => Type.GetTypeCode(Normalize(type)) switch
     {
-        TypeCode.SByte => (8, true), TypeCode.Byte => (8, false), TypeCode.Int16 => (16, true), TypeCode.UInt16 => (16, false), TypeCode.Int32 => (32, true), TypeCode.UInt32 => (32, false), TypeCode.Int64 => (64, true), TypeCode.UInt64 => (64, false), _ => (0, false)
+        TypeCode.SByte => (8, true),
+        TypeCode.Byte => (8, false),
+        TypeCode.Int16 => (16, true),
+        TypeCode.UInt16 => (16, false),
+        TypeCode.Int32 => (32, true),
+        TypeCode.UInt32 => (32, false),
+        TypeCode.Int64 => (64, true),
+        TypeCode.UInt64 => (64, false),
+        _ => (0, false)
     };
     private static Type Normalize(Type type) => Nullable.GetUnderlyingType(type) ?? type;
     private static bool IsNumeric(Type type) => Type.GetTypeCode(Normalize(type)) is TypeCode.Byte or TypeCode.SByte or TypeCode.Int16 or TypeCode.UInt16 or TypeCode.Int32 or TypeCode.UInt32 or TypeCode.Int64 or TypeCode.UInt64 or TypeCode.Single or TypeCode.Double or TypeCode.Decimal;

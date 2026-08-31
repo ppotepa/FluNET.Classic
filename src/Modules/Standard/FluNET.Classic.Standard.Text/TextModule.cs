@@ -1,5 +1,5 @@
-using System.Text;
 using FluNET.Classic.Core;
+using System.Text;
 
 namespace FluNET.Classic.Standard.Text;
 
@@ -35,7 +35,12 @@ public sealed class TransformText : Transform<string, string, TextOperation>
     protected override ValueTask<string> TransformAsync(string what, TextOperation @using, CancellationToken cancellationToken) => ValueTask.FromResult(Apply(what, @using));
     internal static string Apply(string value, TextOperation operation) => operation switch
     {
-        TextOperation.UPPER => value.ToUpperInvariant(), TextOperation.LOWER => value.ToLowerInvariant(), TextOperation.TRIM => value.Trim(), TextOperation.BASE64 => Convert.ToBase64String(Encoding.UTF8.GetBytes(value)), TextOperation.FROMBASE64 => Encoding.UTF8.GetString(Convert.FromBase64String(value)), _ => throw new InvalidOperationException($"Unknown text transform '{operation}'.")
+        TextOperation.UPPER => value.ToUpperInvariant(),
+        TextOperation.LOWER => value.ToLowerInvariant(),
+        TextOperation.TRIM => value.Trim(),
+        TextOperation.BASE64 => Convert.ToBase64String(Encoding.UTF8.GetBytes(value)),
+        TextOperation.FROMBASE64 => Encoding.UTF8.GetString(Convert.FromBase64String(value)),
+        _ => throw new InvalidOperationException($"Unknown text transform '{operation}'.")
     };
 }
 

@@ -1,5 +1,5 @@
-using System.Text.Json.Nodes;
 using FluNET.Classic.Core;
+using System.Text.Json.Nodes;
 
 namespace FluNET.Classic.Standard.Json;
 

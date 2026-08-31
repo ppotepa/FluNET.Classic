@@ -1,5 +1,5 @@
-using System.IO.Compression;
 using FluNET.Classic.Core;
+using System.IO.Compression;
 
 namespace FluNET.Classic.Archive;
 
@@ -23,11 +23,11 @@ public sealed class CreateArchive : IVerb<ArchiveDocument>, ICreate, IFrom<FileI
         if (_format != CompressionFormat.ZIP) throw new NotSupportedException(_format.ToString());
         await using var output = new MemoryStream();
         using (var zip = new ZipArchive(output, ZipArchiveMode.Create, true))
-        foreach (FileInfo file in _files)
-        {
-            ZipArchiveEntry entry = zip.CreateEntry(file.Name, CompressionLevel.Optimal);
-            await using Stream target = entry.Open(); await using FileStream source = file.OpenRead(); await source.CopyToAsync(target, cancellationToken).ConfigureAwait(false);
-        }
+            foreach (FileInfo file in _files)
+            {
+                ZipArchiveEntry entry = zip.CreateEntry(file.Name, CompressionLevel.Optimal);
+                await using Stream target = entry.Open(); await using FileStream source = file.OpenRead(); await source.CopyToAsync(target, cancellationToken).ConfigureAwait(false);
+            }
         return new(output.ToArray(), _format);
     }
 }

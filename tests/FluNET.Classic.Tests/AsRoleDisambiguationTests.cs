@@ -1,7 +1,6 @@
 using FluNET.Classic.Hosting;
 using FluNET.Classic.OutputProjectionFixture;
 using FluNET.Classic.Runtime;
-using FluNET.Classic.Syntax;
 using Microsoft.Extensions.DependencyInjection;
 using NUnit.Framework;
 

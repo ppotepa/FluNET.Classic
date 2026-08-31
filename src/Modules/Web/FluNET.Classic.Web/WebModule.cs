@@ -1,5 +1,5 @@
-using System.Text.RegularExpressions;
 using FluNET.Classic.Core;
+using System.Text.RegularExpressions;
 
 namespace FluNET.Classic.Web;
 

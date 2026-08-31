@@ -1,4 +1,3 @@
-using System.Runtime.CompilerServices;
 using FluNET.Classic.Hosting;
 using FluNET.Classic.Runtime;
 using Microsoft.Extensions.DependencyInjection;

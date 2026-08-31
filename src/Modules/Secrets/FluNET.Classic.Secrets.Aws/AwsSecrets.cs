@@ -1,5 +1,4 @@
 using FluNET.Classic.Core;
-using FluNET.Classic.Secrets;
 
 namespace FluNET.Classic.Secrets.Aws;
 

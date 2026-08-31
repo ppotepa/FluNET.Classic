@@ -1,5 +1,5 @@
-using System.Globalization;
 using FluNET.Classic.Core;
+using System.Globalization;
 
 namespace FluNET.Classic.Syntax;
 
@@ -243,7 +243,7 @@ public sealed class ClassicParser
         {
             if (Current.Kind == TokenKind.Comma) { Advance(); SkipNewLines(); continue; }
             if (IsWord("INTO")) { Flush(); alias = ParseOptionalResultAlias(); break; }
-            
+
             if (Current.Kind == TokenKind.Word && surfaceRoles.Contains(Current.Text)) { Flush(); roleToken = Advance(); currentRole = roleToken.Text.ToUpperInvariant(); SkipNewLines(); continue; }
             if (currentRole is null) { _diagnostics.Add(new("FLU-SYN-003", $"Unexpected value '{Current.Text}' after {verbToken.Text}.", Current.Span)); Advance(); continue; }
             int before = _position; values.Add(ParseSentenceValue(surfaceRoles)); if (_position == before) Advance();

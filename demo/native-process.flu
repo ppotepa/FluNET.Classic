@@ -1,0 +1,21 @@
+SAY "Native process execution in FluNET.Classic".
+
+RUN {dotnet}
+    WITH ARGUMENTS "--version"
+    INTO [version].
+
+REQUIRE [version] SUCCEEDED.
+SAY "Installed .NET version:".
+SAY [version.Output].
+
+RUN {git}
+    WITH ARGUMENTS "status", "--short"
+    INTO [status].
+
+REQUIRE [status] SUCCEEDED.
+IF [status.Output] IS EMPTY, THEN
+    SAY "The working tree is clean.".
+OTHERWISE,
+    SAY "The working tree contains changes.".
+    SAY [status.Output].
+END IF.

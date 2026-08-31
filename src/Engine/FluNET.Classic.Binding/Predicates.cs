@@ -1,5 +1,5 @@
-using System.Collections;
 using FluNET.Classic.Core;
+using System.Collections;
 
 namespace FluNET.Classic.Binding;
 

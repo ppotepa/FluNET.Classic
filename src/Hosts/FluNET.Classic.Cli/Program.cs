@@ -1,8 +1,8 @@
-using System.Text.Json;
 using FluNET.Classic.Core;
 using FluNET.Classic.Hosting;
 using FluNET.Classic.Runtime;
 using Microsoft.Extensions.DependencyInjection;
+using System.Text.Json;
 
 var original = args.ToList();
 var arguments = new List<string>();
@@ -59,21 +59,21 @@ var json = new JsonSerializerOptions { WriteIndented = true };
 switch (command)
 {
     case "run":
-    {
-        string source = await ReadSource(rest, project);
-        RuntimeResult result = await engine.RunAsync(source);
-        foreach (RuntimeDiagnostic diagnostic in result.Diagnostics) Console.Error.WriteLine($"{diagnostic.Code}: {diagnostic.Message}");
-        if (result.Success && result.Result is not null) Console.WriteLine(Format(result.Result));
-        return result.Success ? 0 : 1;
-    }
+        {
+            string source = await ReadSource(rest, project);
+            RuntimeResult result = await engine.RunAsync(source);
+            foreach (RuntimeDiagnostic diagnostic in result.Diagnostics) Console.Error.WriteLine($"{diagnostic.Code}: {diagnostic.Message}");
+            if (result.Success && result.Result is not null) Console.WriteLine(Format(result.Result));
+            return result.Success ? 0 : 1;
+        }
     case "check":
-    {
-        var result = engine.Check(await ReadSource(rest, project));
-        foreach (var diagnostic in result.Parse.Diagnostics) Console.Error.WriteLine($"{diagnostic.Code}: {diagnostic.Message}");
-        foreach (var diagnostic in result.Bound?.Diagnostics ?? Array.Empty<FluNET.Classic.Binding.BindingDiagnostic>()) Console.Error.WriteLine($"{diagnostic.Code}: {diagnostic.Message}");
-        Console.WriteLine(result.Success ? "OK" : "FAILED");
-        return result.Success ? 0 : 1;
-    }
+        {
+            var result = engine.Check(await ReadSource(rest, project));
+            foreach (var diagnostic in result.Parse.Diagnostics) Console.Error.WriteLine($"{diagnostic.Code}: {diagnostic.Message}");
+            foreach (var diagnostic in result.Bound?.Diagnostics ?? Array.Empty<FluNET.Classic.Binding.BindingDiagnostic>()) Console.Error.WriteLine($"{diagnostic.Code}: {diagnostic.Message}");
+            Console.WriteLine(result.Success ? "OK" : "FAILED");
+            return result.Success ? 0 : 1;
+        }
     case "format": Console.WriteLine(engine.Format(await ReadSource(rest, project))); return 0;
     case "plan": Console.WriteLine(JsonSerializer.Serialize(engine.Plan(await ReadSource(rest, project)), json)); return 0;
     case "explain": Console.WriteLine(engine.Explain(await ReadSource(rest, project))); return 0;

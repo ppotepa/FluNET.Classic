@@ -1,5 +1,5 @@
-using System.Runtime.InteropServices;
 using FluNET.Classic.Core;
+using System.Runtime.InteropServices;
 
 namespace FluNET.Classic.Standard.OS;
 

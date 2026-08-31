@@ -1,8 +1,8 @@
+using FluNET.Classic.Binding;
+using FluNET.Classic.Core;
 using System.Collections;
 using System.Globalization;
 using System.Text.RegularExpressions;
-using FluNET.Classic.Binding;
-using FluNET.Classic.Core;
 
 namespace FluNET.Classic.Runtime;
 
@@ -23,7 +23,11 @@ public sealed class BoundExecutor
         state ??= new RuntimeState(); _trace.Clear(); _sequence = 0; var diagnostics = script.Diagnostics.Select(x => new RuntimeDiagnostic(x.Code, x.Message)).ToList(); if (diagnostics.Count > 0) return new(state, diagnostics, _trace.ToArray());
         foreach (string capability in CollectCapabilities(script).Distinct(StringComparer.OrdinalIgnoreCase)) if (!_capabilities.IsAllowed(capability)) diagnostics.Add(new("FLU-RUN-010", $"Capability '{capability}' is required by the program.")); if (diagnostics.Count > 0) return new(state, diagnostics, _trace.ToArray());
         try { foreach (BoundStatement statement in script.Statements) await ExecuteStatement(statement, state, cancellationToken).ConfigureAwait(false); }
-        catch (OperationCanceledException) { diagnostics.Add(new("FLU-RUN-020", "Execution was cancelled or timed out.")); } catch (UnauthorizedAccessException ex) { diagnostics.Add(new("FLU-RUN-010", ex.Message)); } catch (InvalidCastException ex) { diagnostics.Add(new("FLU-RUN-030", ex.Message)); } catch (KeyNotFoundException ex) { diagnostics.Add(new("FLU-RUN-031", ex.Message)); } catch (Exception ex) { diagnostics.Add(new("FLU-RUN-001", ex.Message)); }
+        catch (OperationCanceledException) { diagnostics.Add(new("FLU-RUN-020", "Execution was cancelled or timed out.")); }
+        catch (UnauthorizedAccessException ex) { diagnostics.Add(new("FLU-RUN-010", ex.Message)); }
+        catch (InvalidCastException ex) { diagnostics.Add(new("FLU-RUN-030", ex.Message)); }
+        catch (KeyNotFoundException ex) { diagnostics.Add(new("FLU-RUN-031", ex.Message)); }
+        catch (Exception ex) { diagnostics.Add(new("FLU-RUN-001", ex.Message)); }
         return new(state, diagnostics, _trace.ToArray());
     }
     private async ValueTask ExecuteStatement(BoundStatement statement, RuntimeState state, CancellationToken ct)
@@ -46,41 +50,41 @@ public sealed class BoundExecutor
                 }
                 break;
             case BoundIf conditional:
-            {
-                var promoted = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase);
-                using (state.PushScope())
                 {
-                    if (ToBoolean(EvaluateExpression(conditional.Condition, state, null))) await ExecuteBlock(conditional.Then, state, ct).ConfigureAwait(false);
-                    else if (conditional.Else is not null) await ExecuteBlock(conditional.Else, state, ct).ConfigureAwait(false);
-                    foreach (BoundFlowVariable variable in conditional.PromotedVariables)
-                        if (state.TryGetVariable(variable.Name, out object? value)) promoted[variable.Name] = value;
-                }
-                foreach ((string name, object? value) in promoted) state.SetVariable(name, value);
-                state.PipelineValue = null;
-                break;
-            }
-            case BoundForEach loop:
-            {
-                object? source = Materialize(loop.Source, state);
-                if (loop.Parallelism is not null)
-                {
-                    List<object?> items = await MaterializeSequenceAsync(source, "FOR EACH", ct).ConfigureAwait(false);
-                    await ExecuteParallelLoop(loop, state, items, ct).ConfigureAwait(false);
+                    var promoted = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase);
+                    using (state.PushScope())
+                    {
+                        if (ToBoolean(EvaluateExpression(conditional.Condition, state, null))) await ExecuteBlock(conditional.Then, state, ct).ConfigureAwait(false);
+                        else if (conditional.Else is not null) await ExecuteBlock(conditional.Else, state, ct).ConfigureAwait(false);
+                        foreach (BoundFlowVariable variable in conditional.PromotedVariables)
+                            if (state.TryGetVariable(variable.Name, out object? value)) promoted[variable.Name] = value;
+                    }
+                    foreach ((string name, object? value) in promoted) state.SetVariable(name, value);
                     state.PipelineValue = null;
                     break;
                 }
-                if (source is IEnumerable enumerable)
+            case BoundForEach loop:
                 {
-                    foreach (object? item in enumerable) await ExecuteLoopItem(loop, state, item, ct).ConfigureAwait(false);
+                    object? source = Materialize(loop.Source, state);
+                    if (loop.Parallelism is not null)
+                    {
+                        List<object?> items = await MaterializeSequenceAsync(source, "FOR EACH", ct).ConfigureAwait(false);
+                        await ExecuteParallelLoop(loop, state, items, ct).ConfigureAwait(false);
+                        state.PipelineValue = null;
+                        break;
+                    }
+                    if (source is IEnumerable enumerable)
+                    {
+                        foreach (object? item in enumerable) await ExecuteLoopItem(loop, state, item, ct).ConfigureAwait(false);
+                    }
+                    else if (source is not null && AsyncSequenceAdapter.CanEnumerate(source))
+                    {
+                        await AsyncSequenceAdapter.ForEachAsync(source, item => ExecuteLoopItem(loop, state, item, ct), ct).ConfigureAwait(false);
+                    }
+                    else throw new InvalidOperationException("FOR EACH source is not enumerable.");
+                    state.PipelineValue = null;
+                    break;
                 }
-                else if (source is not null && AsyncSequenceAdapter.CanEnumerate(source))
-                {
-                    await AsyncSequenceAdapter.ForEachAsync(source, item => ExecuteLoopItem(loop, state, item, ct), ct).ConfigureAwait(false);
-                }
-                else throw new InvalidOperationException("FOR EACH source is not enumerable.");
-                state.PipelineValue = null;
-                break;
-            }
             case BoundTry @try:
                 try { await ExecuteBlock(@try.Body, state, ct).ConfigureAwait(false); }
                 catch (Exception exception) when (@try.Failure is not null && exception is not OperationCanceledException && exception is not ReturnSignal)

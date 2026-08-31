@@ -1,5 +1,4 @@
 using FluNET.Classic.Core;
-using FluNET.Classic.Sql;
 
 namespace FluNET.Classic.Sql.Sqlite;
 

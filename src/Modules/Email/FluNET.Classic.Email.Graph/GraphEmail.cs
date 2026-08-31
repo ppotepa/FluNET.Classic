@@ -1,5 +1,4 @@
 using FluNET.Classic.Core;
-using FluNET.Classic.Email;
 
 namespace FluNET.Classic.Email.Graph;
 

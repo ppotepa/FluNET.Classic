@@ -1,5 +1,5 @@
-using System.Xml.Linq;
 using NUnit.Framework;
+using System.Xml.Linq;
 
 namespace FluNET.Classic.Tests;
 
