@@ -6,7 +6,7 @@
 
 `ClassicDocumentService` provides the semantic editor surface, including:
 
-- syntax and binding diagnostics with source spans,
+- syntax and binding diagnostics with source spans and explicit severity,
 - canonical formatting,
 - non-executing execution plans,
 - prefix/context-aware completion based on the current verb and sentence patterns,
@@ -24,11 +24,21 @@ HoverInfo? hover = documents.Hover(source, cursorPosition);
 ExecutionPlan plan = documents.Plan(source, knownVariableTypes);
 ```
 
-Tooling behavior should remain downstream of the production compiler. Diagnostics, overload selection, capabilities, predicates, formatting, types, and execution planning must have the same meaning in an editor that they have in `fluc check`, `fluc format`, and `fluc plan`.
+Tooling behavior remains downstream of the production compiler. Diagnostics, overload selection, capabilities, predicates, formatting, types, and execution planning must have the same meaning in an editor that they have in `fluc check`, `fluc format`, and `fluc plan`.
+
+## Diagnostics
+
+`DocumentDiagnostic` carries a `LanguageDiagnosticSeverity` (`Info`, `Warning`, or `Error`) in addition to source, code, message, and span.
+
+- Syntax diagnostics are surfaced as errors.
+- Binding diagnostics preserve their binder severity; warnings and informational diagnostics are not discarded.
+- LSP publishing maps `Error`/`Warning`/`Info` to protocol severity 1/2/3 instead of inferring severity from the diagnostic source string.
+
+This keeps CLI/compiler semantics and editor presentation aligned while still allowing the binder/SDK to introduce non-blocking diagnostics.
 
 ## Language-server host
 
-The repository already contains `src/Hosts/FluNET.Classic.LanguageServer`; it is not a future placeholder. The host is a thin JSON-RPC/LSP adapter over `ClassicDocumentService`.
+The repository contains `src/Hosts/FluNET.Classic.LanguageServer`; it is a thin JSON-RPC/LSP adapter over `ClassicDocumentService`, not a second language implementation.
 
 The current server advertises and implements:
 
@@ -44,6 +54,12 @@ The current server advertises and implements:
 - signature help.
 
 Protocol-specific request/response translation belongs in the language-server host. Language reasoning belongs in `FluNET.Classic.Tooling` and the compiler layers below it.
+
+## Canonical surface rule
+
+Completion, hover, signature help, semantic tokens, and formatting should expose the same canonical surface validated by `LanguageRoleNames` / `LanguageSurfaceValidation` and represented by `LanguageSnapshot`. Tooling must not independently re-introduce aliases or legacy result-binding forms that the compiler no longer accepts.
+
+The canonical formatter is also treated as an executable contract: module validation and language-surface tests parse, format, parse again, and require the second formatting pass to be identical.
 
 ## Architecture rule
 

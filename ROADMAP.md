@@ -5,19 +5,19 @@ This roadmap defines the active development direction for FluNET.Classic. It is 
 ## Baseline
 
 - **Active package line:** `0.2.x`
-- **Current package version:** `0.2.0-alpha.1`
+- **Current package version:** `0.2.0-alpha.2`
 - **Baseline date:** 2026-08-31
 - **Development branch:** `main`
 - **Language contract:** `flunet.classic`
 - **Runtime target:** .NET 8
 
-`0.2.0-alpha.1` is the first explicitly documented project baseline. It describes the current package state; it is not an attempt to reconstruct historical releases that were never published as GitHub Releases.
+`0.2.0-alpha.1` is the first explicitly documented project baseline. It describes the package state from which the versioned roadmap started; it is not an attempt to reconstruct historical releases that were never published as GitHub Releases.
 
 FluNET.Classic currently has one language contract and one compiler/runtime path. Package versions follow semantic-versioning conventions, but while the project remains pre-1.0, language and SDK improvements may be breaking when that produces a cleaner long-term contract.
 
 ## Status legend
 
-- `[x]` landed on `main` and represented in the changelog baseline.
+- `[x]` landed on `main` and represented in the changelog.
 - `[ ]` planned for the milestone.
 - Milestone contents may be refined as implementation exposes better abstractions, but milestone intent should remain stable.
 
@@ -40,16 +40,18 @@ FluNET.Classic currently has one language contract and one compiler/runtime path
 
 Goal: make the sentence surface internally predictable enough that new vocabulary follows conventions instead of creating exceptions.
 
-- [ ] Audit verb/qualifier/role combinations for natural and context-appropriate wording.
-- [ ] Normalize transformation semantics so `TO` means target representation/state, `USING` means method/strategy, and `INTO` remains result binding only.
-- [ ] Normalize `CHECK IF`, `IF`, and predicate wording around one expression model and one set of boolean semantics.
-- [ ] Remove accidental aliases, ambiguous role spellings, and parser-level special cases that can be expressed through typed metadata.
-- [ ] Prefer typed CLR resource/value types wherever raw strings currently hide domain meaning.
-- [ ] Complete canonical formatter round-trip coverage for every language construct.
-- [ ] Make syntax and binding diagnostics consistent in code, severity, span quality, and terminology.
-- [ ] Ensure language documentation examples are executable against the production grammar.
+- [x] Audit verb/qualifier/role combinations for natural and context-appropriate wording.
+- [x] Normalize transformation semantics so `TO` means target representation/state, `USING` means method/strategy, and `INTO` remains result binding only.
+- [x] Normalize `CHECK IF`, `IF`, and predicate wording around one expression model and one set of boolean semantics.
+- [x] Remove accidental aliases, ambiguous role spellings, and parser-level special cases that can be expressed through typed metadata.
+- [x] Prefer typed CLR resource/value types wherever raw strings currently hide domain meaning.
+- [x] Complete canonical formatter round-trip coverage for every structural language construct.
+- [x] Make syntax and binding diagnostics consistent in code, severity, span propagation, and terminology across tooling/LSP boundaries.
+- [x] Ensure maintained language documentation examples are executable against the production grammar.
 
-Exit criterion: adding an ordinary sentence pattern should not require grammar changes unless the language gains a genuinely new structural construct.
+Completed on 2026-08-31. The milestone introduced the canonical `LanguageRoleNames` catalog, compiler-level `LanguageSurfaceValidation`, SDK quality checks, canonical standard Files/Storage role surfaces, typed HTTP endpoints, production-grammar documentation fixtures, structural formatter round-trip coverage, and end-to-end diagnostic severity propagation.
+
+Exit criterion: **met**. Ordinary sentence patterns are expressed through canonical typed role metadata; grammar changes are reserved for genuinely new structural constructs.
 
 ## 0.2.0-alpha.3 — standard semantics and runtime completeness
 
@@ -114,7 +116,7 @@ The 0.2 release is ready when all of the following are true:
 1. `ROADMAP.md` is the source of truth for planned milestone scope.
 2. `CHANGELOG.md` is the source of truth for completed user-visible changes.
 3. A roadmap checkbox is completed only after the implementation is on `main`.
-4. Every meaningful user-visible addition, behavior change, fix, or removal should be added under `Unreleased` in the changelog when it lands.
+4. Every meaningful user-visible addition, behavior change, fix, or removal should be added under `Unreleased` in the changelog when it lands, then moved into the version section when that package version is established.
 5. Version numbers come from `Directory.Build.props`; documentation must not invent a second version source.
 6. Package/release versions and the single `flunet.classic` language-contract identity must not be conflated.
 7. Do not create separate progress documents for individual batches when the information belongs in this roadmap, the changelog, code comments, tests, or Git history.

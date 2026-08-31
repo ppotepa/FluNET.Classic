@@ -23,22 +23,31 @@ public sealed class GetMySource : Get<string, MySource>
 }
 ```
 
-Use semantic roles such as `[What]`, `[From]`, `[To]`, `[Using]`, `[With]`, `[As]`, `[In]`, `[At]`, `[For]`, and `[Until]`. Their stable semantic identity is more important than any one surface spelling.
+Use the canonical role attributes `[What]`, `[From]`, `[To]`, `[Using]`, `[With]`, `[As]`, `[In]`, `[At]`, `[For]`, `[Until]`, and `[By]`. They map to the shared `LanguageRoleNames` catalog used by the compiler and parser.
+
+`INTO` and `THEN` are not CLR roles. `INTO` belongs to language-level result binding and `THEN` belongs to structural pipeline/control-flow syntax.
 
 ## Contextual surface aliases
 
-A role can expose a contextual surface alias without changing its semantic role:
+A role can expose a contextual surface alias without changing its semantic role when the alternate wording is genuinely natural for that specific pattern:
 
 ```csharp
-public ListFiles([In, RoleAlias("FROM")] DirectoryInfo directory)
+public sealed record RemoteEndpoint(string Value);
+
+public sealed class ReadRemote
 {
-    // ...
+    public ReadRemote([From, RoleAlias("AT")] RemoteEndpoint endpoint)
+    {
+        // FROM is the stable semantic role; AT is a deliberate pattern-scoped surface.
+    }
 }
 ```
 
 The parser preserves the source spelling and the binder resolves it against the candidate sentence pattern. Aliases are therefore pattern-scoped rather than global synonyms.
 
-`INTO` is reserved for language-level result binding and must not be reused as an ordinary role alias. Structural words such as `THEN`, `DO`, and `END` must likewise remain structural.
+Do not add aliases merely to make every contextual word interchangeable. In particular, avoid adding `FROM` to an `IN` container or `AT` location just to accept more spellings. The standard Files/Storage modules intentionally use `LIST ... IN ...` and `DELETE ... AT ...` as their canonical surfaces.
+
+Structural-only words such as `INTO`, `THEN`, `ELSE`, `IF`, `WHERE`, `DO`, and `END` must never be reused as role names or aliases. `LanguageSurfaceValidation` enforces these constraints during language compilation.
 
 ## Transformation semantics
 
@@ -51,12 +60,13 @@ TRANSFORM [text] TO BINARY USING UTF8 INTO [bytes].
 - `TO` describes the target representation or state.
 - `USING` describes the method, strategy, algorithm, or encoding.
 - `INTO` names the produced result and is not part of the CLR sentence constructor.
+- `AS` is not a `TRANSFORM` role.
 
-Use the existing transformation abstractions (`TransformTo<...>`, `TransformToUsing<...>`, or their current equivalents) rather than inventing parser-specific syntax for a domain conversion.
+Use the existing transformation abstractions (`Transform<...>`, `TransformTo<...>`, `TransformToUsing<...>`, or their current equivalents) rather than inventing parser-specific syntax for a domain conversion. The compiler and SDK reject transformation patterns that use `AS` or model `TO`/`USING` as output slots.
 
 ## Prefer typed domain values
 
-Use semantic CLR types when a value carries domain meaning. `FilePattern`, `FileMetadata`, HTTP resource types, process descriptors, and similar values let overload resolution, diagnostics, planning, and tooling reason about the program more precisely than raw strings can.
+Use semantic CLR types when a value carries domain meaning. `FilePattern`, `FileMetadata`, `HttpEndpoint`, HTTP response/status/header types, process descriptors, storage keys/containers, and similar values let overload resolution, diagnostics, planning, and tooling reason about the program more precisely than raw strings can.
 
 A useful extension usually consists of some combination of:
 
@@ -72,7 +82,7 @@ New global grammar syntax should be exceptional and reserved for genuinely struc
 
 ## Modules and discovery
 
-Create an `ILanguageModule`/`LanguageModule` and expose the assembly. Modules can declare dependencies, qualifiers, sentence providers, and other language metadata required by the host.
+Create an `ILanguageModule`/`LanguageModule` and expose the assembly. Modules can declare dependencies, qualifiers, sentence providers, predicates/operators/intrinsics, and other language metadata required by the host.
 
 `ModuleDiscovery.Discover(...)` can discover eligible module types from assemblies loaded from packages or host plugins. The module boundary should remain independent from CLI, editor, or host-specific behavior.
 
@@ -95,14 +105,18 @@ Assert.True(result.Success);
 The harness validates, as applicable:
 
 - module dependency composition,
-- language compilation,
+- language compilation and canonical role-surface validation,
 - stable metadata identifiers,
 - pattern-scoped surface-role collisions,
+- module-quality rules with explicit `Info` / `Warning` / `Error` severity,
 - example parsing and semantic binding,
-- canonical formatter round trips,
+- binding diagnostic severity,
+- canonical formatter parse/format round trips and formatter idempotence,
 - custom resolver/converter/predicate composition used by examples.
 
 Module examples should be executable language contracts rather than illustrative pseudo-syntax.
+
+`ModuleQualityAnalyzer` complements hard compiler validation. Compiler-invalid role/structural/transform surfaces fail language compilation; quality analysis can additionally report intentional cross-role aliases and execution/capability/streaming design concerns without turning every observation into an error.
 
 ## Generated artifacts
 
@@ -128,4 +142,4 @@ The CLI can run with deny-by-default capability selection and explicit `--allow`
 
 `FluNET.Classic.SDK` is the intended module-authoring boundary. Do not require module authors to depend on CLI, language-server, or host implementation projects. During the pre-1.0 `0.2.x` line the SDK may still be refined, but each change should move the public surface toward a smaller and more intentional long-term contract.
 
-When adding a new extension point, prefer one that can be validated, introspected, planned, and documented from the same metadata the runtime consumes.
+When adding a new extension point, prefer one that can be validated, introspected, planned, formatted, and documented from the same metadata the runtime consumes. If an ordinary new sentence needs a parser branch rather than canonical role metadata, first treat that as a design smell; grammar changes should represent genuinely new structural constructs.

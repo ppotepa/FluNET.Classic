@@ -6,21 +6,48 @@ The format follows the spirit of [Keep a Changelog](https://keepachangelog.com/e
 
 ## [Unreleased]
 
+No user-visible changes are recorded after `0.2.0-alpha.2` yet.
+
+## [0.2.0-alpha.2] - 2026-08-31
+
+`0.2.0-alpha.2` is the language-surface-consistency milestone. It turns the sentence conventions established during early `0.2` development into explicit compiler, SDK, tooling, test, and documentation contracts.
+
 ### Added
 
-- Project roadmap with versioned milestones, exit criteria, and progress-tracking rules.
-- Documentation index defining the purpose and ownership of each maintained document.
+- Canonical `LanguageRoleNames` catalog for `WHAT`, `FROM`, `TO`, `USING`, `WITH`, `AS`, `IN`, `AT`, `FOR`, `UNTIL`, and `BY`.
+- Shared `LanguageSurfaceValidation` used by language compilation to reject non-canonical roles, structural role surfaces, and invalid transformation role shapes.
+- SDK module-quality checks for canonical roles, structural-word misuse, cross-role aliases, transformation semantics, execution traits, capabilities, and streaming shape.
+- Formatter idempotence checks in the module test harness using the compiled `LanguageSnapshot`.
+- Structural language-surface regression coverage across pipelines, conditions, loops, failure handling, definitions, records, and collection intrinsics.
+- Executable documentation fixture at `docs/examples/language-surface.flu`, copied into the test output and executed through the production engine.
+- Project roadmap, changelog baseline, and documentation index introduced after the `alpha.1` baseline.
 
 ### Changed
 
-- Reworked the root README into a concise project entry point instead of duplicating the language, architecture, SDK, and tooling guides.
-- Consolidated extension-authoring guidance into `docs/SDK.md`.
-- Updated tooling documentation to describe the language-server host that already exists in the repository.
-- Clarified that package versions and the single `flunet.classic` language-contract identity are separate concepts.
+- `THEN` is structural syntax only; the obsolete CLR `ThenAttribute`/`IThen<T>` semantic-role surface was removed.
+- The parser now derives generic script-call roles from the canonical role catalog instead of maintaining a second hard-coded role list.
+- Script definitions reject role names outside the canonical contextual vocabulary.
+- `CHECK IF` and `FILTER ... WHERE` no longer carry the old parser stop-word accommodation for `AS` result binding; `INTO` is the only result-binding form.
+- `TRANSFORM` conventions are enforced: `TO` selects target representation/state, `USING` selects method/strategy, and produced values are bound with language-level `INTO`.
+- Standard Files and Storage sentences use one canonical location/container spelling: `LIST ... IN ...` and `DELETE ... AT ...` rather than accepting accidental `FROM` aliases.
+- Standard HTTP operations use typed `HttpEndpoint` values instead of raw `Uri` parameters for JSON GET, download, and POST endpoint semantics.
+- HTTP JSON GET explicitly declares its network capability after adopting the typed endpoint value.
+- Tooling diagnostics now carry explicit `Info`, `Warning`, and `Error` severity; binding warnings/infos are preserved instead of being dropped.
+- The language server maps document diagnostic severity to LSP severity rather than guessing severity from the diagnostic source.
+- Module example validation now preserves binding severity and checks parse/format idempotence with the production language snapshot.
+- Root README, SDK, language, and tooling documentation are aligned to the canonical surface instead of duplicating or describing superseded behavior.
 
 ### Removed
 
-- Redundant `docs/EXTENDING.md`; its unique guidance now lives in `docs/SDK.md`.
+- Accidental `FROM` aliases from standard Files/Storage `IN` and `AT` roles.
+- Redundant `docs/EXTENDING.md`; its unique module-authoring material is consolidated into `docs/SDK.md`.
+- Legacy notion of `THEN` as a CLR role.
+
+### Notes
+
+- `Directory.Build.props` is the package-version source and defines `0.2.0-alpha.2` for this milestone.
+- The language-contract identity remains `flunet.classic`; the package-version change does not introduce a parallel grammar/runtime mode.
+- GitHub Actions runs during this work did not receive a hosted runner (`runner_id: 0`, no workflow steps executed), so those failed/cancelled run records are infrastructure allocation results rather than test failures.
 
 ## [0.2.0-alpha.1] - 2026-08-31
 
@@ -44,7 +71,7 @@ This entry establishes the first explicit changelog baseline for the existing `0
 
 ### Notes
 
-- `Directory.Build.props` is the canonical package-version source and currently defines `0.2.0-alpha.1`.
+- `Directory.Build.props` was the canonical package-version source for this baseline and defined `0.2.0-alpha.1`.
 - `main` is the active development line.
 - The project has one language-contract identity, `flunet.classic`; package releases do not select parallel grammar versions.
 - Earlier development remains available in Git history rather than being reconstructed into artificial historical changelog entries.

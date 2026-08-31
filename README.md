@@ -2,7 +2,7 @@
 
 FluNET.Classic is a typed, sentence-oriented scripting language and runtime for .NET. Its controlled natural-language surface is designed to stay readable while binding deterministically to typed CLR semantics.
 
-**Current development package version:** `0.2.0-alpha.1`
+**Current development package version:** `0.2.0-alpha.2`
 
 FluNET.Classic is pre-1.0 and evolves directly on `main`. The project has one language contract (`flunet.classic`), one compiler/runtime path, and no compatibility-mode or legacy parser branch. Package versions describe releases; they do not select different language contracts.
 
@@ -67,7 +67,9 @@ ELSE
 END IF.
 ```
 
-`INTO` binds results. Contextual roles such as `FROM`, `TO`, `USING`, `WITH`, `AS`, `IN`, `AT`, `FOR`, and `UNTIL` express sentence semantics. `, THEN` carries a typed pipeline result forward, and `.` terminates every complete statement.
+`INTO` binds results. Canonical contextual roles are `WHAT`, `FROM`, `TO`, `USING`, `WITH`, `AS`, `IN`, `AT`, `FOR`, `UNTIL`, and `BY`. `, THEN` carries a typed pipeline result forward, and `.` terminates every complete statement. `THEN` is structural syntax, not a CLR sentence role.
+
+The `0.2.0-alpha.2` surface makes these distinctions explicit: `TO` is a target representation/state, `USING` is a method/strategy, `INTO` is result binding only, and cross-role aliases are accepted only when a sentence pattern deliberately exposes them.
 
 The authoritative grammar is implemented by `ClassicGrammar` in `src/Engine/FluNET.Classic.Syntax`; the complete human-oriented language guide is in [`docs/LANGUAGE.md`](docs/LANGUAGE.md).
 
@@ -91,6 +93,7 @@ The dependency direction is intentionally one-way: Engine is independent of modu
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — compiler/runtime architecture and repository boundaries.
 - [`docs/SDK.md`](docs/SDK.md) — module authoring, extension points, validation, and generated artifacts.
 - [`docs/TOOLING.md`](docs/TOOLING.md) — document services and the current language-server surface.
+- [`docs/examples/language-surface.flu`](docs/examples/language-surface.flu) — executable documentation fixture covering the core structural surface.
 - [`ROADMAP.md`](ROADMAP.md) — planned milestones and exit criteria.
 - [`CHANGELOG.md`](CHANGELOG.md) — completed user-visible changes by package version.
 - [`demo/README.md`](demo/README.md) — runnable examples.
@@ -99,7 +102,7 @@ The dependency direction is intentionally one-way: Engine is independent of modu
 
 `Directory.Build.props` is the source of truth for the current package version. `ROADMAP.md` records intended work; `CHANGELOG.md` records work that has actually landed. Planned items should not be copied into the changelog, and completed changes should not remain described only in the roadmap.
 
-The current documentation baseline was established on 2026-08-31 for the `0.2.0-alpha.1` development line.
+The first explicit documentation baseline was established on 2026-08-31 at `0.2.0-alpha.1`. `0.2.0-alpha.2` completes the language-surface-consistency milestone and makes the canonical role/alias/transform/diagnostic conventions executable contracts.
 
 ## License
 
