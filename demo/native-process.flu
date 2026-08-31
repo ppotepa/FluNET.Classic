@@ -1,21 +1,19 @@
 SAY "Native process execution in FluNET.Classic".
 
-RUN {dotnet}
-    WITH ARGUMENTS "--version"
-    INTO [version].
+CREATE PROCESS FROM "dotnet" WITH "--version" INTO [dotnetSpec], THEN
+RUN [dotnetSpec] INTO [version].
 
-REQUIRE [version] SUCCEEDED.
+REQUIRE [version] IS OK.
 SAY "Installed .NET version:".
-SAY [version.Output].
+SAY [version.StdOut].
 
-RUN {git}
-    WITH ARGUMENTS "status", "--short"
-    INTO [status].
+CREATE PROCESS FROM "git" WITH "status", "--short" INTO [gitSpec], THEN
+RUN [gitSpec] INTO [status].
 
-REQUIRE [status] SUCCEEDED.
-IF [status.Output] IS EMPTY, THEN
+REQUIRE [status] IS OK.
+IF [status.StdOut] IS EMPTY, THEN
     SAY "The working tree is clean.".
-OTHERWISE,
+ELSE
     SAY "The working tree contains changes.".
-    SAY [status.Output].
+    SAY [status.StdOut].
 END IF.

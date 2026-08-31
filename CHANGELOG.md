@@ -20,6 +20,7 @@ The format follows the spirit of [Keep a Changelog](https://keepachangelog.com/e
 - Explicit execution traits now override conflicting inferred traits.
 - `READ` is accepted as a GET surface alias and formatter output uses the canonical GET form.
 - Native process arguments use the canonical `WITH` role while accepting `ARGUMENTS` as a surface alias.
+- The native-process demo now uses the production typed process contract and current result/property names.
 
 ## [0.2.0-alpha.2] - 2026-08-31
 

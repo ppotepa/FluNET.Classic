@@ -6,6 +6,8 @@ interpolation, and structured failure recovery in one deterministic local run.
 
 The smaller scripts isolate the introductory examples:
 
+- `native-process.flu` — typed process creation, exact argument lists, and result assertions.
+
 - `hello.flu` — the smallest complete sentence.
 - `pipeline.flu` — file input, typed pipeline continuation, and iteration.
 - `records.flu` — an immutable typed record.
