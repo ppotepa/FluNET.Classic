@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Collections.Frozen;
 
 namespace FluNET.Classic.Core;
 
@@ -45,28 +46,26 @@ public sealed class LanguageSnapshot
         _operators = new ReadOnlyDictionary<string, OperatorDescriptor>(BuildSurfaceLookup(operators, x => x.AllSurfaceNames));
         _intrinsics = new ReadOnlyDictionary<string, IntrinsicDescriptor>(BuildSurfaceLookup(intrinsics, x => x.AllSurfaceNames));
 
-        Verbs = verbLookup.Values.Distinct().OrderBy(x => x.Name, StringComparer.OrdinalIgnoreCase).ToArray();
-        Qualifiers = qualifierLookup.Values.Distinct().OrderBy(x => x.Name, StringComparer.OrdinalIgnoreCase).ToArray();
-        Predicates = _predicates.Values.Distinct().OrderBy(x => x.Name, StringComparer.OrdinalIgnoreCase).ToArray();
-        Operators = _operators.Values.Distinct().OrderBy(x => x.Precedence).ThenBy(x => x.Name, StringComparer.OrdinalIgnoreCase).ToArray();
-        Intrinsics = _intrinsics.Values.Distinct().OrderBy(x => x.Name, StringComparer.OrdinalIgnoreCase).ToArray();
-        Modules = modules.OrderBy(x => x.Name, StringComparer.OrdinalIgnoreCase).ToArray();
-        StructuralSyntax = StandardLanguageSurface.StructuralSyntax.ToArray();
-        LiteralWords = StandardLanguageSurface.LiteralWords.ToHashSet(StringComparer.OrdinalIgnoreCase);
-        Capabilities = Verbs.SelectMany(x => x.Implementations).SelectMany(x => x.Capabilities)
+        Verbs = ReadOnlyList(verbLookup.Values.Distinct().OrderBy(x => x.Name, StringComparer.OrdinalIgnoreCase));
+        Qualifiers = ReadOnlyList(qualifierLookup.Values.Distinct().OrderBy(x => x.Name, StringComparer.OrdinalIgnoreCase));
+        Predicates = ReadOnlyList(_predicates.Values.Distinct().OrderBy(x => x.Name, StringComparer.OrdinalIgnoreCase));
+        Operators = ReadOnlyList(_operators.Values.Distinct().OrderBy(x => x.Precedence).ThenBy(x => x.Name, StringComparer.OrdinalIgnoreCase));
+        Intrinsics = ReadOnlyList(_intrinsics.Values.Distinct().OrderBy(x => x.Name, StringComparer.OrdinalIgnoreCase));
+        Modules = ReadOnlyList(modules.OrderBy(x => x.Name, StringComparer.OrdinalIgnoreCase));
+        StructuralSyntax = ReadOnlyList(StandardLanguageSurface.StructuralSyntax);
+        LiteralWords = StandardLanguageSurface.LiteralWords.ToFrozenSet(StringComparer.OrdinalIgnoreCase);
+        Capabilities = ReadOnlyList(Verbs.SelectMany(x => x.Implementations).SelectMany(x => x.Capabilities)
             .Concat(Predicates.SelectMany(x => x.RequiredCapabilities))
             .Distinct(StringComparer.OrdinalIgnoreCase)
-            .OrderBy(x => x, StringComparer.OrdinalIgnoreCase)
-            .ToArray();
-        ExecutionTraits = Verbs.SelectMany(x => x.Implementations).SelectMany(x => x.Traits)
+            .OrderBy(x => x, StringComparer.OrdinalIgnoreCase));
+        ExecutionTraits = ReadOnlyList(Verbs.SelectMany(x => x.Implementations).SelectMany(x => x.Traits)
             .Distinct()
-            .OrderBy(x => x)
-            .ToArray();
+            .OrderBy(x => x));
         ReservedWords = StandardLanguageSurface.ReservedWords
             .Concat(Predicates.SelectMany(x => x.AllSurfaceNames).SelectMany(SplitSurface))
             .Concat(Operators.SelectMany(x => x.AllSurfaceNames).SelectMany(SplitSurface))
             .Concat(Intrinsics.SelectMany(x => x.AllSurfaceNames).SelectMany(SplitSurface))
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            .ToFrozenSet(StringComparer.OrdinalIgnoreCase);
     }
 
     public IReadOnlyList<VerbDescriptor> Verbs
@@ -130,6 +129,8 @@ public sealed class LanguageSnapshot
                 result[surface] = item;
         return result;
     }
+
+    private static IReadOnlyList<T> ReadOnlyList<T>(IEnumerable<T> items) => new ReadOnlyCollection<T>(items.ToArray());
 
     private static IEnumerable<string> SplitSurface(string surface) => surface.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 }

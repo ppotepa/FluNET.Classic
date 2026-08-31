@@ -63,4 +63,22 @@ public class LanguageSurfaceTests
         Assert.That(manifest, Does.Contain("STARTS WITH"));
         Assert.That(manifest, Does.Contain("SORT"));
     }
+
+    [Test]
+    public void Language_snapshot_collections_are_not_mutable_through_common_collection_interfaces()
+    {
+        using ServiceProvider host = FluNetHost.Create();
+        LanguageSnapshot language = host.GetRequiredService<LanguageSnapshot>();
+        IList<VerbDescriptor> verbs = (IList<VerbDescriptor>)language.Verbs;
+
+        Assert.That(verbs.IsReadOnly, Is.True);
+        Assert.That(() => verbs.Add(new VerbDescriptor("test", "TEST", Array.Empty<string>(), Array.Empty<VerbImplementationDescriptor>())),
+            Throws.TypeOf<NotSupportedException>());
+        ISet<string> literalWords = (ISet<string>)language.LiteralWords;
+        ISet<string> reservedWords = (ISet<string>)language.ReservedWords;
+        Assert.That(literalWords.IsReadOnly, Is.True);
+        Assert.That(reservedWords.IsReadOnly, Is.True);
+        Assert.That(() => literalWords.Add("TEST"), Throws.TypeOf<NotSupportedException>());
+        Assert.That(() => reservedWords.Add("TEST"), Throws.TypeOf<NotSupportedException>());
+    }
 }
