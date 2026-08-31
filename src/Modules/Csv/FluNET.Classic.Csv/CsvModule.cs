@@ -8,7 +8,44 @@ public sealed record CsvDocument(IReadOnlyList<string> Headers, IReadOnlyList<Cs
 public sealed record CsvOptions(char Delimiter = ',', bool HasHeader = true);
 public sealed class CsvModule : LanguageModule
 {
-    public override string Name => "csv"; public override IReadOnlyCollection<QualifierDescriptor> Qualifiers => new[] { new QualifierDescriptor("qualifier:csv-document", "CSV", typeof(CsvDocument)) };
+    public override string Name => "csv";
+    public override IReadOnlyCollection<QualifierDescriptor> Qualifiers => new QualifierDescriptor[]
+    {
+        new("qualifier:csv-document", "CSV", typeof(CsvDocument)),
+        new("qualifier:csv-headers", "HEADERS", typeof(string[])),
+        new("qualifier:csv-rows", "ROWS", typeof(CsvRow[])),
+        new("qualifier:csv-values", "VALUES", typeof(IReadOnlyDictionary<string, string>))
+    };
+}
+
+[Verb("GET")]
+[Qualifier("HEADERS")]
+[ExecutionTrait(ExecutionTrait.Pure)]
+public sealed class GetCsvHeaders : Get<string[], CsvDocument>
+{
+    public GetCsvHeaders([From] CsvDocument from) : base(from) { }
+
+    protected override ValueTask<string[]> ActAsync(CsvDocument from, CancellationToken cancellationToken) => ValueTask.FromResult(from.Headers.ToArray());
+}
+
+[Verb("GET")]
+[Qualifier("ROWS")]
+[ExecutionTrait(ExecutionTrait.Pure)]
+public sealed class GetCsvRows : Get<CsvRow[], CsvDocument>
+{
+    public GetCsvRows([From] CsvDocument from) : base(from) { }
+
+    protected override ValueTask<CsvRow[]> ActAsync(CsvDocument from, CancellationToken cancellationToken) => ValueTask.FromResult(from.Rows.ToArray());
+}
+
+[Verb("GET")]
+[Qualifier("VALUES")]
+[ExecutionTrait(ExecutionTrait.Pure)]
+public sealed class GetCsvRowValues : Get<IReadOnlyDictionary<string, string>, CsvRow>
+{
+    public GetCsvRowValues([From] CsvRow from) : base(from) { }
+
+    protected override ValueTask<IReadOnlyDictionary<string, string>> ActAsync(CsvRow from, CancellationToken cancellationToken) => ValueTask.FromResult(from.Values);
 }
 
 [Verb("PARSE")]
