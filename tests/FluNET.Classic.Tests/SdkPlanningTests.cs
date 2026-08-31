@@ -73,6 +73,21 @@ public class SdkPlanningTests
     }
 
     [Test]
+    public void File_metadata_properties_bind_through_typed_sentence_projections()
+    {
+        using ServiceProvider host = FluNetHost.Create();
+        ClassicEngine engine = host.GetRequiredService<ClassicEngine>();
+        ExecutionPlan plan = engine.Plan("GET METADATA FROM {readme.md} INTO [metadata], THEN GET LENGTH FROM [metadata] INTO [length], THEN GET EXTENSION FROM [metadata] INTO [extension], THEN GET READONLY FROM [metadata] INTO [readonly].");
+
+        Assert.That(plan.Success, Is.True, string.Join("; ", plan.Diagnostics.Select(x => x.Message)));
+        ExecutionPlanStep[] steps = Flatten(plan.Steps).ToArray();
+        Assert.That(steps.Any(x => x.ResultType == typeof(FileMetadata).FullName), Is.True);
+        Assert.That(steps.Any(x => x.ResultType == typeof(long).FullName), Is.True);
+        Assert.That(steps.Any(x => x.ResultType == typeof(string).FullName), Is.True);
+        Assert.That(steps.Any(x => x.ResultType == typeof(bool).FullName), Is.True);
+    }
+
+    [Test]
     public void Tooling_service_reuses_the_compiler_for_analysis_completion_hover_and_planning()
     {
         using ServiceProvider host = FluNetHost.Create();

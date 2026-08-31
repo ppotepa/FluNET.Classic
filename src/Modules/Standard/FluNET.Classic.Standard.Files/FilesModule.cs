@@ -39,7 +39,10 @@ public sealed class FilesModule : LanguageModule
     {
         new("qualifier:files", "FILES", typeof(FileInfo[])),
         new("qualifier:directory", "DIRECTORY", typeof(DirectoryInfo)),
-        new("qualifier:file-metadata", "METADATA", typeof(FileMetadata))
+        new("qualifier:file-metadata", "METADATA", typeof(FileMetadata)),
+        new("qualifier:file-length", "LENGTH", typeof(long)),
+        new("qualifier:file-extension", "EXTENSION", typeof(string)),
+        new("qualifier:file-readonly", "READONLY", typeof(bool))
     };
 }
 
@@ -117,6 +120,30 @@ public sealed class SaveBinary : Save<byte[], FileInfo>
 {
     public SaveBinary([What] byte[] what, [To] FileInfo to) : base(what, to) { }
     protected override ValueTask SaveAsync(byte[] what, FileInfo to, CancellationToken cancellationToken) => new(File.WriteAllBytesAsync(to.FullName, what, cancellationToken));
+}
+
+[Qualifier("LENGTH")]
+[ExecutionTrait(ExecutionTrait.Pure)]
+public sealed class GetFileLength : Get<long, FileMetadata>
+{
+    public GetFileLength([From] FileMetadata from) : base(from) { }
+    protected override ValueTask<long> ActAsync(FileMetadata from, CancellationToken cancellationToken) => ValueTask.FromResult(from.Length);
+}
+
+[Qualifier("EXTENSION")]
+[ExecutionTrait(ExecutionTrait.Pure)]
+public sealed class GetFileExtension : Get<string, FileMetadata>
+{
+    public GetFileExtension([From] FileMetadata from) : base(from) { }
+    protected override ValueTask<string> ActAsync(FileMetadata from, CancellationToken cancellationToken) => ValueTask.FromResult(from.Extension);
+}
+
+[Qualifier("READONLY")]
+[ExecutionTrait(ExecutionTrait.Pure)]
+public sealed class GetFileReadOnly : Get<bool, FileMetadata>
+{
+    public GetFileReadOnly([From] FileMetadata from) : base(from) { }
+    protected override ValueTask<bool> ActAsync(FileMetadata from, CancellationToken cancellationToken) => ValueTask.FromResult(from.ReadOnly);
 }
 
 [Verb("LIST")]
