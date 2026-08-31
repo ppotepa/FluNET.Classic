@@ -2,9 +2,18 @@ using System.Globalization;
 
 namespace FluNET.Classic.Binding;
 
-public enum ConversionKind { Exact, Assignable, Registered, Numeric, Resolution }
-public enum ConversionSafety { Lossless, PotentiallyLossy }
-public enum ConversionPlanningStatus { Success, NotFound, Ambiguous }
+public enum ConversionKind
+{
+    Exact, Assignable, Registered, Numeric, Resolution
+}
+public enum ConversionSafety
+{
+    Lossless, PotentiallyLossy
+}
+public enum ConversionPlanningStatus
+{
+    Success, NotFound, Ambiguous
+}
 
 public sealed record ConversionResult(object? Value, ConversionKind Kind, int Cost, ConversionSafety Safety = ConversionSafety.Lossless);
 public sealed record ConversionStep(Type SourceType, Type TargetType, ConversionKind Kind, int Cost, ConversionSafety Safety = ConversionSafety.Lossless, string? ConverterId = null);
@@ -22,8 +31,14 @@ public sealed record ConversionPlanningResult(ConversionPlanningStatus Status, C
 
 public interface IValueConverter
 {
-    Type SourceType { get; }
-    Type TargetType { get; }
+    Type SourceType
+    {
+        get;
+    }
+    Type TargetType
+    {
+        get;
+    }
     bool TryConvert(object? value, out object? result);
 }
 
@@ -39,7 +54,11 @@ public abstract class ValueConverter<TSource, TTarget> : IValueConverter<TSource
     public abstract bool TryConvert(TSource value, out TTarget? result);
     bool IValueConverter.TryConvert(object? value, out object? result)
     {
-        if (value is TSource source && TryConvert(source, out TTarget? converted)) { result = converted; return true; }
+        if (value is TSource source && TryConvert(source, out TTarget? converted))
+        {
+            result = converted;
+            return true;
+        }
         result = null;
         return false;
     }
@@ -61,7 +80,8 @@ public sealed class ValueConversionRegistry
         Type target = Normalize(converter.TargetType);
         string id = $"{converter.GetType().AssemblyQualifiedName ?? converter.GetType().FullName ?? converter.GetType().Name}#{Interlocked.Increment(ref _registrationSequence)}";
         var entry = new ConverterEntry(id, converter, source, target, priority, safety);
-        if (!_converters.TryGetValue((source, target), out List<ConverterEntry>? entries)) _converters[(source, target)] = entries = [];
+        if (!_converters.TryGetValue((source, target), out List<ConverterEntry>? entries))
+            _converters[(source, target)] = entries = [];
         entries.Add(entry);
         _byId[id] = entry;
     }
@@ -91,7 +111,8 @@ public sealed class ValueConversionRegistry
     {
         Type s = Normalize(source);
         Type t = Normalize(target);
-        if (s == t) return Success(new ConversionPlan(s, t, Array.Empty<ConversionStep>(), 0));
+        if (s == t)
+            return Success(new ConversionPlan(s, t, Array.Empty<ConversionStep>(), 0));
 
         var queue = new PriorityQueue<PathState, int>();
         queue.Enqueue(new PathState(s, Array.Empty<ConversionStep>(), 0), 0);
@@ -102,25 +123,32 @@ public sealed class ValueConversionRegistry
 
         while (queue.TryDequeue(out PathState? state, out int priority))
         {
-            if (priority > bestTargetCost || state.Cost > MaxPathCost) break;
+            if (priority > bestTargetCost || state.Cost > MaxPathCost)
+                break;
             if (state.Type == t)
             {
                 bestTargetCost = Math.Min(bestTargetCost, state.Cost);
-                if (state.Cost == bestTargetCost) completed.Add(new(s, t, state.Steps, state.Cost));
+                if (state.Cost == bestTargetCost)
+                    completed.Add(new(s, t, state.Steps, state.Cost));
                 continue;
             }
-            if (state.Steps.Count >= MaxPathLength) continue;
+            if (state.Steps.Count >= MaxPathLength)
+                continue;
 
             foreach (ConversionStep edge in EdgesFrom(state.Type, t))
             {
                 int nextCost = state.Cost + edge.Cost;
-                if (nextCost > MaxPathCost || nextCost > bestTargetCost) continue;
+                if (nextCost > MaxPathCost || nextCost > bestTargetCost)
+                    continue;
                 Type nextType = edge.TargetType;
-                if (best.TryGetValue(nextType, out int known) && known < nextCost) continue;
-                if (!best.TryGetValue(nextType, out known) || nextCost < known) best[nextType] = nextCost;
+                if (best.TryGetValue(nextType, out int known) && known < nextCost)
+                    continue;
+                if (!best.TryGetValue(nextType, out known) || nextCost < known)
+                    best[nextType] = nextCost;
                 ConversionStep[] steps = state.Steps.Append(edge).ToArray();
                 string signature = PathSignature(s, steps);
-                if (!seenPaths.Add(signature)) continue;
+                if (!seenPaths.Add(signature))
+                    continue;
                 queue.Enqueue(new PathState(nextType, steps, nextCost), nextCost);
             }
         }
@@ -131,8 +159,10 @@ public sealed class ValueConversionRegistry
             .Select(x => x.First())
             .OrderBy(x => PlanSignature(x), StringComparer.Ordinal)
             .ToArray();
-        if (shortest.Length == 0) return new(ConversionPlanningStatus.NotFound, null, Array.Empty<ConversionPlan>());
-        if (shortest.Length > 1) return new(ConversionPlanningStatus.Ambiguous, null, shortest);
+        if (shortest.Length == 0)
+            return new(ConversionPlanningStatus.NotFound, null, Array.Empty<ConversionPlan>());
+        if (shortest.Length > 1)
+            return new(ConversionPlanningStatus.Ambiguous, null, shortest);
         return Success(shortest[0]);
     }
 
@@ -145,7 +175,11 @@ public sealed class ValueConversionRegistry
             return nullable;
         }
         ConversionPlanningResult planning = Plan(source.GetType(), target);
-        if (!planning.Success) { result = null; return false; }
+        if (!planning.Success)
+        {
+            result = null;
+            return false;
+        }
         return TryConvert(source, planning.Plan!, out result);
     }
 
@@ -167,10 +201,16 @@ public sealed class ValueConversionRegistry
                     break;
                 case ConversionKind.Registered:
                     if (step.ConverterId is null || !_byId.TryGetValue(step.ConverterId, out ConverterEntry? entry) || !entry.Converter.TryConvert(current, out current))
-                    { result = null; return false; }
+                    {
+                        result = null;
+                        return false;
+                    }
                     break;
                 case ConversionKind.Numeric:
-                    try { current = Convert.ChangeType(current, Normalize(step.TargetType), CultureInfo.InvariantCulture); }
+                    try
+                    {
+                        current = Convert.ChangeType(current, Normalize(step.TargetType), CultureInfo.InvariantCulture);
+                    }
                     catch { result = null; return false; }
                     break;
             }
@@ -189,7 +229,8 @@ public sealed class ValueConversionRegistry
 
         foreach (((Type from, Type to), List<ConverterEntry> entries) in _converters.OrderBy(x => TypeName(x.Key.Target), StringComparer.Ordinal))
         {
-            if (from != s) continue;
+            if (from != s)
+                continue;
             int maxPriority = entries.Max(x => x.Priority);
             foreach (ConverterEntry entry in entries.Where(x => x.Priority == maxPriority).OrderBy(x => x.Id, StringComparer.Ordinal))
                 yield return new(s, to, ConversionKind.Registered, 2, entry.Safety, entry.Id);
@@ -198,8 +239,10 @@ public sealed class ValueConversionRegistry
         HashSet<Type> usefulTypes = _converters.Keys.SelectMany(x => new[] { x.Source, x.Target }).Append(t).ToHashSet();
         foreach (Type candidate in usefulTypes.OrderBy(TypeName, StringComparer.Ordinal))
         {
-            if (candidate == s) continue;
-            if (candidate.IsAssignableFrom(s)) yield return new(s, candidate, ConversionKind.Assignable, 1);
+            if (candidate == s)
+                continue;
+            if (candidate.IsAssignableFrom(s))
+                yield return new(s, candidate, ConversionKind.Assignable, 1);
             else if (IsNumeric(s) && IsNumeric(candidate))
             {
                 bool widening = IsWideningNumeric(s, candidate);
@@ -210,14 +253,22 @@ public sealed class ValueConversionRegistry
 
     private static bool IsWideningNumeric(Type source, Type target)
     {
-        Type s = Normalize(source); Type t = Normalize(target);
-        if (s == t) return true;
-        if (s == typeof(float) && t == typeof(double)) return true;
-        if (IsInteger(s) && t == typeof(decimal)) return true;
-        if (!IsInteger(s) || !IsInteger(t)) return false;
-        (int Bits, bool Signed) a = IntegerShape(s); (int Bits, bool Signed) b = IntegerShape(t);
-        if (a.Signed == b.Signed) return b.Bits >= a.Bits;
-        if (!a.Signed && b.Signed) return b.Bits > a.Bits;
+        Type s = Normalize(source);
+        Type t = Normalize(target);
+        if (s == t)
+            return true;
+        if (s == typeof(float) && t == typeof(double))
+            return true;
+        if (IsInteger(s) && t == typeof(decimal))
+            return true;
+        if (!IsInteger(s) || !IsInteger(t))
+            return false;
+        (int Bits, bool Signed) a = IntegerShape(s);
+        (int Bits, bool Signed) b = IntegerShape(t);
+        if (a.Signed == b.Signed)
+            return b.Bits >= a.Bits;
+        if (!a.Signed && b.Signed)
+            return b.Bits > a.Bits;
         return false;
     }
 

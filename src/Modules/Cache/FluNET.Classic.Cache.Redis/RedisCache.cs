@@ -17,4 +17,7 @@ public sealed class RedisCacheProvider : ICacheProvider
     public ValueTask<bool> DeleteAsync(CacheKey key, CancellationToken cancellationToken = default) => _client.DeleteAsync(key.Value, cancellationToken);
 }
 
-public sealed class RedisCacheModule : LanguageModule { public override string Name => "cache.redis"; public override IReadOnlyCollection<string> Dependencies => new[] { "cache" }; }
+public sealed class RedisCacheModule : LanguageModule
+{
+    public override string Name => "cache.redis"; public override IReadOnlyCollection<string> Dependencies => new[] { "cache" };
+}

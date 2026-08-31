@@ -119,7 +119,8 @@ public class SdkPlanningTests
         foreach (ExecutionPlanStep step in steps)
         {
             yield return step;
-            foreach (ExecutionPlanStep child in Flatten(step.Children)) yield return child;
+            foreach (ExecutionPlanStep child in Flatten(step.Children))
+                yield return child;
         }
     }
 }

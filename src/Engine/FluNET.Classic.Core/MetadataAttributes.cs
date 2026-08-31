@@ -28,20 +28,56 @@ public sealed class QualifierAttribute(string name) : Attribute
 public abstract class RoleAttribute(string name) : Attribute
 {
     public string Name { get; } = name;
-    public RoleDirection? Direction { get; set; }
+    public RoleDirection? Direction
+    {
+        get; set;
+    }
 }
 
-public sealed class WhatAttribute : RoleAttribute { public WhatAttribute() : base(LanguageRoleNames.What) { } }
-public sealed class FromAttribute : RoleAttribute { public FromAttribute() : base(LanguageRoleNames.From) { } }
-public sealed class ToAttribute : RoleAttribute { public ToAttribute() : base(LanguageRoleNames.To) { } }
-public sealed class UsingAttribute : RoleAttribute { public UsingAttribute() : base(LanguageRoleNames.Using) { } }
-public sealed class WithAttribute : RoleAttribute { public WithAttribute() : base(LanguageRoleNames.With) { } }
-public sealed class AsAttribute : RoleAttribute { public AsAttribute() : base(LanguageRoleNames.As) { } }
-public sealed class InAttribute : RoleAttribute { public InAttribute() : base(LanguageRoleNames.In) { } }
-public sealed class AtAttribute : RoleAttribute { public AtAttribute() : base(LanguageRoleNames.At) { } }
-public sealed class ForAttribute : RoleAttribute { public ForAttribute() : base(LanguageRoleNames.For) { } }
-public sealed class UntilAttribute : RoleAttribute { public UntilAttribute() : base(LanguageRoleNames.Until) { } }
-public sealed class ByAttribute : RoleAttribute { public ByAttribute() : base(LanguageRoleNames.By) { } }
+public sealed class WhatAttribute : RoleAttribute
+{
+    public WhatAttribute() : base(LanguageRoleNames.What) { }
+}
+public sealed class FromAttribute : RoleAttribute
+{
+    public FromAttribute() : base(LanguageRoleNames.From) { }
+}
+public sealed class ToAttribute : RoleAttribute
+{
+    public ToAttribute() : base(LanguageRoleNames.To) { }
+}
+public sealed class UsingAttribute : RoleAttribute
+{
+    public UsingAttribute() : base(LanguageRoleNames.Using) { }
+}
+public sealed class WithAttribute : RoleAttribute
+{
+    public WithAttribute() : base(LanguageRoleNames.With) { }
+}
+public sealed class AsAttribute : RoleAttribute
+{
+    public AsAttribute() : base(LanguageRoleNames.As) { }
+}
+public sealed class InAttribute : RoleAttribute
+{
+    public InAttribute() : base(LanguageRoleNames.In) { }
+}
+public sealed class AtAttribute : RoleAttribute
+{
+    public AtAttribute() : base(LanguageRoleNames.At) { }
+}
+public sealed class ForAttribute : RoleAttribute
+{
+    public ForAttribute() : base(LanguageRoleNames.For) { }
+}
+public sealed class UntilAttribute : RoleAttribute
+{
+    public UntilAttribute() : base(LanguageRoleNames.Until) { }
+}
+public sealed class ByAttribute : RoleAttribute
+{
+    public ByAttribute() : base(LanguageRoleNames.By) { }
+}
 
 [AttributeUsage(AttributeTargets.Parameter, Inherited = false, AllowMultiple = true)]
 public sealed class RoleAliasAttribute(string alias) : Attribute
@@ -70,7 +106,9 @@ public sealed class OutputIndexAttribute(int index) : Attribute
 }
 
 [AttributeUsage(AttributeTargets.Parameter, Inherited = false, AllowMultiple = false)]
-public sealed class FromServicesAttribute : Attribute { }
+public sealed class FromServicesAttribute : Attribute
+{
+}
 
 [AttributeUsage(AttributeTargets.Class, Inherited = true, AllowMultiple = true)]
 public sealed class RequiresCapabilityAttribute(string capability) : Attribute

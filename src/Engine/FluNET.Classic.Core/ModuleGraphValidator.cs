@@ -32,7 +32,8 @@ public static class ModuleGraphValidator
         {
             if (state.TryGetValue(name, out int current))
             {
-                if (current != 1) return;
+                if (current != 1)
+                    return;
                 string[] cycle = path.Reverse().SkipWhile(x => !x.Equals(name, StringComparison.OrdinalIgnoreCase)).Append(name).ToArray();
                 string key = string.Join("->", cycle);
                 if (reported.Add(key))
@@ -44,7 +45,8 @@ public static class ModuleGraphValidator
             path.Push(name);
             if (byName.TryGetValue(name, out ILanguageModule? module))
                 foreach (string dependency in module.Dependencies)
-                    if (byName.ContainsKey(dependency)) Visit(dependency);
+                    if (byName.ContainsKey(dependency))
+                        Visit(dependency);
             path.Pop();
             state[name] = 2;
         }

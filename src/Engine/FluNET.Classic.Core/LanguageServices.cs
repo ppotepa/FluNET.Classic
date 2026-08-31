@@ -27,13 +27,20 @@ public sealed class ClassicLanguageService(LanguageSnapshot language)
 
     public HoverInfo? Hover(string token)
     {
-        if (language.TryGetVerb(token, out VerbDescriptor verb)) return new(verb.Name, $"{verb.Implementations.Count} overload(s): {string.Join("; ", verb.Implementations.Select(x => x.ResultType.Name).Distinct())}");
-        if (language.TryGetQualifier(token, out QualifierDescriptor qualifier)) return new(qualifier.Name, qualifier.TargetType?.FullName ?? "behavior qualifier");
-        if (language.TryGetPredicate(token, out PredicateDescriptor predicate)) return new(predicate.Name, $"Predicate: {predicate.Syntax}; precedence {predicate.Precedence}; operand types: {DescribeTypes(predicate.SupportedOperandTypes)}.");
-        if (language.TryGetOperator(token, out OperatorDescriptor @operator)) return new(@operator.Name, $"{@operator.Arity} operator; precedence {@operator.Precedence}; compatibility {@operator.Compatibility}; evaluation {@operator.Evaluation}.");
-        if (language.TryGetIntrinsic(token, out IntrinsicDescriptor intrinsic)) return new(intrinsic.Name, $"Intrinsic: {intrinsic.Syntax}; execution {intrinsic.Execution}{(intrinsic.StrategyType is null ? string.Empty : $"; {intrinsic.StrategyRole} {Friendly(intrinsic.StrategyType)}")}.");
-        if (language.StructuralSyntax.Any(x => SplitSurface(x).Contains(token, StringComparer.OrdinalIgnoreCase))) return new(token.ToUpperInvariant(), "FluNET controlled-language structural syntax.");
-        if (language.LiteralWords.Contains(token)) return new(token.ToUpperInvariant(), "FluNET literal value.");
+        if (language.TryGetVerb(token, out VerbDescriptor verb))
+            return new(verb.Name, $"{verb.Implementations.Count} overload(s): {string.Join("; ", verb.Implementations.Select(x => x.ResultType.Name).Distinct())}");
+        if (language.TryGetQualifier(token, out QualifierDescriptor qualifier))
+            return new(qualifier.Name, qualifier.TargetType?.FullName ?? "behavior qualifier");
+        if (language.TryGetPredicate(token, out PredicateDescriptor predicate))
+            return new(predicate.Name, $"Predicate: {predicate.Syntax}; precedence {predicate.Precedence}; operand types: {DescribeTypes(predicate.SupportedOperandTypes)}.");
+        if (language.TryGetOperator(token, out OperatorDescriptor @operator))
+            return new(@operator.Name, $"{@operator.Arity} operator; precedence {@operator.Precedence}; compatibility {@operator.Compatibility}; evaluation {@operator.Evaluation}.");
+        if (language.TryGetIntrinsic(token, out IntrinsicDescriptor intrinsic))
+            return new(intrinsic.Name, $"Intrinsic: {intrinsic.Syntax}; execution {intrinsic.Execution}{(intrinsic.StrategyType is null ? string.Empty : $"; {intrinsic.StrategyRole} {Friendly(intrinsic.StrategyType)}")}.");
+        if (language.StructuralSyntax.Any(x => SplitSurface(x).Contains(token, StringComparer.OrdinalIgnoreCase)))
+            return new(token.ToUpperInvariant(), "FluNET controlled-language structural syntax.");
+        if (language.LiteralWords.Contains(token))
+            return new(token.ToUpperInvariant(), "FluNET literal value.");
         return null;
     }
 

@@ -6,7 +6,10 @@ public sealed class RuntimeState
 
     public RuntimeState() => _scopes.Push(new(StringComparer.OrdinalIgnoreCase));
 
-    public object? PipelineValue { get; set; }
+    public object? PipelineValue
+    {
+        get; set;
+    }
 
     public IReadOnlyDictionary<string, object?> Variables => _scopes.Reverse().SelectMany(x => x).GroupBy(x => x.Key, StringComparer.OrdinalIgnoreCase).ToDictionary(x => x.Key, x => x.Last().Value, StringComparer.OrdinalIgnoreCase);
 
@@ -15,8 +18,10 @@ public sealed class RuntimeState
     public bool TryGetVariable(string name, out object? value)
     {
         foreach (Dictionary<string, object?> scope in _scopes)
-            if (scope.TryGetValue(name, out value)) return true;
-        value = null; return false;
+            if (scope.TryGetValue(name, out value))
+                return true;
+        value = null;
+        return false;
     }
 
     public IDisposable PushScope()
@@ -30,9 +35,11 @@ public sealed class RuntimeState
         private bool _disposed;
         public void Dispose()
         {
-            if (_disposed) return;
+            if (_disposed)
+                return;
             _disposed = true;
-            if (owner._scopes.Count > 1) owner._scopes.Pop();
+            if (owner._scopes.Count > 1)
+                owner._scopes.Pop();
         }
     }
 }

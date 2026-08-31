@@ -31,7 +31,8 @@ public sealed class ClassicEngine
     public string Format(string source)
     {
         ParseResult parse = _parser.Parse(source);
-        if (!parse.Success) throw new InvalidOperationException(string.Join(Environment.NewLine, parse.Diagnostics.Select(x => $"{x.Code}: {x.Message}")));
+        if (!parse.Success)
+            throw new InvalidOperationException(string.Join(Environment.NewLine, parse.Diagnostics.Select(x => $"{x.Code}: {x.Message}")));
         return _formatter.Format(parse.Script);
     }
 
@@ -40,7 +41,8 @@ public sealed class ClassicEngine
     public CheckResult Check(string source, IReadOnlyDictionary<string, Type>? variableTypes = null)
     {
         ParseResult parse = _parser.Parse(source);
-        if (!parse.Success) return new(parse, null);
+        if (!parse.Success)
+            return new(parse, null);
         return new(parse, _binder.Bind(parse.Script, variableTypes));
     }
 

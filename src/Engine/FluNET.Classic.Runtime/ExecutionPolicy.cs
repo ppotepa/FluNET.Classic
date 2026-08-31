@@ -6,11 +6,20 @@ public sealed class ExecutionPolicy
 {
     public int RetryAttempts { get; set; } = 3;
     public TimeSpan RetryDelay { get; set; } = TimeSpan.FromMilliseconds(100);
-    public TimeSpan? DefaultTimeout { get; set; }
-    public TimeSpan? LongRunningTimeout { get; set; }
+    public TimeSpan? DefaultTimeout
+    {
+        get; set;
+    }
+    public TimeSpan? LongRunningTimeout
+    {
+        get; set;
+    }
     /// <summary>Maximum concurrency for bounded collection execution.</summary>
     public int MaxParallelism { get; set; } = Environment.ProcessorCount;
-    public bool RequireTransactionCoordinatorForTransactional { get; set; }
+    public bool RequireTransactionCoordinatorForTransactional
+    {
+        get; set;
+    }
 
     public int AttemptsFor(IReadOnlyList<ExecutionTrait> traits) => traits.Contains(ExecutionTrait.Retryable) ? Math.Max(1, RetryAttempts) : 1;
     public TimeSpan? TimeoutFor(IReadOnlyList<ExecutionTrait> traits) => traits.Contains(ExecutionTrait.LongRunning) ? LongRunningTimeout ?? DefaultTimeout : DefaultTimeout;

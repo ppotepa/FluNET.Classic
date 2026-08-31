@@ -64,7 +64,8 @@ public sealed class ClassicDocumentService
         position = Math.Clamp(position, 0, source.Length);
         string prefix = PrefixAt(source, position);
         VerbDescriptor? verb = CurrentVerb(source, position);
-        if (verb is null) return _languageService.Complete(prefix);
+        if (verb is null)
+            return _languageService.Complete(prefix);
 
         var items = new List<CompletionItem>();
         string[] qualifiers = verb.Implementations.SelectMany(x => x.Qualifiers).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
@@ -84,10 +85,12 @@ public sealed class ClassicDocumentService
         source ??= string.Empty;
         position = Math.Clamp(position, 0, source.Length);
         SyntaxToken? token = TokenAt(source, position);
-        if (token is null || token.Kind != TokenKind.Word) return null;
+        if (token is null || token.Kind != TokenKind.Word)
+            return null;
 
         HoverInfo? direct = _languageService.Hover(token.Text);
-        if (direct is not null) return direct;
+        if (direct is not null)
+            return direct;
 
         RoleSlotDescriptor[] roles = _language.Verbs.SelectMany(x => x.Implementations).SelectMany(x => x.Patterns).SelectMany(x => x.Roles)
             .Where(x => x.AllSurfaceNames.Contains(token.Text, StringComparer.OrdinalIgnoreCase)).ToArray();
@@ -144,7 +147,8 @@ public sealed class ClassicDocumentService
     public SignatureHelpInfo? SignatureHelp(string source, int position)
     {
         VerbDescriptor? verb = CurrentVerb(source ?? string.Empty, Math.Clamp(position, 0, source?.Length ?? 0));
-        if (verb is null) return null;
+        if (verb is null)
+            return null;
         SignatureInfo[] signatures = verb.Implementations
             .SelectMany(i => i.Patterns.Select(p => new SignatureInfo(Signature(verb, i, p), i.ImplementationType.FullName)))
             .ToArray();
@@ -169,8 +173,10 @@ public sealed class ClassicDocumentService
         SyntaxToken? candidate = null;
         foreach (SyntaxToken token in tokens)
         {
-            if (token.Kind == TokenKind.Period) candidate = null;
-            else if (candidate is null && token.Kind == TokenKind.Word) candidate = token;
+            if (token.Kind == TokenKind.Period)
+                candidate = null;
+            else if (candidate is null && token.Kind == TokenKind.Word)
+                candidate = token;
         }
         return candidate is not null && _language.TryGetVerb(candidate.Text, out VerbDescriptor verb) ? verb : null;
     }
@@ -204,7 +210,8 @@ public sealed class ClassicDocumentService
     private static string PrefixAt(string source, int position)
     {
         int start = position;
-        while (start > 0 && (char.IsLetterOrDigit(source[start - 1]) || source[start - 1] is '_' or '-')) start--;
+        while (start > 0 && (char.IsLetterOrDigit(source[start - 1]) || source[start - 1] is '_' or '-'))
+            start--;
         return source[start..position];
     }
 

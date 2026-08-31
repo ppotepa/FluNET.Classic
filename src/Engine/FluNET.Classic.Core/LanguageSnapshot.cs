@@ -27,14 +27,16 @@ public sealed class LanguageSnapshot
         foreach (VerbDescriptor verb in verbs)
         {
             verbLookup.Add(verb.Name, verb);
-            foreach (string alias in verb.Aliases) verbLookup.Add(alias, verb);
+            foreach (string alias in verb.Aliases)
+                verbLookup.Add(alias, verb);
         }
 
         Dictionary<string, QualifierDescriptor> qualifierLookup = new(StringComparer.OrdinalIgnoreCase);
         foreach (QualifierDescriptor qualifier in qualifiers)
         {
             qualifierLookup[qualifier.Name] = qualifier;
-            foreach (string alias in qualifier.AllAliases) qualifierLookup[alias] = qualifier;
+            foreach (string alias in qualifier.AllAliases)
+                qualifierLookup[alias] = qualifier;
         }
 
         _verbs = new ReadOnlyDictionary<string, VerbDescriptor>(verbLookup);
@@ -67,17 +69,50 @@ public sealed class LanguageSnapshot
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
     }
 
-    public IReadOnlyList<VerbDescriptor> Verbs { get; }
-    public IReadOnlyList<QualifierDescriptor> Qualifiers { get; }
-    public IReadOnlyList<PredicateDescriptor> Predicates { get; }
-    public IReadOnlyList<OperatorDescriptor> Operators { get; }
-    public IReadOnlyList<IntrinsicDescriptor> Intrinsics { get; }
-    public IReadOnlyList<ModuleDescriptor> Modules { get; }
-    public IReadOnlyList<string> StructuralSyntax { get; }
-    public IReadOnlySet<string> LiteralWords { get; }
-    public IReadOnlyList<string> Capabilities { get; }
-    public IReadOnlyList<ExecutionTrait> ExecutionTraits { get; }
-    public IReadOnlySet<string> ReservedWords { get; }
+    public IReadOnlyList<VerbDescriptor> Verbs
+    {
+        get;
+    }
+    public IReadOnlyList<QualifierDescriptor> Qualifiers
+    {
+        get;
+    }
+    public IReadOnlyList<PredicateDescriptor> Predicates
+    {
+        get;
+    }
+    public IReadOnlyList<OperatorDescriptor> Operators
+    {
+        get;
+    }
+    public IReadOnlyList<IntrinsicDescriptor> Intrinsics
+    {
+        get;
+    }
+    public IReadOnlyList<ModuleDescriptor> Modules
+    {
+        get;
+    }
+    public IReadOnlyList<string> StructuralSyntax
+    {
+        get;
+    }
+    public IReadOnlySet<string> LiteralWords
+    {
+        get;
+    }
+    public IReadOnlyList<string> Capabilities
+    {
+        get;
+    }
+    public IReadOnlyList<ExecutionTrait> ExecutionTraits
+    {
+        get;
+    }
+    public IReadOnlySet<string> ReservedWords
+    {
+        get;
+    }
 
     public bool TryGetVerb(string name, out VerbDescriptor descriptor) => _verbs.TryGetValue(name, out descriptor!);
     public VerbDescriptor GetVerb(string name) => TryGetVerb(name, out VerbDescriptor result) ? result : throw new KeyNotFoundException($"Unknown verb '{name}'.");

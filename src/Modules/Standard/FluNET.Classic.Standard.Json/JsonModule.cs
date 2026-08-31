@@ -3,7 +3,10 @@ using System.Text.Json.Nodes;
 
 namespace FluNET.Classic.Standard.Json;
 
-public enum JsonRepresentation { JSON, TEXT }
+public enum JsonRepresentation
+{
+    JSON, TEXT
+}
 
 public sealed class JsonModule : LanguageModule
 {
@@ -49,10 +52,15 @@ public sealed class ParseJsonAs : IVerb<JsonNode>, IParse, IWhat<string>, IAs<Js
 {
     private readonly string _text;
     private readonly JsonRepresentation _representation;
-    public ParseJsonAs([What] string text, [As] JsonRepresentation representation) { _text = text; _representation = representation; }
+    public ParseJsonAs([What] string text, [As] JsonRepresentation representation)
+    {
+        _text = text;
+        _representation = representation;
+    }
     public ValueTask<JsonNode> ExecuteAsync(VerbExecutionContext context, CancellationToken cancellationToken = default)
     {
-        if (_representation != JsonRepresentation.JSON) throw new InvalidOperationException($"Cannot PARSE text AS {_representation}.");
+        if (_representation != JsonRepresentation.JSON)
+            throw new InvalidOperationException($"Cannot PARSE text AS {_representation}.");
         return ValueTask.FromResult(JsonNode.Parse(_text) ?? new JsonObject());
     }
 }
@@ -71,7 +79,8 @@ public sealed class FormatJsonAs : Format<string, JsonNode, JsonRepresentation>
     public FormatJsonAs([What] JsonNode what, [As] JsonRepresentation @as) : base(what, @as) { }
     protected override ValueTask<string> FormatAsync(JsonNode what, JsonRepresentation @as, CancellationToken cancellationToken)
     {
-        if (@as != JsonRepresentation.JSON) throw new InvalidOperationException($"Cannot FORMAT JSON AS {@as}.");
+        if (@as != JsonRepresentation.JSON)
+            throw new InvalidOperationException($"Cannot FORMAT JSON AS {@as}.");
         return ValueTask.FromResult(what.ToJsonString());
     }
 }
@@ -81,7 +90,8 @@ public sealed class TransformTextToJson : TransformTo<JsonNode, string, JsonRepr
     public TransformTextToJson([What] string what, [To] JsonRepresentation to) : base(what, to) { }
     protected override ValueTask<JsonNode> TransformAsync(string what, JsonRepresentation to, CancellationToken cancellationToken)
     {
-        if (to != JsonRepresentation.JSON) throw new InvalidOperationException($"Cannot TRANSFORM text TO {to}.");
+        if (to != JsonRepresentation.JSON)
+            throw new InvalidOperationException($"Cannot TRANSFORM text TO {to}.");
         return ValueTask.FromResult(JsonNode.Parse(what) ?? new JsonObject());
     }
 }
@@ -91,7 +101,8 @@ public sealed class TransformJsonToText : TransformTo<string, JsonNode, JsonRepr
     public TransformJsonToText([What] JsonNode what, [To] JsonRepresentation to) : base(what, to) { }
     protected override ValueTask<string> TransformAsync(JsonNode what, JsonRepresentation to, CancellationToken cancellationToken)
     {
-        if (to != JsonRepresentation.TEXT) throw new InvalidOperationException($"Cannot TRANSFORM JSON TO {to}.");
+        if (to != JsonRepresentation.TEXT)
+            throw new InvalidOperationException($"Cannot TRANSFORM JSON TO {to}.");
         return ValueTask.FromResult(what.ToJsonString());
     }
 }

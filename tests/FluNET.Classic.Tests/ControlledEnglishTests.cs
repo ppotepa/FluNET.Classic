@@ -87,6 +87,10 @@ public sealed class ControlledEnglishTests
     private sealed class CapturingOutput : IOutputWriter
     {
         public List<string> Lines { get; } = [];
-        public ValueTask WriteLineAsync(string text, CancellationToken cancellationToken = default) { Lines.Add(text); return ValueTask.CompletedTask; }
+        public ValueTask WriteLineAsync(string text, CancellationToken cancellationToken = default)
+        {
+            Lines.Add(text);
+            return ValueTask.CompletedTask;
+        }
     }
 }

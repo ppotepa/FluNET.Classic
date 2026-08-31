@@ -32,7 +32,11 @@ public sealed class ExecutionObserverTests
     private sealed class CapturingObserver : IExecutionObserver
     {
         public List<ExecutionEvent> Events { get; } = [];
-        public ValueTask OnEventAsync(ExecutionEvent executionEvent, CancellationToken cancellationToken = default) { Events.Add(executionEvent); return ValueTask.CompletedTask; }
+        public ValueTask OnEventAsync(ExecutionEvent executionEvent, CancellationToken cancellationToken = default)
+        {
+            Events.Add(executionEvent);
+            return ValueTask.CompletedTask;
+        }
     }
 
     private sealed class ThrowingObserver : IExecutionObserver

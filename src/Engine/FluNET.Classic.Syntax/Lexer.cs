@@ -40,24 +40,61 @@ public sealed class ClassicLexer
         while (i < source.Length)
         {
             char ch = source[i];
-            if (ch is ' ' or '\t' or '\r') { i++; continue; }
+            if (ch is ' ' or '\t' or '\r')
+            {
+                i++;
+                continue;
+            }
             if (ch == '#')
             {
                 int start = i++;
                 int contentStart = i;
-                while (i < source.Length && source[i] != '\n') i++;
+                while (i < source.Length && source[i] != '\n')
+                    i++;
                 string value = source[contentStart..i].Trim();
                 tokens.Add(new(TokenKind.Comment, source[start..i], value, new(start, i - start)));
                 continue;
             }
-            if (ch == '\n') { tokens.Add(new(TokenKind.NewLine, "\n", null, new(i++, 1))); continue; }
-            if (ch == ';') { tokens.Add(new(TokenKind.Semicolon, ";", null, new(i++, 1))); continue; }
-            if (ch == ',') { tokens.Add(new(TokenKind.Comma, ",", null, new(i++, 1))); continue; }
-            if (ch == '.') { tokens.Add(new(TokenKind.Period, ".", null, new(i++, 1))); continue; }
-            if (ch == '(') { tokens.Add(new(TokenKind.LeftParen, "(", null, new(i++, 1))); continue; }
-            if (ch == ')') { tokens.Add(new(TokenKind.RightParen, ")", null, new(i++, 1))); continue; }
-            if (ch == '}') { tokens.Add(new(TokenKind.RightBrace, "}", null, new(i++, 1))); continue; }
-            if (ch == '{' && (i + 1 >= source.Length || char.IsWhiteSpace(source[i + 1]))) { tokens.Add(new(TokenKind.LeftBrace, "{", null, new(i++, 1))); continue; }
+            if (ch == '\n')
+            {
+                tokens.Add(new(TokenKind.NewLine, "\n", null, new(i++, 1)));
+                continue;
+            }
+            if (ch == ';')
+            {
+                tokens.Add(new(TokenKind.Semicolon, ";", null, new(i++, 1)));
+                continue;
+            }
+            if (ch == ',')
+            {
+                tokens.Add(new(TokenKind.Comma, ",", null, new(i++, 1)));
+                continue;
+            }
+            if (ch == '.')
+            {
+                tokens.Add(new(TokenKind.Period, ".", null, new(i++, 1)));
+                continue;
+            }
+            if (ch == '(')
+            {
+                tokens.Add(new(TokenKind.LeftParen, "(", null, new(i++, 1)));
+                continue;
+            }
+            if (ch == ')')
+            {
+                tokens.Add(new(TokenKind.RightParen, ")", null, new(i++, 1)));
+                continue;
+            }
+            if (ch == '}')
+            {
+                tokens.Add(new(TokenKind.RightBrace, "}", null, new(i++, 1)));
+                continue;
+            }
+            if (ch == '{' && (i + 1 >= source.Length || char.IsWhiteSpace(source[i + 1])))
+            {
+                tokens.Add(new(TokenKind.LeftBrace, "{", null, new(i++, 1)));
+                continue;
+            }
             if (ch == '{')
             {
                 int start = i++;
@@ -65,11 +102,27 @@ public sealed class ClassicLexer
                 var sb = new StringBuilder();
                 while (i < source.Length && depth > 0)
                 {
-                    if (source[i] == '{') { depth++; sb.Append(source[i++]); continue; }
-                    if (source[i] == '}') { depth--; if (depth == 0) { i++; break; } sb.Append(source[i++]); continue; }
+                    if (source[i] == '{')
+                    {
+                        depth++;
+                        sb.Append(source[i++]);
+                        continue;
+                    }
+                    if (source[i] == '}')
+                    {
+                        depth--;
+                        if (depth == 0)
+                        {
+                            i++;
+                            break;
+                        }
+                        sb.Append(source[i++]);
+                        continue;
+                    }
                     sb.Append(source[i++]);
                 }
-                if (depth > 0) diagnostics.Add(new("FLU-LEX-001", "Unterminated {reference}; expected closing '}'.", new(start, i - start)));
+                if (depth > 0)
+                    diagnostics.Add(new("FLU-LEX-001", "Unterminated {reference}; expected closing '}'.", new(start, i - start)));
                 tokens.Add(new(TokenKind.Reference, source[start..i], sb.ToString(), new(start, i - start)));
                 continue;
             }
@@ -77,10 +130,13 @@ public sealed class ClassicLexer
             {
                 int start = i++;
                 var sb = new StringBuilder();
-                while (i < source.Length && source[i] != ']') sb.Append(source[i++]);
+                while (i < source.Length && source[i] != ']')
+                    sb.Append(source[i++]);
                 bool closed = i < source.Length && source[i] == ']';
-                if (closed) i++;
-                else diagnostics.Add(new("FLU-LEX-002", "Unterminated [variable]; expected closing ']'.", new(start, i - start)));
+                if (closed)
+                    i++;
+                else
+                    diagnostics.Add(new("FLU-LEX-002", "Unterminated [variable]; expected closing ']'.", new(start, i - start)));
                 tokens.Add(new(TokenKind.Variable, source[start..i], sb.ToString().Trim(), new(start, i - start)));
                 continue;
             }
@@ -92,41 +148,64 @@ public sealed class ClassicLexer
                 bool closed = false;
                 while (i < source.Length)
                 {
-                    if (source[i] == quote) { i++; closed = true; break; }
+                    if (source[i] == quote)
+                    {
+                        i++;
+                        closed = true;
+                        break;
+                    }
                     if (source[i] == '\\')
                     {
                         int escapeStart = i++;
-                        if (i >= source.Length) break;
+                        if (i >= source.Length)
+                            break;
                         char escaped = source[i++];
                         switch (escaped)
                         {
-                            case 'n': sb.Append('\n'); break;
-                            case 'r': sb.Append('\r'); break;
-                            case 't': sb.Append('\t'); break;
-                            case '\\': sb.Append('\\'); break;
-                            case '"': sb.Append('"'); break;
-                            case '\'': sb.Append('\''); break;
+                            case 'n':
+                                sb.Append('\n');
+                                break;
+                            case 'r':
+                                sb.Append('\r');
+                                break;
+                            case 't':
+                                sb.Append('\t');
+                                break;
+                            case '\\':
+                                sb.Append('\\');
+                                break;
+                            case '"':
+                                sb.Append('"');
+                                break;
+                            case '\'':
+                                sb.Append('\'');
+                                break;
                             default:
                                 diagnostics.Add(new("FLU-LEX-004", $"Unknown escape sequence '\\{escaped}'.", new(escapeStart, 2)));
                                 sb.Append(escaped);
                                 break;
                         }
                     }
-                    else sb.Append(source[i++]);
+                    else
+                        sb.Append(source[i++]);
                 }
-                if (!closed) diagnostics.Add(new("FLU-LEX-003", $"Unterminated string literal; expected closing '{quote}'.", new(start, i - start)));
+                if (!closed)
+                    diagnostics.Add(new("FLU-LEX-003", $"Unterminated string literal; expected closing '{quote}'.", new(start, i - start)));
                 tokens.Add(new(TokenKind.String, source[start..i], sb.ToString(), new(start, i - start)));
                 continue;
             }
             if (char.IsDigit(ch) || (ch == '-' && i + 1 < source.Length && char.IsDigit(source[i + 1])))
             {
                 int start = i;
-                if (source[i] == '-') i++;
-                while (i < source.Length && char.IsDigit(source[i])) i++;
+                if (source[i] == '-')
+                    i++;
+                while (i < source.Length && char.IsDigit(source[i]))
+                    i++;
                 if (i < source.Length && source[i] == '.' && i + 1 < source.Length && char.IsDigit(source[i + 1]))
                 {
                     i++;
-                    while (i < source.Length && char.IsDigit(source[i])) i++;
+                    while (i < source.Length && char.IsDigit(source[i]))
+                        i++;
                 }
                 string numberText = source[start..i];
                 if (decimal.TryParse(numberText, NumberStyles.Number, CultureInfo.InvariantCulture, out decimal number))
@@ -139,7 +218,8 @@ public sealed class ClassicLexer
             if (IsOperatorStart(ch))
             {
                 int start = i++;
-                if (i < source.Length && source[i] == '=' && ch is '=' or '!' or '>' or '<') i++;
+                if (i < source.Length && source[i] == '=' && ch is '=' or '!' or '>' or '<')
+                    i++;
                 string op = source[start..i];
                 tokens.Add(new(TokenKind.Operator, op, op, new(start, i - start)));
                 continue;
@@ -149,12 +229,18 @@ public sealed class ClassicLexer
             while (i < source.Length)
             {
                 char current = source[i];
-                if (char.IsWhiteSpace(current) || current is ';' or ',' or '(' or ')' or '{' or '}' or '[' or ']' or '"' or '\'' or '#' || IsOperatorStart(current)) break;
-                if (current == '.' && !IsInternalPathDot(source, i, wordStart)) break;
+                if (char.IsWhiteSpace(current) || current is ';' or ',' or '(' or ')' or '{' or '}' or '[' or ']' or '"' or '\'' or '#' || IsOperatorStart(current))
+                    break;
+                if (current == '.' && !IsInternalPathDot(source, i, wordStart))
+                    break;
                 i++;
             }
             string word = source[wordStart..i];
-            if (word.Length == 0) { i++; continue; }
+            if (word.Length == 0)
+            {
+                i++;
+                continue;
+            }
             tokens.Add(new(TokenKind.Word, word, word, new(wordStart, i - wordStart)));
         }
         tokens.Add(new(TokenKind.End, string.Empty, null, new(source.Length, 0)));
@@ -163,7 +249,8 @@ public sealed class ClassicLexer
 
     private static bool IsInternalPathDot(string source, int index, int wordStart)
     {
-        if (source[index] != '.' || index <= wordStart || index + 1 >= source.Length) return false;
+        if (source[index] != '.' || index <= wordStart || index + 1 >= source.Length)
+            return false;
         return IsPathPart(source[index - 1]) && IsPathPart(source[index + 1]);
     }
 

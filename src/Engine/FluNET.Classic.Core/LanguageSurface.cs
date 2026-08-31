@@ -12,7 +12,8 @@ public sealed record PredicateCapabilityRequirement(string Capability, Type? Ope
 {
     public bool AppliesTo(Type operandType)
     {
-        if (OperandType is null) return true;
+        if (OperandType is null)
+            return true;
         Type expected = Nullable.GetUnderlyingType(OperandType) ?? OperandType;
         Type actual = Nullable.GetUnderlyingType(operandType) ?? operandType;
         return expected == actual || expected.IsAssignableFrom(actual);
@@ -46,7 +47,8 @@ public sealed record PredicateDescriptor(
 
     public bool CanApplyTo(Type operandType)
     {
-        if (SupportedOperandTypes.Count == 0) return true;
+        if (SupportedOperandTypes.Count == 0)
+            return true;
         Type effective = Nullable.GetUnderlyingType(operandType) ?? operandType;
         return SupportedOperandTypes.Any(type =>
         {
@@ -185,16 +187,25 @@ public sealed record IntrinsicDescriptor(
 
 public static class StandardLanguageSurface
 {
-    public static IReadOnlyList<string> StructuralSyntax { get; } = new[]
+    public static IReadOnlyList<string> StructuralSyntax
+    {
+        get;
+    } = new[]
     {
         "INTO", "THEN", "IF", "WHERE", "ELSE", "FOR", "EACH", "DO", "END", "AS", "TRY", "ON", "FAILURE", "FINALLY", "DEFINE", "TASK", "FUNCTION", "RETURNING", "RETURN", "RECORD", "MAKE"
     };
 
-    public static IReadOnlySet<string> LiteralWords { get; } = new HashSet<string>(
+    public static IReadOnlySet<string> LiteralWords
+    {
+        get;
+    } = new HashSet<string>(
         new[] { "TRUE", "FALSE", "NULL" },
         StringComparer.OrdinalIgnoreCase);
 
-    public static IReadOnlyList<PredicateDescriptor> Predicates { get; } = new PredicateDescriptor[]
+    public static IReadOnlyList<PredicateDescriptor> Predicates
+    {
+        get;
+    } = new PredicateDescriptor[]
     {
         new(
             "predicate:exists",
@@ -208,7 +219,10 @@ public static class StandardLanguageSurface
         new("predicate:empty", "EMPTY", PredicateSyntaxKind.IsState, OperandTypes: new[] { typeof(string), typeof(IEnumerable) })
     };
 
-    public static IReadOnlyList<OperatorDescriptor> Operators { get; } = new OperatorDescriptor[]
+    public static IReadOnlyList<OperatorDescriptor> Operators
+    {
+        get;
+    } = new OperatorDescriptor[]
     {
         new("operator:not", "NOT", 6, OperatorArity.Unary, OperatorAssociativity.Right, Semantic: OperatorSemanticKind.Logical, Compatibility: OperatorCompatibilityRule.BooleanOperand, Evaluation: OperatorEvaluationKind.LogicalNot),
         new("operator:or", "OR", 1, Semantic: OperatorSemanticKind.Logical, Compatibility: OperatorCompatibilityRule.BooleanPair, Evaluation: OperatorEvaluationKind.LogicalOr),
@@ -231,7 +245,10 @@ public static class StandardLanguageSurface
         new("operator:lt", "<", 4, Semantic: OperatorSemanticKind.Ordering, Compatibility: OperatorCompatibilityRule.OrderedPair, Evaluation: OperatorEvaluationKind.LessThan)
     };
 
-    public static IReadOnlySet<string> ReservedWords { get; } = new HashSet<string>(
+    public static IReadOnlySet<string> ReservedWords
+    {
+        get;
+    } = new HashSet<string>(
         StructuralSyntax.SelectMany(x => x.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
             .Concat(LiteralWords)
             .Concat(Predicates.SelectMany(x => x.AllSurfaceNames))

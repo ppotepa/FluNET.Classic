@@ -14,14 +14,38 @@ namespace FluNET.Classic.Hosting;
 public sealed class FluNetOptions
 {
     public IList<ILanguageModule> Modules { get; } = StandardModules.Create().ToList();
-    public ISet<string>? AllowedCapabilities { get; set; }
-    public ICapabilityPolicy? CapabilityPolicy { get; set; }
-    public Action<ValueResolverRegistry>? ConfigureResolvers { get; set; }
-    public Action<ValueConversionRegistry>? ConfigureConverters { get; set; }
-    public Action<PredicateRegistry>? ConfigurePredicates { get; set; }
-    public Action<OperatorEvaluatorRegistry>? ConfigureOperatorEvaluators { get; set; }
-    public Action<ExecutionPolicy>? ConfigureExecution { get; set; }
-    public IExecutionObserver? ExecutionObserver { get; set; }
+    public ISet<string>? AllowedCapabilities
+    {
+        get; set;
+    }
+    public ICapabilityPolicy? CapabilityPolicy
+    {
+        get; set;
+    }
+    public Action<ValueResolverRegistry>? ConfigureResolvers
+    {
+        get; set;
+    }
+    public Action<ValueConversionRegistry>? ConfigureConverters
+    {
+        get; set;
+    }
+    public Action<PredicateRegistry>? ConfigurePredicates
+    {
+        get; set;
+    }
+    public Action<OperatorEvaluatorRegistry>? ConfigureOperatorEvaluators
+    {
+        get; set;
+    }
+    public Action<ExecutionPolicy>? ConfigureExecution
+    {
+        get; set;
+    }
+    public IExecutionObserver? ExecutionObserver
+    {
+        get; set;
+    }
 }
 
 public static class FluNetHostingExtensions
@@ -31,7 +55,8 @@ public static class FluNetHostingExtensions
         options ??= new FluNetOptions();
         ILanguageModule[] modules = options.Modules.ToArray();
         IReadOnlyList<LanguageDiagnostic> moduleDiagnostics = ModuleGraphValidator.Validate(modules);
-        if (moduleDiagnostics.Any(x => x.Severity == LanguageDiagnosticSeverity.Error)) throw new LanguageCompilationException(moduleDiagnostics);
+        if (moduleDiagnostics.Any(x => x.Severity == LanguageDiagnosticSeverity.Error))
+            throw new LanguageCompilationException(moduleDiagnostics);
 
         services.AddSingleton(options);
         services.AddSingleton(modules);
@@ -76,7 +101,11 @@ public static class FluNetHost
 
 public sealed class ConsoleOutputWriter : IOutputWriter
 {
-    public ValueTask WriteLineAsync(string text, CancellationToken cancellationToken = default) { Console.WriteLine(text); return ValueTask.CompletedTask; }
+    public ValueTask WriteLineAsync(string text, CancellationToken cancellationToken = default)
+    {
+        Console.WriteLine(text);
+        return ValueTask.CompletedTask;
+    }
 }
 
 public sealed class MissingEmailSender : IEmailSender

@@ -88,23 +88,39 @@ public class BindingDiagnosticsTests
 
     private sealed class SourceToText(string value) : ValueConverter<Source, string>
     {
-        public override bool TryConvert(Source source, out string? result) { result = value; return true; }
+        public override bool TryConvert(Source source, out string? result)
+        {
+            result = value;
+            return true;
+        }
     }
 
     private sealed class SourceToIntermediate : ValueConverter<Source, Intermediate>
     {
-        public override bool TryConvert(Source value, out Intermediate? result) { result = new Intermediate(value.Value); return true; }
+        public override bool TryConvert(Source value, out Intermediate? result)
+        {
+            result = new Intermediate(value.Value);
+            return true;
+        }
     }
 
     private sealed class IntermediateToText : ValueConverter<Intermediate, string>
     {
-        public override bool TryConvert(Intermediate value, out string? result) { result = value.Value; return true; }
+        public override bool TryConvert(Intermediate value, out string? result)
+        {
+            result = value.Value;
+            return true;
+        }
     }
 
     private sealed class FileResolver(string suffix) : IValueResolver<FileInfo>
     {
         public Type TargetType => typeof(FileInfo);
-        public bool TryResolve(string source, ResolutionContext context, out FileInfo? value) { value = new FileInfo(source + suffix); return true; }
+        public bool TryResolve(string source, ResolutionContext context, out FileInfo? value)
+        {
+            value = new FileInfo(source + suffix);
+            return true;
+        }
         bool IValueResolver.TryResolve(string source, ResolutionContext context, out object? value)
         {
             bool ok = TryResolve(source, context, out FileInfo? typed);

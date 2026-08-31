@@ -26,13 +26,15 @@ internal static class AsyncSequenceAdapter
 
     public static object Take(object source, int amount)
     {
-        if (amount < 0) throw new ArgumentOutOfRangeException(nameof(amount), amount, "TAKE requires a non-negative amount.");
+        if (amount < 0)
+            throw new ArgumentOutOfRangeException(nameof(amount), amount, "TAKE requires a non-negative amount.");
         return InvokeSequence(TakeCoreMethod, source, amount);
     }
 
     public static object Skip(object source, int amount)
     {
-        if (amount < 0) throw new ArgumentOutOfRangeException(nameof(amount), amount, "SKIP requires a non-negative amount.");
+        if (amount < 0)
+            throw new ArgumentOutOfRangeException(nameof(amount), amount, "SKIP requires a non-negative amount.");
         return InvokeSequence(SkipCoreMethod, source, amount);
     }
 
@@ -48,8 +50,10 @@ internal static class AsyncSequenceAdapter
         ParameterInfo[] parameters = generic.GetParameters();
         var args = new object?[parameters.Length];
         args[0] = source;
-        for (int index = 0; index < arguments.Length; index++) args[index + 1] = arguments[index];
-        for (int index = arguments.Length + 1; index < args.Length; index++) args[index] = Type.Missing;
+        for (int index = 0; index < arguments.Length; index++)
+            args[index + 1] = arguments[index];
+        for (int index = arguments.Length + 1; index < args.Length; index++)
+            args[index] = Type.Missing;
         return generic.Invoke(null, args)
             ?? throw new InvalidOperationException("Async sequence operator returned null.");
     }
@@ -81,7 +85,8 @@ internal static class AsyncSequenceAdapter
     private static async ValueTask<List<object?>> ToListCore<T>(IAsyncEnumerable<T> source, CancellationToken cancellationToken)
     {
         var result = new List<object?>();
-        await foreach (T item in source.WithCancellation(cancellationToken).ConfigureAwait(false)) result.Add(item);
+        await foreach (T item in source.WithCancellation(cancellationToken).ConfigureAwait(false))
+            result.Add(item);
         return result;
     }
 
@@ -97,17 +102,20 @@ internal static class AsyncSequenceAdapter
     private static async IAsyncEnumerable<T> WhereCore<T>(IAsyncEnumerable<T> source, Func<object?, bool> predicate, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
         await foreach (T item in source.WithCancellation(cancellationToken).ConfigureAwait(false))
-            if (predicate(item)) yield return item;
+            if (predicate(item))
+                yield return item;
     }
 
     private static async IAsyncEnumerable<T> TakeCore<T>(IAsyncEnumerable<T> source, int amount, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
-        if (amount == 0) yield break;
+        if (amount == 0)
+            yield break;
         int count = 0;
         await foreach (T item in source.WithCancellation(cancellationToken).ConfigureAwait(false))
         {
             yield return item;
-            if (++count >= amount) yield break;
+            if (++count >= amount)
+                yield break;
         }
     }
 
@@ -116,7 +124,11 @@ internal static class AsyncSequenceAdapter
         int skipped = 0;
         await foreach (T item in source.WithCancellation(cancellationToken).ConfigureAwait(false))
         {
-            if (skipped < amount) { skipped++; continue; }
+            if (skipped < amount)
+            {
+                skipped++;
+                continue;
+            }
             yield return item;
         }
     }
@@ -127,7 +139,8 @@ internal static class AsyncSequenceAdapter
         await foreach (T item in source.WithCancellation(cancellationToken).ConfigureAwait(false))
         {
             object? key = keySelector(item);
-            if (keys.Any(existing => equals(existing, key))) continue;
+            if (keys.Any(existing => equals(existing, key)))
+                continue;
             keys.Add(key);
             yield return item;
         }
@@ -136,7 +149,11 @@ internal static class AsyncSequenceAdapter
     private static async ValueTask<int> CountCore<T>(IAsyncEnumerable<T> source, CancellationToken cancellationToken)
     {
         int count = 0;
-        await foreach (T _ in source.WithCancellation(cancellationToken).ConfigureAwait(false)) checked { count++; }
+        await foreach (T _ in source.WithCancellation(cancellationToken).ConfigureAwait(false))
+            checked
+            {
+                count++;
+            }
         return count;
     }
 }

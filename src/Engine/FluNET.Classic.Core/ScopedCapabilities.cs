@@ -30,8 +30,10 @@ public sealed class ScopedCapabilitySetPolicy : IScopedCapabilityPolicy
     // to distinguish broad permission from a permission that still needs resource checks.
     public bool IsAllowed(string capability, object? resource)
     {
-        if (_unscoped.Contains(capability)) return true;
-        if (resource is null || !_scopes.TryGetValue(capability, out List<Func<object?, bool>>? scopes)) return false;
+        if (_unscoped.Contains(capability))
+            return true;
+        if (resource is null || !_scopes.TryGetValue(capability, out List<Func<object?, bool>>? scopes))
+            return false;
         return scopes.Any(scope => scope(resource));
     }
 }

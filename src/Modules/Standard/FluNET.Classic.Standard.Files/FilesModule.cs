@@ -2,8 +2,14 @@ using FluNET.Classic.Core;
 
 namespace FluNET.Classic.Standard.Files;
 
-public enum TextFileRepresentation { TEXT }
-public enum BinaryFileRepresentation { BINARY }
+public enum TextFileRepresentation
+{
+    TEXT
+}
+public enum BinaryFileRepresentation
+{
+    BINARY
+}
 
 public sealed record PathSpec(string Value)
 {
@@ -51,7 +57,8 @@ public sealed class GetTextMany : Get<string[], FileInfo[]>
     protected override async ValueTask<string[]> ActAsync(FileInfo[] from, CancellationToken cancellationToken)
     {
         var lines = new List<string>();
-        foreach (FileInfo file in from) lines.AddRange(await File.ReadAllLinesAsync(file.FullName, cancellationToken).ConfigureAwait(false));
+        foreach (FileInfo file in from)
+            lines.AddRange(await File.ReadAllLinesAsync(file.FullName, cancellationToken).ConfigureAwait(false));
         return lines.ToArray();
     }
 }
@@ -118,7 +125,11 @@ public sealed class ListFiles : IVerb<FileInfo[]>, IListVerb, IIn<DirectoryInfo>
 {
     private readonly DirectoryInfo _directory;
     private readonly FilePattern? _pattern;
-    public ListFiles([In] DirectoryInfo directory, [With] FilePattern? pattern = null) { _directory = directory; _pattern = pattern; }
+    public ListFiles([In] DirectoryInfo directory, [With] FilePattern? pattern = null)
+    {
+        _directory = directory;
+        _pattern = pattern;
+    }
     public ValueTask<FileInfo[]> ExecuteAsync(VerbExecutionContext context, CancellationToken cancellationToken = default) =>
         ValueTask.FromResult(_directory.Exists ? _directory.GetFiles(_pattern?.Pattern ?? "*") : Array.Empty<FileInfo>());
 }
@@ -134,7 +145,9 @@ public sealed class CreateFile : IVerb<FileInfo>, ICreate, IAt<FileInfo>, IPipel
         _file.Directory?.Create();
         if (!_file.Exists)
         {
-            using (_file.Create()) { }
+            using (_file.Create())
+            {
+            }
             _file.Refresh();
         }
         return ValueTask.FromResult(_file);
@@ -147,7 +160,11 @@ public sealed class CopyFile : IVerb<FileInfo>, ICopy, IWhat<FileInfo>, ITo<File
 {
     private readonly FileInfo _source;
     private readonly FileInfo _destination;
-    public CopyFile([What] FileInfo source, [To] FileInfo destination) { _source = source; _destination = destination; }
+    public CopyFile([What] FileInfo source, [To] FileInfo destination)
+    {
+        _source = source;
+        _destination = destination;
+    }
     public ValueTask<FileInfo> ExecuteAsync(VerbExecutionContext context, CancellationToken cancellationToken = default)
     {
         _destination.Directory?.Create();
@@ -163,7 +180,11 @@ public sealed class MoveFile : IVerb<FileInfo>, IMove, IWhat<FileInfo>, ITo<File
 {
     private readonly FileInfo _source;
     private readonly FileInfo _destination;
-    public MoveFile([What] FileInfo source, [To] FileInfo destination) { _source = source; _destination = destination; }
+    public MoveFile([What] FileInfo source, [To] FileInfo destination)
+    {
+        _source = source;
+        _destination = destination;
+    }
     public ValueTask<FileInfo> ExecuteAsync(VerbExecutionContext context, CancellationToken cancellationToken = default)
     {
         _destination.Directory?.Create();
@@ -180,7 +201,8 @@ public sealed class DeleteFile : Delete<FileInfo>, IAt<FileInfo>
     protected override ValueTask<bool> DeleteAsync(FileInfo from, CancellationToken cancellationToken)
     {
         bool existed = from.Exists;
-        if (existed) from.Delete();
+        if (existed)
+            from.Delete();
         return ValueTask.FromResult(existed);
     }
 }

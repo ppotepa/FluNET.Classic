@@ -106,7 +106,8 @@ public sealed class ModuleArtifactGenerator
         text.AppendLine();
         text.AppendLine($"Version: `{module.Version}`");
         text.AppendLine($"Language contract: `{ClassicLanguageContract.Id}`");
-        if (module.Dependencies.Count > 0) text.AppendLine($"Dependencies: {string.Join(", ", module.Dependencies.Select(x => $"`{x}`"))}");
+        if (module.Dependencies.Count > 0)
+            text.AppendLine($"Dependencies: {string.Join(", ", module.Dependencies.Select(x => $"`{x}`"))}");
         text.AppendLine();
 
         if (module.Predicates.Count > 0)
@@ -145,12 +146,16 @@ public sealed class ModuleArtifactGenerator
                 {
                     string roles = string.Join(" ", pattern.Roles.OrderBy(x => x.Position).Select(FormatRole).Where(x => x.Length > 0));
                     text.AppendLine($"- `{verb.Key}{(roles.Length == 0 ? string.Empty : " " + roles)}` → `{Friendly(implementation.ResultType)}`");
-                    if (SensitiveValueMetadata.IsSensitiveType(implementation.ResultType)) text.AppendLine("  - sensitive result: `true`");
+                    if (SensitiveValueMetadata.IsSensitiveType(implementation.ResultType))
+                        text.AppendLine("  - sensitive result: `true`");
                     foreach (RoleSlotDescriptor output in pattern.Roles.Where(x => x.Direction is RoleDirection.Output or RoleDirection.InputOutput && x.OutputProjection is not null))
                         text.AppendLine($"  - output `{output.Name}` projection: `{Projection(output.OutputProjection)}`");
-                    if (implementation.Qualifiers.Count > 0) text.AppendLine($"  - qualifiers: {string.Join(", ", implementation.Qualifiers.Select(x => $"`{x}`"))}");
-                    if (implementation.Capabilities.Count > 0) text.AppendLine($"  - capabilities: {string.Join(", ", implementation.Capabilities.Select(x => $"`{x}`"))}");
-                    if (implementation.Traits.Count > 0) text.AppendLine($"  - traits: {string.Join(", ", implementation.Traits.Select(x => $"`{x}`"))}");
+                    if (implementation.Qualifiers.Count > 0)
+                        text.AppendLine($"  - qualifiers: {string.Join(", ", implementation.Qualifiers.Select(x => $"`{x}`"))}");
+                    if (implementation.Capabilities.Count > 0)
+                        text.AppendLine($"  - capabilities: {string.Join(", ", implementation.Capabilities.Select(x => $"`{x}`"))}");
+                    if (implementation.Traits.Count > 0)
+                        text.AppendLine($"  - traits: {string.Join(", ", implementation.Traits.Select(x => $"`{x}`"))}");
                 }
             text.AppendLine();
         }
@@ -166,7 +171,8 @@ public sealed class ModuleArtifactGenerator
 
     private static string FormatRole(RoleSlotDescriptor role)
     {
-        if (role.Direction == RoleDirection.Output) return string.Empty;
+        if (role.Direction == RoleDirection.Output)
+            return string.Empty;
         string cardinality = role.Cardinality switch
         {
             RoleCardinality.ZeroOrOne => "?",
@@ -176,7 +182,8 @@ public sealed class ModuleArtifactGenerator
         };
         string nullability = role.TypeShape.IsNullable ? "?" : string.Empty;
         string sensitivity = SensitiveValueMetadata.IsSensitiveType(role.ValueType) ? " sensitive" : string.Empty;
-        if (role.Name.Equals("WHAT", StringComparison.OrdinalIgnoreCase)) return $"<{Friendly(role.ValueType)}{nullability}{sensitivity}>{cardinality}";
+        if (role.Name.Equals("WHAT", StringComparison.OrdinalIgnoreCase))
+            return $"<{Friendly(role.ValueType)}{nullability}{sensitivity}>{cardinality}";
         string surface = role.AllSurfaceNames.Count > 1 ? string.Join("|", role.AllSurfaceNames) : role.Name;
         return $"{surface} <{Friendly(role.ValueType)}{nullability}{sensitivity}>{cardinality}";
     }

@@ -12,7 +12,8 @@ public static class ModuleDiscovery
             foreach (Type type in GetLoadableTypes(assembly).Where(t => !t.IsAbstract && !t.IsInterface && typeof(ILanguageModule).IsAssignableFrom(t)))
             {
                 ConstructorInfo? ctor = type.GetConstructor(Type.EmptyTypes);
-                if (ctor is not null && ctor.Invoke(null) is ILanguageModule module) modules.Add(module);
+                if (ctor is not null && ctor.Invoke(null) is ILanguageModule module)
+                    modules.Add(module);
             }
         }
         return modules.GroupBy(x => x.Name, StringComparer.OrdinalIgnoreCase).Select(x => x.Last()).ToArray();
@@ -20,7 +21,10 @@ public static class ModuleDiscovery
 
     private static IEnumerable<Type> GetLoadableTypes(Assembly assembly)
     {
-        try { return assembly.GetTypes(); }
+        try
+        {
+            return assembly.GetTypes();
+        }
         catch (ReflectionTypeLoadException ex) { return ex.Types.OfType<Type>(); }
     }
 }

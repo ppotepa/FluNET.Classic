@@ -4,7 +4,10 @@ using System.Text.Json.Nodes;
 
 namespace FluNET.Classic.Standard.Http;
 
-public enum HttpJsonRepresentation { JSON }
+public enum HttpJsonRepresentation
+{
+    JSON
+}
 
 public sealed record HttpEndpoint(Uri Uri)
 {
@@ -22,7 +25,11 @@ public sealed record HttpHeaders(IReadOnlyDictionary<string, string[]> Values)
 {
     public bool TryGet(string name, out IReadOnlyList<string> values)
     {
-        if (Values.TryGetValue(name, out string[]? found)) { values = found; return true; }
+        if (Values.TryGetValue(name, out string[]? found))
+        {
+            values = found;
+            return true;
+        }
         values = Array.Empty<string>();
         return false;
     }
@@ -128,11 +135,17 @@ public sealed class DownloadFile : IVerb<byte[]>, IDownload, IWhat<byte[]>, IFro
     private readonly HttpEndpoint _from;
     private readonly FileInfo? _to;
     private readonly HttpClient _client;
-    public DownloadFile([What] byte[] what, [From] HttpEndpoint from, [To] FileInfo? to = null, [FromServices] HttpClient client = null!) { _from = from; _to = to; _client = client; }
+    public DownloadFile([What] byte[] what, [From] HttpEndpoint from, [To] FileInfo? to = null, [FromServices] HttpClient client = null!)
+    {
+        _from = from;
+        _to = to;
+        _client = client;
+    }
     public async ValueTask<byte[]> ExecuteAsync(VerbExecutionContext context, CancellationToken cancellationToken = default)
     {
         byte[] data = await _client.GetByteArrayAsync(_from.Uri, cancellationToken).ConfigureAwait(false);
-        if (_to is not null) await File.WriteAllBytesAsync(_to.FullName, data, cancellationToken).ConfigureAwait(false);
+        if (_to is not null)
+            await File.WriteAllBytesAsync(_to.FullName, data, cancellationToken).ConfigureAwait(false);
         return data;
     }
 }
@@ -145,7 +158,12 @@ public sealed class PostJson : IVerb<JsonNode>, IPost, IWhat<JsonNode>, ITo<Http
     private readonly JsonNode _body;
     private readonly HttpEndpoint _to;
     private readonly HttpClient _client;
-    public PostJson([What] JsonNode body, [To] HttpEndpoint to, [FromServices] HttpClient client) { _body = body; _to = to; _client = client; }
+    public PostJson([What] JsonNode body, [To] HttpEndpoint to, [FromServices] HttpClient client)
+    {
+        _body = body;
+        _to = to;
+        _client = client;
+    }
     public async ValueTask<JsonNode> ExecuteAsync(VerbExecutionContext context, CancellationToken cancellationToken = default)
     {
         using var content = new StringContent(_body.ToJsonString(), Encoding.UTF8, "application/json");
@@ -164,7 +182,12 @@ public sealed class SendEmail : IVerb<string>, ISend, IWhat<string>, ITo<string>
     private readonly string _message;
     private readonly string _to;
     private readonly IEmailSender _sender;
-    public SendEmail([What] string message, [To] string to, [FromServices] IEmailSender sender) { _message = message; _to = to; _sender = sender; }
+    public SendEmail([What] string message, [To] string to, [FromServices] IEmailSender sender)
+    {
+        _message = message;
+        _to = to;
+        _sender = sender;
+    }
     public async ValueTask<string> ExecuteAsync(VerbExecutionContext context, CancellationToken cancellationToken = default)
     {
         await _sender.SendAsync(_to, _message, cancellationToken).ConfigureAwait(false);

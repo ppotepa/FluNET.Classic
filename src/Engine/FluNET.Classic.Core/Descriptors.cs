@@ -38,8 +38,10 @@ public sealed record ClrTypeShape(
     public static Type? GetElementType(Type type)
     {
         type = Nullable.GetUnderlyingType(type) ?? type;
-        if (type == typeof(string)) return null;
-        if (type.IsArray) return type.GetElementType();
+        if (type == typeof(string))
+            return null;
+        if (type.IsArray)
+            return type.GetElementType();
         if (type.IsGenericType)
         {
             Type definition = type.GetGenericTypeDefinition();
@@ -53,7 +55,8 @@ public sealed record ClrTypeShape(
 
         Type? asyncEnumerable = type.GetInterfaces()
             .FirstOrDefault(x => x.IsGenericType && x.GetGenericTypeDefinition() == typeof(IAsyncEnumerable<>));
-        if (asyncEnumerable is not null) return asyncEnumerable.GetGenericArguments()[0];
+        if (asyncEnumerable is not null)
+            return asyncEnumerable.GetGenericArguments()[0];
 
         return type.GetInterfaces()
             .FirstOrDefault(x => x.IsGenericType && x.GetGenericTypeDefinition() == typeof(IEnumerable<>))
@@ -63,7 +66,8 @@ public sealed record ClrTypeShape(
     public static bool IsAsyncEnumerableType(Type type)
     {
         type = Nullable.GetUnderlyingType(type) ?? type;
-        if (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(IAsyncEnumerable<>)) return true;
+        if (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(IAsyncEnumerable<>))
+            return true;
         return type.GetInterfaces().Any(x => x.IsGenericType && x.GetGenericTypeDefinition() == typeof(IAsyncEnumerable<>));
     }
 }
@@ -171,13 +175,20 @@ public sealed class LanguageBuildResult
         Diagnostics = diagnostics;
     }
 
-    public LanguageSnapshot? Snapshot { get; }
-    public IReadOnlyList<LanguageDiagnostic> Diagnostics { get; }
+    public LanguageSnapshot? Snapshot
+    {
+        get;
+    }
+    public IReadOnlyList<LanguageDiagnostic> Diagnostics
+    {
+        get;
+    }
     public bool Success => Snapshot is not null && Diagnostics.All(x => x.Severity != LanguageDiagnosticSeverity.Error);
 
     public LanguageSnapshot ThrowIfFailed()
     {
-        if (Success) return Snapshot!;
+        if (Success)
+            return Snapshot!;
         throw new LanguageCompilationException(Diagnostics);
     }
 }
@@ -190,5 +201,8 @@ public sealed class LanguageCompilationException : Exception
         Diagnostics = diagnostics.ToArray();
     }
 
-    public IReadOnlyList<LanguageDiagnostic> Diagnostics { get; }
+    public IReadOnlyList<LanguageDiagnostic> Diagnostics
+    {
+        get;
+    }
 }

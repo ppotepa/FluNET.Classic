@@ -105,25 +105,45 @@ public class ConversionResolutionDeterminismTests
 
     private sealed class AToB(string value = "b") : ValueConverter<A, B>
     {
-        public override bool TryConvert(A valueIn, out B? result) { result = new B(value); return true; }
+        public override bool TryConvert(A valueIn, out B? result)
+        {
+            result = new B(value);
+            return true;
+        }
     }
     private sealed class BToD : ValueConverter<B, D>
     {
-        public override bool TryConvert(B value, out D? result) { result = new D(value.Value); return true; }
+        public override bool TryConvert(B value, out D? result)
+        {
+            result = new D(value.Value);
+            return true;
+        }
     }
     private sealed class AToC : ValueConverter<A, C>
     {
-        public override bool TryConvert(A value, out C? result) { result = new C(value.Value); return true; }
+        public override bool TryConvert(A value, out C? result)
+        {
+            result = new C(value.Value);
+            return true;
+        }
     }
     private sealed class CToD : ValueConverter<C, D>
     {
-        public override bool TryConvert(C value, out D? result) { result = new D(value.Value); return true; }
+        public override bool TryConvert(C value, out D? result)
+        {
+            result = new D(value.Value);
+            return true;
+        }
     }
 
     private class TestResolver(string value) : IValueResolver<Resolved>
     {
         public Type TargetType => typeof(Resolved);
-        public virtual bool TryResolve(string source, ResolutionContext context, out Resolved? resolved) { resolved = new Resolved(value); return true; }
+        public virtual bool TryResolve(string source, ResolutionContext context, out Resolved? resolved)
+        {
+            resolved = new Resolved(value);
+            return true;
+        }
         bool IValueResolver.TryResolve(string source, ResolutionContext context, out object? resolved)
         {
             bool ok = TryResolve(source, context, out Resolved? typed);

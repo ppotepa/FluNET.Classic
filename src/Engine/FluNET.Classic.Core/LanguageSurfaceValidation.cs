@@ -22,7 +22,8 @@ public static class LanguageSurfaceValidation
                             diagnostics.Add(new("FLU-LANG-044", $"Role '{role.Name}' in pattern '{pattern.StableId}' illegally claims structural surface '{surface}'.", LanguageDiagnosticSeverity.Error, relatedType));
                     }
 
-                    if (!implementation.Name.Equals("TRANSFORM", StringComparison.OrdinalIgnoreCase)) continue;
+                    if (!implementation.Name.Equals("TRANSFORM", StringComparison.OrdinalIgnoreCase))
+                        continue;
                     if (role.AllSurfaceNames.Any(surface => surface.Equals(LanguageRoleNames.As, StringComparison.OrdinalIgnoreCase)))
                         diagnostics.Add(new("FLU-LANG-045", $"TRANSFORM pattern '{pattern.StableId}' uses AS; use TO for target representation/state and USING for method/strategy.", LanguageDiagnosticSeverity.Error, relatedType));
                     if ((role.Name.Equals(LanguageRoleNames.To, StringComparison.OrdinalIgnoreCase) || role.Name.Equals(LanguageRoleNames.Using, StringComparison.OrdinalIgnoreCase))

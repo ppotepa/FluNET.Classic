@@ -61,7 +61,10 @@ public class NullabilityBindingTests
     private sealed class RecordingStringResolver : IValueResolver<string>
     {
         public Type TargetType => typeof(string);
-        public int Calls { get; private set; }
+        public int Calls
+        {
+            get; private set;
+        }
         public bool TryResolve(string source, ResolutionContext context, out string? value)
         {
             Calls++;

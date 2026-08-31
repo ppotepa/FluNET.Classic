@@ -15,7 +15,10 @@ public static class LanguageRoleNames
     public const string Until = "UNTIL";
     public const string By = "BY";
 
-    public static IReadOnlySet<string> Contextual { get; } = new HashSet<string>(
+    public static IReadOnlySet<string> Contextual
+    {
+        get;
+    } = new HashSet<string>(
         new[] { What, From, To, Using, With, As, In, At, For, Until, By },
         StringComparer.OrdinalIgnoreCase);
 
@@ -24,7 +27,10 @@ public static class LanguageRoleNames
     /// Words such as AS and FOR remain contextual roles as well as structural words in
     /// specific constructs, so they are intentionally excluded from this set.
     /// </summary>
-    public static IReadOnlySet<string> StructuralOnly { get; } = StandardLanguageSurface.StructuralSyntax
+    public static IReadOnlySet<string> StructuralOnly
+    {
+        get;
+    } = StandardLanguageSurface.StructuralSyntax
         .SelectMany(surface => surface.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
         .Where(surface => !Contextual.Contains(surface))
         .ToHashSet(StringComparer.OrdinalIgnoreCase);

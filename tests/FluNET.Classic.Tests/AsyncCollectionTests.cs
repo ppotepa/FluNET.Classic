@@ -103,7 +103,8 @@ public class AsyncCollectionTests
     private static async Task<List<int>> Values(IAsyncEnumerable<NumberItem> source)
     {
         var result = new List<int>();
-        await foreach (NumberItem item in source) result.Add(item.Value);
+        await foreach (NumberItem item in source)
+            result.Add(item.Value);
         return result;
     }
 
@@ -118,6 +119,12 @@ public class AsyncCollectionTests
         }
     }
 
-    private sealed class EnumerationCounter { public int Count { get; set; } }
+    private sealed class EnumerationCounter
+    {
+        public int Count
+        {
+            get; set;
+        }
+    }
     private sealed record NumberItem(int Value);
 }

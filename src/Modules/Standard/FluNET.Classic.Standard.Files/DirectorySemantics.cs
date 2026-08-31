@@ -11,7 +11,10 @@ public sealed record DirectoryMetadata(
     int DirectoryCount,
     bool Exists) : IExistenceState;
 
-[Verb("CREATE"), Qualifier("DIRECTORY"), RequiresCapability(StandardCapabilities.FileSystemWrite), ExecutionTrait(ExecutionTrait.SideEffecting)]
+[Verb("CREATE")]
+[Qualifier("DIRECTORY")]
+[RequiresCapability(StandardCapabilities.FileSystemWrite)]
+[ExecutionTrait(ExecutionTrait.SideEffecting)]
 public sealed class CreateDirectory : IVerb<DirectoryInfo>, ICreate, IAt<DirectoryInfo>, IPipelineProducer<DirectoryInfo>
 {
     private readonly DirectoryInfo _directory;
@@ -25,7 +28,10 @@ public sealed class CreateDirectory : IVerb<DirectoryInfo>, ICreate, IAt<Directo
     }
 }
 
-[Verb("GET"), Qualifier("METADATA"), RequiresCapability(StandardCapabilities.FileSystemRead), ExecutionTrait(ExecutionTrait.Idempotent)]
+[Verb("GET")]
+[Qualifier("METADATA")]
+[RequiresCapability(StandardCapabilities.FileSystemRead)]
+[ExecutionTrait(ExecutionTrait.Idempotent)]
 public sealed class GetDirectoryMetadata : IVerb<DirectoryMetadata>, IGet, IFrom<DirectoryInfo>, IPipelineConsumer<DirectoryInfo>, IPipelineProducer<DirectoryMetadata>
 {
     private readonly DirectoryInfo _directory;

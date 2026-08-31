@@ -6,7 +6,10 @@ namespace FluNET.Classic.Hosting;
 /// <summary>Project configuration for a FluNET application.</summary>
 public sealed class FluNetProjectManifest
 {
-    public string? Entry { get; set; }
+    public string? Entry
+    {
+        get; set;
+    }
     public IList<string> Sources { get; set; } = [];
     public IDictionary<string, string> Modules { get; set; } = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
     public IList<string> Capabilities { get; set; } = [];
@@ -15,8 +18,14 @@ public sealed class FluNetProjectManifest
 
 public sealed class FluNetProjectExecutionOptions
 {
-    public TimeSpan? Timeout { get; set; }
-    public int? Parallelism { get; set; }
+    public TimeSpan? Timeout
+    {
+        get; set;
+    }
+    public int? Parallelism
+    {
+        get; set;
+    }
 }
 
 public sealed record FluNetProject(string RootDirectory, string ManifestPath, FluNetProjectManifest Manifest, IReadOnlyList<string> SourceFiles)
@@ -52,22 +61,28 @@ public static class FluNetProjectLoader
 
         manifest.Execution ??= new FluNetProjectExecutionOptions();
         manifest.Modules ??= new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        if (string.IsNullOrWhiteSpace(manifest.Entry)) throw new InvalidDataException("flu.json requires an 'entry' file.");
-        if (manifest.Execution.Parallelism is <= 0) throw new InvalidDataException("execution.parallelism must be greater than zero.");
-        if (manifest.Execution.Timeout is { } timeout && timeout <= TimeSpan.Zero) throw new InvalidDataException("execution.timeout must be greater than zero.");
+        if (string.IsNullOrWhiteSpace(manifest.Entry))
+            throw new InvalidDataException("flu.json requires an 'entry' file.");
+        if (manifest.Execution.Parallelism is <= 0)
+            throw new InvalidDataException("execution.parallelism must be greater than zero.");
+        if (manifest.Execution.Timeout is { } timeout && timeout <= TimeSpan.Zero)
+            throw new InvalidDataException("execution.timeout must be greater than zero.");
 
         string entry = ResolveProjectPath(root, manifest.Entry, "entry");
         var sources = new List<string> { entry };
         foreach (string source in manifest.Sources ?? [])
         {
             string resolved = ResolveProjectPath(root, source, "source");
-            if (!sources.Contains(resolved, StringComparer.OrdinalIgnoreCase)) sources.Add(resolved);
+            if (!sources.Contains(resolved, StringComparer.OrdinalIgnoreCase))
+                sources.Add(resolved);
         }
 
         foreach ((string name, string version) in manifest.Modules ?? new Dictionary<string, string>())
         {
-            if (string.IsNullOrWhiteSpace(name)) throw new InvalidDataException("Module names cannot be empty.");
-            if (string.IsNullOrWhiteSpace(version)) throw new InvalidDataException($"Module '{name}' must specify a package version.");
+            if (string.IsNullOrWhiteSpace(name))
+                throw new InvalidDataException("Module names cannot be empty.");
+            if (string.IsNullOrWhiteSpace(version))
+                throw new InvalidDataException($"Module '{name}' must specify a package version.");
         }
 
         return new(root, manifestPath, manifest, sources);
@@ -76,14 +91,17 @@ public static class FluNetProjectLoader
     public static string Find(string? path = null)
     {
         string candidate = Path.GetFullPath(path ?? Directory.GetCurrentDirectory());
-        if (File.Exists(candidate) && Path.GetFileName(candidate).Equals(ManifestFileName, StringComparison.OrdinalIgnoreCase)) return candidate;
+        if (File.Exists(candidate) && Path.GetFileName(candidate).Equals(ManifestFileName, StringComparison.OrdinalIgnoreCase))
+            return candidate;
         string current = Directory.Exists(candidate) ? candidate : Path.GetDirectoryName(candidate)!;
         while (!string.IsNullOrEmpty(current))
         {
             string manifest = Path.Combine(current, ManifestFileName);
-            if (File.Exists(manifest)) return manifest;
+            if (File.Exists(manifest))
+                return manifest;
             string? parent = Directory.GetParent(current)?.FullName;
-            if (parent is null || string.Equals(parent, current, StringComparison.OrdinalIgnoreCase)) break;
+            if (parent is null || string.Equals(parent, current, StringComparison.OrdinalIgnoreCase))
+                break;
             current = parent;
         }
         throw new FileNotFoundException("Could not find flu.json.", path ?? Directory.GetCurrentDirectory());
@@ -104,7 +122,8 @@ public static class FluNetProjectLoader
         string rootWithSeparator = normalizedRoot + Path.DirectorySeparatorChar;
         if (!resolved.StartsWith(rootWithSeparator, StringComparison.OrdinalIgnoreCase) && !string.Equals(resolved, normalizedRoot, StringComparison.OrdinalIgnoreCase))
             throw new InvalidDataException($"{kind} path must stay inside the project: '{relativePath}'.");
-        if (!File.Exists(resolved)) throw new FileNotFoundException($"FluNET {kind} file was not found.", resolved);
+        if (!File.Exists(resolved))
+            throw new FileNotFoundException($"FluNET {kind} file was not found.", resolved);
         return resolved;
     }
 }

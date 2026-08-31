@@ -3,9 +3,15 @@ using System.Collections.Concurrent;
 
 namespace FluNET.Classic.Cache;
 
-public sealed record CacheKey(string Value) { public override string ToString() => Value; }
+public sealed record CacheKey(string Value)
+{
+    public override string ToString() => Value;
+}
 public sealed record Expiration(TimeSpan Duration);
-public sealed record CacheValue(byte[] Data, string? ContentType = null) : IExistenceState { public bool Exists => true; }
+public sealed record CacheValue(byte[] Data, string? ContentType = null) : IExistenceState
+{
+    public bool Exists => true;
+}
 
 public interface ICacheProvider
 {
@@ -19,11 +25,20 @@ public sealed class MemoryCacheProvider : ICacheProvider
     private readonly ConcurrentDictionary<string, Item> _items = new(StringComparer.Ordinal);
     public ValueTask<CacheValue?> GetAsync(CacheKey key, CancellationToken cancellationToken = default)
     {
-        if (!_items.TryGetValue(key.Value, out Item? item)) return ValueTask.FromResult<CacheValue?>(null);
-        if (item.ExpiresAt is { } expires && expires <= DateTimeOffset.UtcNow) { _items.TryRemove(key.Value, out _); return ValueTask.FromResult<CacheValue?>(null); }
+        if (!_items.TryGetValue(key.Value, out Item? item))
+            return ValueTask.FromResult<CacheValue?>(null);
+        if (item.ExpiresAt is { } expires && expires <= DateTimeOffset.UtcNow)
+        {
+            _items.TryRemove(key.Value, out _);
+            return ValueTask.FromResult<CacheValue?>(null);
+        }
         return ValueTask.FromResult<CacheValue?>(item.Value);
     }
-    public ValueTask SetAsync(CacheKey key, CacheValue value, Expiration? expiration = null, CancellationToken cancellationToken = default) { _items[key.Value] = new(value, expiration is null ? null : DateTimeOffset.UtcNow + expiration.Duration); return ValueTask.CompletedTask; }
+    public ValueTask SetAsync(CacheKey key, CacheValue value, Expiration? expiration = null, CancellationToken cancellationToken = default)
+    {
+        _items[key.Value] = new(value, expiration is null ? null : DateTimeOffset.UtcNow + expiration.Duration);
+        return ValueTask.CompletedTask;
+    }
     public ValueTask<bool> DeleteAsync(CacheKey key, CancellationToken cancellationToken = default) => ValueTask.FromResult(_items.TryRemove(key.Value, out _));
     private sealed record Item(CacheValue Value, DateTimeOffset? ExpiresAt);
 }
@@ -34,26 +49,53 @@ public sealed class CacheModule : LanguageModule
     public override IReadOnlyCollection<QualifierDescriptor> Qualifiers => new[] { new QualifierDescriptor("qualifier:cache", "CACHE", typeof(CacheValue)) };
 }
 
-[Verb("GET"), Qualifier("CACHE"), RequiresCapability(StandardCapabilities.CacheRead), ExecutionTrait(ExecutionTrait.Idempotent)]
+[Verb("GET")]
+[Qualifier("CACHE")]
+[RequiresCapability(StandardCapabilities.CacheRead)]
+[ExecutionTrait(ExecutionTrait.Idempotent)]
 public sealed class GetCache : IVerb<CacheValue?>, IGet, IFrom<CacheKey>, IPipelineProducer<CacheValue?>
 {
     private readonly CacheKey _key; private readonly ICacheProvider _provider;
-    public GetCache([From] CacheKey key, [FromServices] ICacheProvider provider) { _key = key; _provider = provider; }
+    public GetCache([From] CacheKey key, [FromServices] ICacheProvider provider)
+    {
+        _key = key;
+        _provider = provider;
+    }
     public ValueTask<CacheValue?> ExecuteAsync(VerbExecutionContext context, CancellationToken cancellationToken = default) => _provider.GetAsync(_key, cancellationToken);
 }
 
-[Verb("SAVE"), Qualifier("CACHE"), RequiresCapability(StandardCapabilities.CacheWrite), ExecutionTrait(ExecutionTrait.SideEffecting)]
+[Verb("SAVE")]
+[Qualifier("CACHE")]
+[RequiresCapability(StandardCapabilities.CacheWrite)]
+[ExecutionTrait(ExecutionTrait.SideEffecting)]
 public sealed class SaveCache : IVerb<CacheValue>, ISave, IWhat<CacheValue>, ITo<CacheKey>, IWith<Expiration>, IPipelineConsumer<CacheValue>, IPipelineProducer<CacheValue>
 {
     private readonly CacheValue _value; private readonly CacheKey _key; private readonly Expiration? _expiration; private readonly ICacheProvider _provider;
-    public SaveCache([What] CacheValue value, [To] CacheKey key, [With] Expiration? expiration = null, [FromServices] ICacheProvider provider = null!) { _value = value; _key = key; _expiration = expiration; _provider = provider; }
-    public async ValueTask<CacheValue> ExecuteAsync(VerbExecutionContext context, CancellationToken cancellationToken = default) { await _provider.SetAsync(_key, _value, _expiration, cancellationToken).ConfigureAwait(false); return _value; }
+    public SaveCache([What] CacheValue value, [To] CacheKey key, [With] Expiration? expiration = null, [FromServices] ICacheProvider provider = null!)
+    {
+        _value = value;
+        _key = key;
+        _expiration = expiration;
+        _provider = provider;
+    }
+    public async ValueTask<CacheValue> ExecuteAsync(VerbExecutionContext context, CancellationToken cancellationToken = default)
+    {
+        await _provider.SetAsync(_key, _value, _expiration, cancellationToken).ConfigureAwait(false);
+        return _value;
+    }
 }
 
-[Verb("DELETE"), Qualifier("CACHE"), RequiresCapability(StandardCapabilities.CacheWrite), ExecutionTrait(ExecutionTrait.SideEffecting)]
+[Verb("DELETE")]
+[Qualifier("CACHE")]
+[RequiresCapability(StandardCapabilities.CacheWrite)]
+[ExecutionTrait(ExecutionTrait.SideEffecting)]
 public sealed class DeleteCache : IVerb<bool>, IDelete, IAt<CacheKey>, IPipelineProducer<bool>
 {
     private readonly CacheKey _key; private readonly ICacheProvider _provider;
-    public DeleteCache([At] CacheKey key, [FromServices] ICacheProvider provider) { _key = key; _provider = provider; }
+    public DeleteCache([At] CacheKey key, [FromServices] ICacheProvider provider)
+    {
+        _key = key;
+        _provider = provider;
+    }
     public ValueTask<bool> ExecuteAsync(VerbExecutionContext context, CancellationToken cancellationToken = default) => _provider.DeleteAsync(_key, cancellationToken);
 }

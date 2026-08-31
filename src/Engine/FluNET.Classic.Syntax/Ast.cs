@@ -24,7 +24,10 @@ public sealed record ClauseNode(string RoleName, IReadOnlyList<ExpressionNode> V
 public sealed record IfNode(ExpressionNode Condition, BlockNode Then, BlockNode? Else, TextSpan Span) : StatementNode(Span);
 public sealed record ForEachNode(string Variable, ExpressionNode Source, int? Parallelism, BlockNode Body, TextSpan Span) : StatementNode(Span);
 public sealed record TryNode(BlockNode Body, BlockNode? Failure, BlockNode? Finally, TextSpan Span) : StatementNode(Span);
-public enum DefinitionKind { Task, Function }
+public enum DefinitionKind
+{
+    Task, Function
+}
 public sealed record DefinitionParameterNode(string RoleName, string Name, string TypeName, TextSpan Span) : SyntaxNode(Span);
 public sealed record DefinitionNode(DefinitionKind Kind, string Name, string? Qualifier, IReadOnlyList<DefinitionParameterNode> Parameters, string ReturnTypeName, BlockNode Body, TextSpan Span) : StatementNode(Span);
 public sealed record ReturnNode(ExpressionNode? Value, TextSpan Span) : StatementNode(Span);

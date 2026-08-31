@@ -24,9 +24,18 @@ public sealed class ModuleTestOptions
 {
     public IList<ILanguageModule> Dependencies { get; } = new List<ILanguageModule>();
     public IList<string> Examples { get; } = new List<string>();
-    public Action<ValueResolverRegistry>? ConfigureResolvers { get; set; }
-    public Action<ValueConversionRegistry>? ConfigureConverters { get; set; }
-    public Action<PredicateRegistry>? ConfigurePredicates { get; set; }
+    public Action<ValueResolverRegistry>? ConfigureResolvers
+    {
+        get; set;
+    }
+    public Action<ValueConversionRegistry>? ConfigureConverters
+    {
+        get; set;
+    }
+    public Action<PredicateRegistry>? ConfigurePredicates
+    {
+        get; set;
+    }
 }
 
 public static class FluNetModuleTestHarness
@@ -76,12 +85,14 @@ public static class FluNetModuleTestHarness
             ParseResult parse = parser.Parse(example);
             foreach (SyntaxDiagnostic diagnostic in parse.Diagnostics)
                 diagnostics.Add(new(diagnostic.Code, diagnostic.Message, example));
-            if (!parse.Success) continue;
+            if (!parse.Success)
+                continue;
 
             BoundScript bound = binder.Bind(parse.Script);
             foreach (BindingDiagnostic diagnostic in bound.AllDiagnostics)
                 diagnostics.Add(new(diagnostic.Code, diagnostic.Message, example, ToLanguageSeverity(diagnostic.Severity)));
-            if (bound.HasErrors) continue;
+            if (bound.HasErrors)
+                continue;
 
             string canonical = formatter.Format(parse.Script);
             ParseResult roundTrip = parser.Parse(canonical);
@@ -122,7 +133,8 @@ public static class FluNetModuleTestHarness
                 {
                     if (owners.TryGetValue(surface, out string? existing) && !existing.Equals(role.Name, StringComparison.OrdinalIgnoreCase))
                         diagnostics.Add(new("FLU-SDK-002", $"Pattern '{pattern.StableId}' maps surface word '{surface}' to both '{existing}' and '{role.Name}'."));
-                    else owners[surface] = role.Name;
+                    else
+                        owners[surface] = role.Name;
                 }
         }
     }

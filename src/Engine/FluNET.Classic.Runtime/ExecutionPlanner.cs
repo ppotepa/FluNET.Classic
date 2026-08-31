@@ -32,8 +32,16 @@ public sealed class ExecutionPlanner
 
     public ExecutionPlan Build(CheckResult check)
     {
-        ArgumentNullException.ThrowIfNull(check); var diagnostics = new List<ExecutionPlanDiagnostic>(); diagnostics.AddRange(check.Parse.Diagnostics.Select(x => new ExecutionPlanDiagnostic("syntax", x.Code, x.Message))); diagnostics.AddRange(check.Bound?.Diagnostics.Select(x => new ExecutionPlanDiagnostic("binding", x.Code, x.Message)) ?? Array.Empty<ExecutionPlanDiagnostic>());
-        ExecutionPlanStep[] steps = check.Bound?.Statements.Select(BuildStatement).ToArray() ?? Array.Empty<ExecutionPlanStep>(); ExecutionPlanStep[] all = Flatten(steps).ToArray(); string[] capabilities = all.SelectMany(x => x.Capabilities).Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(x => x, StringComparer.OrdinalIgnoreCase).ToArray(); ExecutionTrait[] traits = all.SelectMany(x => x.Traits).Distinct().OrderBy(x => x).ToArray(); string? resultType = check.Bound?.Statements.LastOrDefault() is BoundPipeline pipeline ? TypeName(pipeline.ResultType) : null; return new(check.Success, diagnostics, steps, capabilities, traits, resultType);
+        ArgumentNullException.ThrowIfNull(check);
+        var diagnostics = new List<ExecutionPlanDiagnostic>();
+        diagnostics.AddRange(check.Parse.Diagnostics.Select(x => new ExecutionPlanDiagnostic("syntax", x.Code, x.Message)));
+        diagnostics.AddRange(check.Bound?.Diagnostics.Select(x => new ExecutionPlanDiagnostic("binding", x.Code, x.Message)) ?? Array.Empty<ExecutionPlanDiagnostic>());
+        ExecutionPlanStep[] steps = check.Bound?.Statements.Select(BuildStatement).ToArray() ?? Array.Empty<ExecutionPlanStep>();
+        ExecutionPlanStep[] all = Flatten(steps).ToArray();
+        string[] capabilities = all.SelectMany(x => x.Capabilities).Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(x => x, StringComparer.OrdinalIgnoreCase).ToArray();
+        ExecutionTrait[] traits = all.SelectMany(x => x.Traits).Distinct().OrderBy(x => x).ToArray();
+        string? resultType = check.Bound?.Statements.LastOrDefault() is BoundPipeline pipeline ? TypeName(pipeline.ResultType) : null;
+        return new(check.Success, diagnostics, steps, capabilities, traits, resultType);
     }
 
     private ExecutionPlanStep BuildStatement(BoundStatement statement) => statement switch
@@ -51,15 +59,19 @@ public sealed class ExecutionPlanner
         {
             new("body", null, null, null, null, null, null, null, Array.Empty<string>(), Array.Empty<ExecutionTrait>(), Array.Empty<ExecutionPlanRole>(), @try.Body.Statements.Select(BuildStatement).ToArray())
         };
-        if (@try.Failure is not null) branches.Add(new("failure", null, null, null, null, null, null, null, Array.Empty<string>(), Array.Empty<ExecutionTrait>(), Array.Empty<ExecutionPlanRole>(), @try.Failure.Statements.Select(BuildStatement).ToArray()));
-        if (@try.Finally is not null) branches.Add(new("finally", null, null, null, null, null, null, null, Array.Empty<string>(), Array.Empty<ExecutionTrait>(), Array.Empty<ExecutionPlanRole>(), @try.Finally.Statements.Select(BuildStatement).ToArray()));
+        if (@try.Failure is not null)
+            branches.Add(new("failure", null, null, null, null, null, null, null, Array.Empty<string>(), Array.Empty<ExecutionTrait>(), Array.Empty<ExecutionPlanRole>(), @try.Failure.Statements.Select(BuildStatement).ToArray()));
+        if (@try.Finally is not null)
+            branches.Add(new("finally", null, null, null, null, null, null, null, Array.Empty<string>(), Array.Empty<ExecutionTrait>(), Array.Empty<ExecutionPlanRole>(), @try.Finally.Statements.Select(BuildStatement).ToArray()));
         return branches;
     }
 
     private IReadOnlyList<ExecutionPlanStep> Branches(BoundIf conditional)
     {
         var branches = new List<ExecutionPlanStep> { new("then", null, null, null, null, null, null, null, Array.Empty<string>(), Array.Empty<ExecutionTrait>(), Array.Empty<ExecutionPlanRole>(), conditional.Then.Statements.Select(BuildStatement).ToArray()) };
-        if (conditional.Else is not null) branches.Add(new("else", null, null, null, null, null, null, null, Array.Empty<string>(), Array.Empty<ExecutionTrait>(), Array.Empty<ExecutionPlanRole>(), conditional.Else.Statements.Select(BuildStatement).ToArray())); return branches;
+        if (conditional.Else is not null)
+            branches.Add(new("else", null, null, null, null, null, null, null, Array.Empty<string>(), Array.Empty<ExecutionTrait>(), Array.Empty<ExecutionPlanRole>(), conditional.Else.Statements.Select(BuildStatement).ToArray()));
+        return branches;
     }
 
     private ExecutionPlanStep BuildStage(BoundStage stage) => stage switch
@@ -132,9 +144,43 @@ public sealed class ExecutionPlanner
     private static string[] ExpressionCapabilities(BoundExpression expression) => EnumerateExpressionCapabilities(expression).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
     private static IEnumerable<string> EnumerateExpressionCapabilities(BoundExpression expression)
     {
-        if (expression is BoundPredicateExpression predicate) foreach (string capability in predicate.Descriptor.CapabilitiesFor(predicate.Operand.Type)) yield return capability;
-        switch (expression) { case BoundUnaryExpression unary: foreach (string capability in EnumerateExpressionCapabilities(unary.Operand)) yield return capability; break; case BoundBinaryExpression binary: foreach (string capability in EnumerateExpressionCapabilities(binary.Left)) yield return capability; foreach (string capability in EnumerateExpressionCapabilities(binary.Right)) yield return capability; break; case BoundBetweenExpression between: foreach (string capability in EnumerateExpressionCapabilities(between.Operand)) yield return capability; foreach (string capability in EnumerateExpressionCapabilities(between.Lower)) yield return capability; foreach (string capability in EnumerateExpressionCapabilities(between.Upper)) yield return capability; break; case BoundPredicateExpression boundPredicate: foreach (string capability in EnumerateExpressionCapabilities(boundPredicate.Operand)) yield return capability; break; }
+        if (expression is BoundPredicateExpression predicate)
+            foreach (string capability in predicate.Descriptor.CapabilitiesFor(predicate.Operand.Type))
+                yield return capability;
+        switch (expression)
+        {
+            case BoundUnaryExpression unary:
+                foreach (string capability in EnumerateExpressionCapabilities(unary.Operand))
+                    yield return capability;
+                break;
+            case BoundBinaryExpression binary:
+                foreach (string capability in EnumerateExpressionCapabilities(binary.Left))
+                    yield return capability;
+                foreach (string capability in EnumerateExpressionCapabilities(binary.Right))
+                    yield return capability;
+                break;
+            case BoundBetweenExpression between:
+                foreach (string capability in EnumerateExpressionCapabilities(between.Operand))
+                    yield return capability;
+                foreach (string capability in EnumerateExpressionCapabilities(between.Lower))
+                    yield return capability;
+                foreach (string capability in EnumerateExpressionCapabilities(between.Upper))
+                    yield return capability;
+                break;
+            case BoundPredicateExpression boundPredicate:
+                foreach (string capability in EnumerateExpressionCapabilities(boundPredicate.Operand))
+                    yield return capability;
+                break;
+        }
     }
-    private static IEnumerable<ExecutionPlanStep> Flatten(IEnumerable<ExecutionPlanStep> steps) { foreach (ExecutionPlanStep step in steps) { yield return step; foreach (ExecutionPlanStep child in Flatten(step.Children)) yield return child; } }
+    private static IEnumerable<ExecutionPlanStep> Flatten(IEnumerable<ExecutionPlanStep> steps)
+    {
+        foreach (ExecutionPlanStep step in steps)
+        {
+            yield return step;
+            foreach (ExecutionPlanStep child in Flatten(step.Children))
+                yield return child;
+        }
+    }
     private static string? TypeName(Type? type) => type?.FullName ?? type?.Name;
 }

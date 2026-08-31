@@ -23,7 +23,8 @@ public sealed class LanguageCompiler
         foreach (Type type in sourceAssemblies.SelectMany(GetLoadableTypes).Where(x => !x.IsAbstract && !x.IsInterface && typeof(IVerb).IsAssignableFrom(x)))
         {
             VerbImplementationDescriptor? implementation = CompileVerb(type, diagnostics);
-            if (implementation is not null) implementations.Add(implementation);
+            if (implementation is not null)
+                implementations.Add(implementation);
         }
 
         VerbDescriptor[] verbs = implementations
@@ -33,7 +34,8 @@ public sealed class LanguageCompiler
             .ToArray();
         ValidateNames(verbs, diagnostics);
         ValidatePatterns(implementations, diagnostics);
-        foreach (LanguageDiagnostic diagnostic in LanguageSurfaceValidation.Validate(implementations)) diagnostics.Add(diagnostic);
+        foreach (LanguageDiagnostic diagnostic in LanguageSurfaceValidation.Validate(implementations))
+            diagnostics.Add(diagnostic);
 
         QualifierDescriptor[] qualifierArray = StandardQualifiers.All.Concat(moduleArray.SelectMany(x => x.Qualifiers)).Concat(qualifiers ?? Array.Empty<QualifierDescriptor>()).GroupBy(x => x.Name, StringComparer.OrdinalIgnoreCase).Select(x => x.Last()).ToArray();
         PredicateDescriptor[] predicateArray = StandardLanguageSurface.Predicates.Concat(moduleArray.SelectMany(x => x.Predicates)).Concat(predicates ?? Array.Empty<PredicateDescriptor>()).GroupBy(x => x.Name, StringComparer.OrdinalIgnoreCase).Select(x => x.Last()).ToArray();
@@ -43,7 +45,8 @@ public sealed class LanguageCompiler
 
         ValidateSemanticSurface(predicateArray, operatorArray, intrinsicArray, diagnostics);
         ValidateStableIds(moduleDescriptors, qualifierArray, verbs, predicateArray, operatorArray, intrinsicArray, diagnostics);
-        if (diagnostics.Any(x => x.Severity == LanguageDiagnosticSeverity.Error)) return new(null, diagnostics);
+        if (diagnostics.Any(x => x.Severity == LanguageDiagnosticSeverity.Error))
+            return new(null, diagnostics);
         return new(new LanguageSnapshot(verbs, qualifierArray, moduleDescriptors, predicateArray, operatorArray, intrinsicArray), diagnostics);
     }
 
@@ -70,7 +73,8 @@ public sealed class LanguageCompiler
         }
 
         SentencePattern[] patterns = constructors.Select(constructor => CompilePattern(constructor, implementationId, diagnostics)).Where(x => x.Roles.Count > 0).ToArray();
-        if (patterns.Length == 0) diagnostics.Add(new("FLU-LANG-015", $"Verb '{type.FullName}' has no constructor with language roles.", LanguageDiagnosticSeverity.Error, type));
+        if (patterns.Length == 0)
+            diagnostics.Add(new("FLU-LANG-015", $"Verb '{type.FullName}' has no constructor with language roles.", LanguageDiagnosticSeverity.Error, type));
         string[] capabilities = type.GetCustomAttributes<RequiresCapabilityAttribute>(true).Select(x => x.Capability).Concat(InferCapabilities(type, patterns)).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
         ExecutionTrait[] traits = type.GetCustomAttributes<ExecutionTraitAttribute>(true).Select(x => x.Trait).Concat(InferTraits(type)).Distinct().ToArray();
         return new(implementationId, type, name, aliases, implementationQualifiers, constructors, patterns, resultType, capabilities, traits, CompileInvoker(resultType));
@@ -165,7 +169,12 @@ public sealed class LanguageCompiler
                         diagnostics.Add(new("FLU-LANG-028", $"Result type '{resultType.Name}' has no public instance member '{projection.Member}' for output role '{output.Name}'.", LanguageDiagnosticSeverity.Error, constructor.DeclaringType));
                         break;
                     }
-                    Type memberType = member switch { PropertyInfo property => property.PropertyType, FieldInfo field => field.FieldType, _ => typeof(object) };
+                    Type memberType = member switch
+                    {
+                        PropertyInfo property => property.PropertyType,
+                        FieldInfo field => field.FieldType,
+                        _ => typeof(object)
+                    };
                     if (!OutputTypeCompatible(output.ParameterType, memberType))
                         diagnostics.Add(new("FLU-LANG-029", $"Output role '{output.Name}' expects {output.ParameterType.Name}, but projected member '{projection.Member}' has type {memberType.Name}.", LanguageDiagnosticSeverity.Error, constructor.DeclaringType));
                     break;
@@ -211,26 +220,37 @@ public sealed class LanguageCompiler
         RoleSlotDescriptor[] roles = patterns.SelectMany(x => x.Roles).ToArray();
         bool fileInput = roles.Any(role => role.Direction != RoleDirection.Output && (role.ValueType == typeof(FileInfo) || role.ValueType == typeof(DirectoryInfo) || role.TypeShape.ElementType == typeof(FileInfo)));
         bool uriInput = roles.Any(role => role.ValueType == typeof(Uri) || role.TypeShape.ElementType == typeof(Uri));
-        if ((typeof(IGet).IsAssignableFrom(type) || typeof(ILoad).IsAssignableFrom(type) || typeof(IListVerb).IsAssignableFrom(type) || typeof(ICheck).IsAssignableFrom(type) || typeof(ICopy).IsAssignableFrom(type) || typeof(IMove).IsAssignableFrom(type)) && fileInput) yield return StandardCapabilities.FileSystemRead;
-        if ((typeof(ISave).IsAssignableFrom(type) || typeof(IDelete).IsAssignableFrom(type) || typeof(ICreate).IsAssignableFrom(type) || typeof(ICopy).IsAssignableFrom(type) || typeof(IMove).IsAssignableFrom(type) || typeof(IDownload).IsAssignableFrom(type)) && fileInput) yield return StandardCapabilities.FileSystemWrite;
-        if (uriInput || typeof(IPost).IsAssignableFrom(type) || typeof(IDownload).IsAssignableFrom(type) || typeof(ISend).IsAssignableFrom(type)) yield return StandardCapabilities.Network;
-        if (typeof(ISend).IsAssignableFrom(type)) yield return StandardCapabilities.EmailSend;
-        if (typeof(IRun).IsAssignableFrom(type)) yield return StandardCapabilities.ProcessExecute;
-        if (typeof(IStop).IsAssignableFrom(type)) yield return StandardCapabilities.ProcessTerminate;
+        if ((typeof(IGet).IsAssignableFrom(type) || typeof(ILoad).IsAssignableFrom(type) || typeof(IListVerb).IsAssignableFrom(type) || typeof(ICheck).IsAssignableFrom(type) || typeof(ICopy).IsAssignableFrom(type) || typeof(IMove).IsAssignableFrom(type)) && fileInput)
+            yield return StandardCapabilities.FileSystemRead;
+        if ((typeof(ISave).IsAssignableFrom(type) || typeof(IDelete).IsAssignableFrom(type) || typeof(ICreate).IsAssignableFrom(type) || typeof(ICopy).IsAssignableFrom(type) || typeof(IMove).IsAssignableFrom(type) || typeof(IDownload).IsAssignableFrom(type)) && fileInput)
+            yield return StandardCapabilities.FileSystemWrite;
+        if (uriInput || typeof(IPost).IsAssignableFrom(type) || typeof(IDownload).IsAssignableFrom(type) || typeof(ISend).IsAssignableFrom(type))
+            yield return StandardCapabilities.Network;
+        if (typeof(ISend).IsAssignableFrom(type))
+            yield return StandardCapabilities.EmailSend;
+        if (typeof(IRun).IsAssignableFrom(type))
+            yield return StandardCapabilities.ProcessExecute;
+        if (typeof(IStop).IsAssignableFrom(type))
+            yield return StandardCapabilities.ProcessTerminate;
     }
 
     private static IEnumerable<ExecutionTrait> InferTraits(Type type)
     {
-        if (typeof(ITransform).IsAssignableFrom(type) || typeof(IParse).IsAssignableFrom(type) || typeof(IFormat).IsAssignableFrom(type) || typeof(ICheck).IsAssignableFrom(type) || typeof(IFilter).IsAssignableFrom(type)) yield return ExecutionTrait.Pure;
-        if (typeof(IGet).IsAssignableFrom(type) || typeof(ILoad).IsAssignableFrom(type) || typeof(IListVerb).IsAssignableFrom(type) || typeof(ICheck).IsAssignableFrom(type)) yield return ExecutionTrait.Idempotent;
-        if (typeof(ISave).IsAssignableFrom(type) || typeof(IDelete).IsAssignableFrom(type) || typeof(ICreate).IsAssignableFrom(type) || typeof(ICopy).IsAssignableFrom(type) || typeof(IMove).IsAssignableFrom(type) || typeof(IRun).IsAssignableFrom(type) || typeof(IStop).IsAssignableFrom(type) || typeof(IPost).IsAssignableFrom(type) || typeof(ISend).IsAssignableFrom(type) || typeof(IDownload).IsAssignableFrom(type)) yield return ExecutionTrait.SideEffecting;
-        if (typeof(IGet).IsAssignableFrom(type) || typeof(ILoad).IsAssignableFrom(type) || typeof(IDownload).IsAssignableFrom(type)) yield return ExecutionTrait.Retryable;
+        if (typeof(ITransform).IsAssignableFrom(type) || typeof(IParse).IsAssignableFrom(type) || typeof(IFormat).IsAssignableFrom(type) || typeof(ICheck).IsAssignableFrom(type) || typeof(IFilter).IsAssignableFrom(type))
+            yield return ExecutionTrait.Pure;
+        if (typeof(IGet).IsAssignableFrom(type) || typeof(ILoad).IsAssignableFrom(type) || typeof(IListVerb).IsAssignableFrom(type) || typeof(ICheck).IsAssignableFrom(type))
+            yield return ExecutionTrait.Idempotent;
+        if (typeof(ISave).IsAssignableFrom(type) || typeof(IDelete).IsAssignableFrom(type) || typeof(ICreate).IsAssignableFrom(type) || typeof(ICopy).IsAssignableFrom(type) || typeof(IMove).IsAssignableFrom(type) || typeof(IRun).IsAssignableFrom(type) || typeof(IStop).IsAssignableFrom(type) || typeof(IPost).IsAssignableFrom(type) || typeof(ISend).IsAssignableFrom(type) || typeof(IDownload).IsAssignableFrom(type))
+            yield return ExecutionTrait.SideEffecting;
+        if (typeof(IGet).IsAssignableFrom(type) || typeof(ILoad).IsAssignableFrom(type) || typeof(IDownload).IsAssignableFrom(type))
+            yield return ExecutionTrait.Retryable;
     }
 
     private static string? ResolveVerbName(Type type)
     {
         VerbAttribute? attribute = type.GetCustomAttribute<VerbAttribute>(true);
-        if (attribute is not null) return attribute.Name.ToUpperInvariant();
+        if (attribute is not null)
+            return attribute.Name.ToUpperInvariant();
         (Type Marker, string Name)[] families =
         {
             (typeof(IGet), "GET"), (typeof(ISave), "SAVE"), (typeof(ILoad), "LOAD"), (typeof(ICreate), "CREATE"), (typeof(IDelete), "DELETE"),
@@ -238,7 +258,9 @@ public sealed class LanguageCompiler
             (typeof(ISend), "SEND"), (typeof(IDownload), "DOWNLOAD"), (typeof(IPost), "POST"), (typeof(ICheck), "CHECK"), (typeof(IParse), "PARSE"),
             (typeof(IFormat), "FORMAT"), (typeof(ITransform), "TRANSFORM"), (typeof(IWait), "WAIT"), (typeof(IFilter), "FILTER"), (typeof(ISay), "SAY")
         };
-        foreach ((Type marker, string familyName) in families) if (marker.IsAssignableFrom(type)) return familyName;
+        foreach ((Type marker, string familyName) in families)
+            if (marker.IsAssignableFrom(type))
+                return familyName;
         return null;
     }
 
@@ -267,8 +289,10 @@ public sealed class LanguageCompiler
         foreach (VerbDescriptor verb in verbs)
             foreach (string surface in new[] { verb.Name }.Concat(verb.Aliases))
             {
-                if (owners.TryGetValue(surface, out string? existing) && !existing.Equals(verb.Name, StringComparison.OrdinalIgnoreCase)) diagnostics.Add(new("FLU-LANG-020", $"Verb surface '{surface}' belongs to both '{existing}' and '{verb.Name}'.", LanguageDiagnosticSeverity.Error));
-                else owners[surface] = verb.Name;
+                if (owners.TryGetValue(surface, out string? existing) && !existing.Equals(verb.Name, StringComparison.OrdinalIgnoreCase))
+                    diagnostics.Add(new("FLU-LANG-020", $"Verb surface '{surface}' belongs to both '{existing}' and '{verb.Name}'.", LanguageDiagnosticSeverity.Error));
+                else
+                    owners[surface] = verb.Name;
             }
     }
 
@@ -280,16 +304,20 @@ public sealed class LanguageCompiler
             foreach (RoleSlotDescriptor role in pattern.Roles)
                 foreach (string surface in role.AllSurfaceNames)
                 {
-                    if (ForbiddenRoleSurfaces.Contains(surface)) diagnostics.Add(new("FLU-LANG-021", $"Role surface '{surface}' in pattern '{pattern.StableId}' is reserved by language syntax.", LanguageDiagnosticSeverity.Error, pattern.Constructor.Constructor.DeclaringType));
-                    if (owners.TryGetValue(surface, out string? existing) && !existing.Equals(role.Name, StringComparison.OrdinalIgnoreCase)) diagnostics.Add(new("FLU-LANG-022", $"Pattern '{pattern.StableId}' maps '{surface}' to both '{existing}' and '{role.Name}'.", LanguageDiagnosticSeverity.Error, pattern.Constructor.Constructor.DeclaringType));
-                    else owners[surface] = role.Name;
+                    if (ForbiddenRoleSurfaces.Contains(surface))
+                        diagnostics.Add(new("FLU-LANG-021", $"Role surface '{surface}' in pattern '{pattern.StableId}' is reserved by language syntax.", LanguageDiagnosticSeverity.Error, pattern.Constructor.Constructor.DeclaringType));
+                    if (owners.TryGetValue(surface, out string? existing) && !existing.Equals(role.Name, StringComparison.OrdinalIgnoreCase))
+                        diagnostics.Add(new("FLU-LANG-022", $"Pattern '{pattern.StableId}' maps '{surface}' to both '{existing}' and '{role.Name}'.", LanguageDiagnosticSeverity.Error, pattern.Constructor.Constructor.DeclaringType));
+                    else
+                        owners[surface] = role.Name;
                 }
         }
     }
 
     private static void ValidateModules(IEnumerable<ILanguageModule> modules, ICollection<LanguageDiagnostic> diagnostics)
     {
-        foreach (LanguageDiagnostic diagnostic in ModuleGraphValidator.Validate(modules)) diagnostics.Add(diagnostic);
+        foreach (LanguageDiagnostic diagnostic in ModuleGraphValidator.Validate(modules))
+            diagnostics.Add(diagnostic);
     }
 
     private static void ValidateSemanticSurface(PredicateDescriptor[] predicates, OperatorDescriptor[] operators, IntrinsicDescriptor[] intrinsics, ICollection<LanguageDiagnostic> diagnostics)
@@ -305,8 +333,10 @@ public sealed class LanguageCompiler
         foreach ((string name, IReadOnlyList<string> surfaces) in items)
             foreach (string surface in surfaces)
             {
-                if (owners.TryGetValue(surface, out string? owner) && !owner.Equals(name, StringComparison.OrdinalIgnoreCase)) diagnostics.Add(new("FLU-LANG-040", $"{kind} surface '{surface}' belongs to both '{owner}' and '{name}'.", LanguageDiagnosticSeverity.Error));
-                else owners[surface] = name;
+                if (owners.TryGetValue(surface, out string? owner) && !owner.Equals(name, StringComparison.OrdinalIgnoreCase))
+                    diagnostics.Add(new("FLU-LANG-040", $"{kind} surface '{surface}' belongs to both '{owner}' and '{name}'.", LanguageDiagnosticSeverity.Error));
+                else
+                    owners[surface] = name;
             }
     }
 
@@ -341,7 +371,8 @@ public sealed class LanguageCompiler
 
     private static void ValidateStableId(string id, Type? relatedType, ICollection<LanguageDiagnostic> diagnostics)
     {
-        if (string.IsNullOrWhiteSpace(id) || id.Any(char.IsWhiteSpace)) diagnostics.Add(new("FLU-LANG-042", $"Stable ID '{id}' must be non-empty and contain no whitespace.", LanguageDiagnosticSeverity.Error, relatedType));
+        if (string.IsNullOrWhiteSpace(id) || id.Any(char.IsWhiteSpace))
+            diagnostics.Add(new("FLU-LANG-042", $"Stable ID '{id}' must be non-empty and contain no whitespace.", LanguageDiagnosticSeverity.Error, relatedType));
     }
 
     private static string PatternIdFromConstructorId(string constructorId) => constructorId.StartsWith("ctor:", StringComparison.OrdinalIgnoreCase) ? "pattern:" + constructorId[5..] : constructorId + ":pattern";
@@ -358,6 +389,13 @@ public sealed class LanguageCompiler
     private static string ProjectionSignature(OutputProjectionDescriptor projection) => $"{projection.Kind}:{projection.Member}:{projection.Index}";
     private static string TypeIdentity(Type type) => type.IsGenericType ? $"{type.GetGenericTypeDefinition().FullName}[{string.Join(",", type.GetGenericArguments().Select(TypeIdentity))}]" : type.FullName ?? type.Name;
     private static string ShortHash(string value) => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(value)))[..16].ToLowerInvariant();
-    private static IEnumerable<Type> GetLoadableTypes(Assembly assembly) { try { return assembly.GetTypes(); } catch (ReflectionTypeLoadException ex) { return ex.Types.Where(x => x is not null).Cast<Type>(); } }
+    private static IEnumerable<Type> GetLoadableTypes(Assembly assembly)
+    {
+        try
+        {
+            return assembly.GetTypes();
+        }
+        catch (ReflectionTypeLoadException ex) { return ex.Types.Where(x => x is not null).Cast<Type>(); }
+    }
     private static string Slug(string text) => new string(text.ToLowerInvariant().Select(ch => char.IsLetterOrDigit(ch) ? ch : '-').ToArray()).Trim('-');
 }

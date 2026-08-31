@@ -36,6 +36,8 @@ public interface IExecutionObserver
 public sealed class NullExecutionObserver : IExecutionObserver
 {
     public static NullExecutionObserver Instance { get; } = new();
-    private NullExecutionObserver() { }
+    private NullExecutionObserver()
+    {
+    }
     public ValueTask OnEventAsync(ExecutionEvent executionEvent, CancellationToken cancellationToken = default) => ValueTask.CompletedTask;
 }

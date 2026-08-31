@@ -3,7 +3,10 @@ using FluNET.Classic.Syntax;
 
 namespace FluNET.Classic.Binding;
 
-public enum BindingDiagnosticSeverity { Info, Warning, Error }
+public enum BindingDiagnosticSeverity
+{
+    Info, Warning, Error
+}
 public sealed record CandidateDetail(string PatternId, IReadOnlyList<string> RoleFailures);
 public sealed record BindingDiagnostic(string Code, string Message, TextSpan Span, IReadOnlyList<string>? Candidates = null, BindingDiagnosticSeverity Severity = BindingDiagnosticSeverity.Error)
 {
@@ -68,7 +71,8 @@ public sealed record BoundCollection(
         if (semantic == IntrinsicSemanticKind.Group && argument is not null)
             return typeof(CollectionGroup<,>).MakeGenericType(argument.Type, elementType).MakeArrayType();
 
-        if (!ClrTypeShape.IsAsyncEnumerableType(sourceType)) return fallback;
+        if (!ClrTypeShape.IsAsyncEnumerableType(sourceType))
+            return fallback;
         return semantic switch
         {
             IntrinsicSemanticKind.Take or IntrinsicSemanticKind.Skip or IntrinsicSemanticKind.Distinct => typeof(IAsyncEnumerable<>).MakeGenericType(elementType),

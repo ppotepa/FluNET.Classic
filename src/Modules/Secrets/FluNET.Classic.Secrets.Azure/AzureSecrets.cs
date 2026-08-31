@@ -15,4 +15,7 @@ public sealed class KeyVaultSecretProvider : ISecretProvider
     public ValueTask SaveAsync(SecretName name, SecretValue value, CancellationToken cancellationToken = default) => _client.SetAsync(name.Value, value.Reveal().ToString(), cancellationToken);
     public ValueTask<bool> DeleteAsync(SecretName name, CancellationToken cancellationToken = default) => _client.DeleteAsync(name.Value, cancellationToken);
 }
-public sealed class AzureSecretsModule : LanguageModule { public override string Name => "secrets.azure"; public override IReadOnlyCollection<string> Dependencies => new[] { "secrets" }; }
+public sealed class AzureSecretsModule : LanguageModule
+{
+    public override string Name => "secrets.azure"; public override IReadOnlyCollection<string> Dependencies => new[] { "secrets" };
+}

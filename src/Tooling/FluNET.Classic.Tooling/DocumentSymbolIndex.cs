@@ -38,7 +38,8 @@ internal sealed class DocumentSymbolIndex
         for (int index = 0; index < tokens.Count; index++)
         {
             SyntaxToken token = tokens[index];
-            if (token.Kind != TokenKind.Variable) continue;
+            if (token.Kind != TokenKind.Variable)
+                continue;
 
             int scopeId = InnermostScope(scopes, token.Span.Start);
             string root = RootName(token);
@@ -48,7 +49,8 @@ internal sealed class DocumentSymbolIndex
                     token.Span.Start >= x.PrefixStart && token.Span.End <= x.PrefixEnd &&
                     root.Equals(x.Name, StringComparison.OrdinalIgnoreCase))
                 : null;
-            if (iterator is not null) scopeId = iterator.ScopeId;
+            if (iterator is not null)
+                scopeId = iterator.ScopeId;
 
             variables.Add((token, scopeId));
             bool resultDefinition = PreviousWord(tokens, index) is "INTO" or "AS";
@@ -83,7 +85,8 @@ internal sealed class DocumentSymbolIndex
     public DocumentSymbolInfo? DefinitionAt(int position)
     {
         IndexedOccurrence? occurrence = OccurrenceAt(position);
-        if (occurrence?.SymbolId is null) return null;
+        if (occurrence?.SymbolId is null)
+            return null;
         IndexedOccurrence? definition = _occurrences.FirstOrDefault(x => x.IsDefinition && x.SymbolId == occurrence.SymbolId);
         return definition is null ? null : new DocumentSymbolInfo(definition.Name, definition.Kind, definition.Span);
     }
@@ -96,7 +99,8 @@ internal sealed class DocumentSymbolIndex
     public IReadOnlyList<TextSpan> RenameSpansAt(int position)
     {
         IndexedOccurrence? occurrence = OccurrenceAt(position);
-        if (occurrence?.SymbolId is null) return Array.Empty<TextSpan>();
+        if (occurrence?.SymbolId is null)
+            return Array.Empty<TextSpan>();
         return _occurrences.Where(x => x.SymbolId == occurrence.SymbolId).Select(x => x.Span).Distinct().ToArray();
     }
 
@@ -134,13 +138,15 @@ internal sealed class DocumentSymbolIndex
                 .Where(x => x.ScopeId == current.Value && x.Token.Span.Start <= position && RootName(x.Token).Equals(name, StringComparison.OrdinalIgnoreCase))
                 .OrderByDescending(x => x.Token.Span.Start)
                 .FirstOrDefault();
-            if (match is not null) return match.SymbolId;
+            if (match is not null)
+                return match.SymbolId;
 
             PromotionSeed? promoted = promotions
                 .Where(x => x.ScopeId == current.Value && x.ActivationPosition <= position && x.Name.Equals(name, StringComparison.OrdinalIgnoreCase))
                 .OrderByDescending(x => x.ActivationPosition)
                 .FirstOrDefault();
-            if (promoted is not null) return promoted.SymbolId;
+            if (promoted is not null)
+                return promoted.SymbolId;
 
             current = scopes.First(x => x.Id == current.Value).ParentId;
         }
@@ -189,7 +195,8 @@ internal sealed class DocumentSymbolIndex
     {
         for (int i = index - 1; i >= 0; i--)
         {
-            if (tokens[i].Kind == TokenKind.NewLine) continue;
+            if (tokens[i].Kind == TokenKind.NewLine)
+                continue;
             return tokens[i].Kind == TokenKind.Word ? tokens[i].Text.ToUpperInvariant() : null;
         }
         return null;

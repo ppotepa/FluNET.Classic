@@ -4,7 +4,10 @@ public sealed record OperatorEvaluationContext(IServiceProvider? Services);
 
 public interface IOperatorEvaluator
 {
-    string OperatorStableId { get; }
+    string OperatorStableId
+    {
+        get;
+    }
     object? Evaluate(IReadOnlyList<object?> operands, OperatorEvaluationContext context);
 }
 
@@ -15,7 +18,8 @@ public sealed class OperatorEvaluatorRegistry
     public void Register(IOperatorEvaluator evaluator)
     {
         ArgumentNullException.ThrowIfNull(evaluator);
-        if (string.IsNullOrWhiteSpace(evaluator.OperatorStableId)) throw new ArgumentException("Operator evaluator stable ID cannot be empty.", nameof(evaluator));
+        if (string.IsNullOrWhiteSpace(evaluator.OperatorStableId))
+            throw new ArgumentException("Operator evaluator stable ID cannot be empty.", nameof(evaluator));
         _evaluators[evaluator.OperatorStableId] = evaluator;
     }
 

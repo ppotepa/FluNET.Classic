@@ -3,24 +3,54 @@ using System.Text;
 
 namespace FluNET.Classic.Standard.Text;
 
-public enum TextTarget { TEXT }
-public enum BinaryTarget { BINARY }
-public enum TextEncodingKind { UTF8, ASCII }
-public enum TextOperation { UPPER, LOWER, TRIM, BASE64, FROMBASE64 }
-public enum SplitStrategy { SPLIT }
-public enum JoinStrategy { JOIN }
-public enum ReplaceStrategy { REPLACE }
+public enum TextTarget
+{
+    TEXT
+}
+public enum BinaryTarget
+{
+    BINARY
+}
+public enum TextEncodingKind
+{
+    UTF8, ASCII
+}
+public enum TextOperation
+{
+    UPPER, LOWER, TRIM, BASE64, FROMBASE64
+}
+public enum SplitStrategy
+{
+    SPLIT
+}
+public enum JoinStrategy
+{
+    JOIN
+}
+public enum ReplaceStrategy
+{
+    REPLACE
+}
 
 public sealed record TextReplacement(string OldValue, string NewValue)
 {
     public static bool TryParse(string value, out TextReplacement? result)
     {
-        int separator = value.IndexOf("=>", StringComparison.Ordinal); if (separator < 0) { result = null; return false; }
-        result = new(value[..separator].Trim(), value[(separator + 2)..].Trim()); return true;
+        int separator = value.IndexOf("=>", StringComparison.Ordinal);
+        if (separator < 0)
+        {
+            result = null;
+            return false;
+        }
+        result = new(value[..separator].Trim(), value[(separator + 2)..].Trim());
+        return true;
     }
 }
 
-public interface IOutputWriter { ValueTask WriteLineAsync(string text, CancellationToken cancellationToken = default); }
+public interface IOutputWriter
+{
+    ValueTask WriteLineAsync(string text, CancellationToken cancellationToken = default);
+}
 
 public sealed class TextModule : LanguageModule
 {
@@ -51,27 +81,45 @@ public sealed class TransformLines : Transform<string[], string[], TextOperation
     protected override ValueTask<string[]> TransformAsync(string[] what, TextOperation @using, CancellationToken cancellationToken) => ValueTask.FromResult(what.Select(x => TransformText.Apply(x, @using)).ToArray());
 }
 
-[Verb("TRANSFORM"), Qualifier("LINES"), ExecutionTrait(ExecutionTrait.Pure)]
+[Verb("TRANSFORM")]
+[Qualifier("LINES")]
+[ExecutionTrait(ExecutionTrait.Pure)]
 public sealed class SplitText : IVerb<string[]>, ITransform, IWhat<string>, IUsing<SplitStrategy>, IWith<string>, IPipelineConsumer<string>, IPipelineProducer<string[]>
 {
     private readonly string _text; private readonly string _separator;
-    public SplitText([What] string text, [Using] SplitStrategy operation, [With] string separator) { _text = text; _separator = separator; }
+    public SplitText([What] string text, [Using] SplitStrategy operation, [With] string separator)
+    {
+        _text = text;
+        _separator = separator;
+    }
     public ValueTask<string[]> ExecuteAsync(VerbExecutionContext context, CancellationToken cancellationToken = default) => ValueTask.FromResult(_text.Split(_separator, StringSplitOptions.None));
 }
 
-[Verb("TRANSFORM"), Qualifier("TEXT"), ExecutionTrait(ExecutionTrait.Pure)]
+[Verb("TRANSFORM")]
+[Qualifier("TEXT")]
+[ExecutionTrait(ExecutionTrait.Pure)]
 public sealed class JoinLines : IVerb<string>, ITransform, IWhat<string[]>, IUsing<JoinStrategy>, IWith<string>, IPipelineConsumer<string[]>, IPipelineProducer<string>
 {
     private readonly string[] _lines; private readonly string _separator;
-    public JoinLines([What] string[] lines, [Using] JoinStrategy operation, [With] string separator) { _lines = lines; _separator = separator; }
+    public JoinLines([What] string[] lines, [Using] JoinStrategy operation, [With] string separator)
+    {
+        _lines = lines;
+        _separator = separator;
+    }
     public ValueTask<string> ExecuteAsync(VerbExecutionContext context, CancellationToken cancellationToken = default) => ValueTask.FromResult(string.Join(_separator, _lines));
 }
 
-[Verb("TRANSFORM"), Qualifier("TEXT"), ExecutionTrait(ExecutionTrait.Pure)]
+[Verb("TRANSFORM")]
+[Qualifier("TEXT")]
+[ExecutionTrait(ExecutionTrait.Pure)]
 public sealed class ReplaceText : IVerb<string>, ITransform, IWhat<string>, IUsing<ReplaceStrategy>, IWith<TextReplacement>, IPipelineConsumer<string>, IPipelineProducer<string>
 {
     private readonly string _text; private readonly TextReplacement _replacement;
-    public ReplaceText([What] string text, [Using] ReplaceStrategy operation, [With] TextReplacement replacement) { _text = text; _replacement = replacement; }
+    public ReplaceText([What] string text, [Using] ReplaceStrategy operation, [With] TextReplacement replacement)
+    {
+        _text = text;
+        _replacement = replacement;
+    }
     public ValueTask<string> ExecuteAsync(VerbExecutionContext context, CancellationToken cancellationToken = default) => ValueTask.FromResult(_text.Replace(_replacement.OldValue, _replacement.NewValue, StringComparison.Ordinal));
 }
 

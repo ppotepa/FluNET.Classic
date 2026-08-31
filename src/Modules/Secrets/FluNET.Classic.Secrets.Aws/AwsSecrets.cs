@@ -15,4 +15,7 @@ public sealed class SecretsManagerProvider : ISecretProvider
     public ValueTask SaveAsync(SecretName name, SecretValue value, CancellationToken cancellationToken = default) => _client.SetAsync(name.Value, value.Reveal().ToString(), cancellationToken);
     public ValueTask<bool> DeleteAsync(SecretName name, CancellationToken cancellationToken = default) => _client.DeleteAsync(name.Value, cancellationToken);
 }
-public sealed class AwsSecretsModule : LanguageModule { public override string Name => "secrets.aws"; public override IReadOnlyCollection<string> Dependencies => new[] { "secrets" }; }
+public sealed class AwsSecretsModule : LanguageModule
+{
+    public override string Name => "secrets.aws"; public override IReadOnlyCollection<string> Dependencies => new[] { "secrets" };
+}

@@ -1,60 +1,176 @@
 namespace FluNET.Classic.Core;
 
-public interface ILanguageElement { string Name { get; } }
-public interface IRole { }
-public interface IRole<out TValue> : IRole { }
+public interface ILanguageElement
+{
+    string Name
+    {
+        get;
+    }
+}
+public interface IRole
+{
+}
+public interface IRole<out TValue> : IRole
+{
+}
 // Role markers intentionally do not inherit IRole<TValue>. A generic verb can
 // legitimately expose two roles with the same type (for example WHAT and TO),
 // and C# rejects a type that might implement the same constructed generic
 // interface more than once. The compiler obtains role types from constructor
 // parameters, while these interfaces retain their semantic marker role.
-public interface IWhat<out TValue> : IRole { }
-public interface IFrom<out TValue> : IRole { }
-public interface ITo<out TValue> : IRole { }
-public interface IUsing<out TValue> : IRole { }
-public interface IWith<out TValue> : IRole { }
-public interface IAs<out TValue> : IRole { }
-public interface IIn<out TValue> : IRole { }
-public interface IAt<out TValue> : IRole { }
-public interface IFor<out TValue> : IRole { }
-public interface IUntil<out TValue> : IRole { }
-public interface IBy<out TValue> : IRole { }
+public interface IWhat<out TValue> : IRole
+{
+}
+public interface IFrom<out TValue> : IRole
+{
+}
+public interface ITo<out TValue> : IRole
+{
+}
+public interface IUsing<out TValue> : IRole
+{
+}
+public interface IWith<out TValue> : IRole
+{
+}
+public interface IAs<out TValue> : IRole
+{
+}
+public interface IIn<out TValue> : IRole
+{
+}
+public interface IAt<out TValue> : IRole
+{
+}
+public interface IFor<out TValue> : IRole
+{
+}
+public interface IUntil<out TValue> : IRole
+{
+}
+public interface IBy<out TValue> : IRole
+{
+}
 
-public enum RoleDirection { Input, Output, InputOutput }
-public enum RoleCardinality { One, ZeroOrOne, OneOrMore, ZeroOrMore }
-public enum ExecutionTrait { Pure, Idempotent, Retryable, Transactional, LongRunning, SideEffecting, NonDeterministic, Streaming }
+public enum RoleDirection
+{
+    Input, Output, InputOutput
+}
+public enum RoleCardinality
+{
+    One, ZeroOrOne, OneOrMore, ZeroOrMore
+}
+public enum ExecutionTrait
+{
+    Pure, Idempotent, Retryable, Transactional, LongRunning, SideEffecting, NonDeterministic, Streaming
+}
 
-public interface IVerb { }
-public interface IVerb<TResult> : IVerb { ValueTask<TResult> ExecuteAsync(VerbExecutionContext context, CancellationToken cancellationToken = default); }
-public interface IVerbFamily : IVerb { }
-public interface IGet : IVerbFamily { }
-public interface ISave : IVerbFamily { }
-public interface ILoad : IVerbFamily { }
-public interface ICreate : IVerbFamily { }
-public interface IDelete : IVerbFamily { }
-public interface IListVerb : IVerbFamily { }
-public interface ICopy : IVerbFamily { }
-public interface IMove : IVerbFamily { }
-public interface IRun : IVerbFamily { }
-public interface IStop : IVerbFamily { }
-public interface ISend : IVerbFamily { }
-public interface IDownload : IVerbFamily { }
-public interface IPost : IVerbFamily { }
-public interface ICheck : IVerbFamily { }
-public interface IParse : IVerbFamily { }
-public interface IFormat : IVerbFamily { }
-public interface ITransform : IVerbFamily { }
-public interface IWait : IVerbFamily { }
-public interface IFilter : IVerbFamily { }
-public interface ISay : IVerbFamily { }
+public interface IVerb
+{
+}
+public interface IVerb<TResult> : IVerb
+{
+    ValueTask<TResult> ExecuteAsync(VerbExecutionContext context, CancellationToken cancellationToken = default);
+}
+public interface IVerbFamily : IVerb
+{
+}
+public interface IGet : IVerbFamily
+{
+}
+public interface ISave : IVerbFamily
+{
+}
+public interface ILoad : IVerbFamily
+{
+}
+public interface ICreate : IVerbFamily
+{
+}
+public interface IDelete : IVerbFamily
+{
+}
+public interface IListVerb : IVerbFamily
+{
+}
+public interface ICopy : IVerbFamily
+{
+}
+public interface IMove : IVerbFamily
+{
+}
+public interface IRun : IVerbFamily
+{
+}
+public interface IStop : IVerbFamily
+{
+}
+public interface ISend : IVerbFamily
+{
+}
+public interface IDownload : IVerbFamily
+{
+}
+public interface IPost : IVerbFamily
+{
+}
+public interface ICheck : IVerbFamily
+{
+}
+public interface IParse : IVerbFamily
+{
+}
+public interface IFormat : IVerbFamily
+{
+}
+public interface ITransform : IVerbFamily
+{
+}
+public interface IWait : IVerbFamily
+{
+}
+public interface IFilter : IVerbFamily
+{
+}
+public interface ISay : IVerbFamily
+{
+}
 
-public interface IPipelineProducer<out TValue> { }
-public interface IPipelineConsumer<in TValue> { }
+public interface IPipelineProducer<out TValue>
+{
+}
+public interface IPipelineConsumer<in TValue>
+{
+}
 
-public interface IExistenceState { bool Exists { get; } }
-public interface IOkState { bool IsOk { get; } }
-public interface IValidState { bool IsValid { get; } }
-public interface ISensitiveValue { string RedactedText { get; } }
+public interface IExistenceState
+{
+    bool Exists
+    {
+        get;
+    }
+}
+public interface IOkState
+{
+    bool IsOk
+    {
+        get;
+    }
+}
+public interface IValidState
+{
+    bool IsValid
+    {
+        get;
+    }
+}
+public interface ISensitiveValue
+{
+    string RedactedText
+    {
+        get;
+    }
+}
 
 public interface IExecutionTransaction : IAsyncDisposable
 {
@@ -102,8 +218,14 @@ public static class StandardCapabilities
     public const string SqlWrite = "sql.write";
 }
 
-public interface ICapabilityPolicy { bool IsAllowed(string capability); }
-public interface IScopedCapabilityPolicy : ICapabilityPolicy { bool IsAllowed(string capability, object? resource); }
+public interface ICapabilityPolicy
+{
+    bool IsAllowed(string capability);
+}
+public interface IScopedCapabilityPolicy : ICapabilityPolicy
+{
+    bool IsAllowed(string capability, object? resource);
+}
 public sealed class AllowAllCapabilityPolicy : IScopedCapabilityPolicy
 {
     public bool IsAllowed(string capability) => true;
