@@ -46,6 +46,7 @@ The format follows the spirit of [Keep a Changelog](https://keepachangelog.com/e
 - Resolver and converter planning results now expose read-only snapshots of candidate and plan collections.
 - Storage objects and metadata now expose typed key, length, modification-time, content-type, and ETag projections.
 - Network connectivity results and endpoints now expose typed state, duration, host, and port projections.
+- System memory and runtime information now expose typed diagnostic projections.
 - Explicit qualifier surfaces no longer match unrelated verbs solely because their result types happen to be equal.
 - Typed HTTP status and ETag values now reject invalid CLR construction inputs.
 - HTTP responses and statuses now expose typed `CODE`, `REASON`, and `CONTENTTYPE` projections.
