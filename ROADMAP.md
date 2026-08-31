@@ -85,7 +85,7 @@ Exit criterion: module authors and editor/tooling authors can use documented API
 
 Goal: close correctness, documentation, packaging, and usability gaps before the stable 0.2 release.
 
-- [ ] Audit every public example against `check`, `format`, `plan`, and `run` where applicable.
+- [x] Audit every public example against `check`, `format`, `plan`, and `run` where applicable.
 - [ ] Resolve known grammar ambiguities and high-impact diagnostic inconsistencies.
 - [ ] Review architecture boundaries and public package references for accidental coupling.
 - [ ] Review package metadata, installer behavior, demo projects, and first-run experience.
