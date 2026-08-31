@@ -70,6 +70,7 @@
 - The standard vocabulary audit now covers composite result projections across the existing reference domains without introducing parser-specific syntax.
 - The 0.2 stable-gate audit now verifies grammar/formatter round trips, deterministic binding, runtime policy semantics, typed standard domains, intentional SDK/tooling boundaries, and aligned distribution documentation.
 - Prepared 0.2 release notes are generated reproducibly from the accumulated `[Unreleased]` changelog entries by `tools/Generate-ReleaseNotes.ps1`.
+- The changelog audit confirms that the documented alpha.1 baseline, alpha.2 milestone, and subsequent Unreleased changes provide the complete user-visible 0.2 delta.
 - The beta.2 roadmap now classifies required 0.2 contract fixes separately from deferred 0.3 shell and ecosystem work.
 - Explicit qualifier surfaces no longer match unrelated verbs solely because their result types happen to be equal.
 - Typed HTTP status and ETag values now reject invalid CLR construction inputs.

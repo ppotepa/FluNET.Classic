@@ -123,7 +123,7 @@ The 0.2 release is ready when all of the following are true:
 - [x] Standard modules consistently use typed domain semantics where type information materially improves correctness or tooling.
 - [x] The module SDK and document-tooling APIs have an intentional public surface.
 - [x] CLI, SDK, tooling, language server, installers, demo, and documentation describe the same product state.
-- [ ] The changelog contains the complete user-visible delta from the `0.2.0-alpha.1` baseline.
+- [x] The changelog contains the complete user-visible delta from the `0.2.0-alpha.1` baseline.
 
 ## 0.3 — after 0.2
 
