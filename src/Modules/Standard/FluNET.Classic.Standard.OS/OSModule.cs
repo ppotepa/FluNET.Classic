@@ -22,10 +22,10 @@ public sealed class OSModule : LanguageModule
 [Verb("GET")]
 [Qualifier("ENV")]
 [RequiresCapability(StandardCapabilities.EnvironmentRead)]
-public sealed class GetEnvironmentVariable : IVerb<string?>, IGet, IWhat<string?>, IFrom<EnvironmentVariableName>, IPipelineProducer<string?>
+public sealed class GetEnvironmentVariable : IVerb<string?>, IGet, IFrom<EnvironmentVariableName>, IPipelineProducer<string?>
 {
     private readonly EnvironmentVariableName _name;
-    public GetEnvironmentVariable([What] string? what, [From] EnvironmentVariableName name) => _name = name;
+    public GetEnvironmentVariable([From] EnvironmentVariableName name) => _name = name;
     public ValueTask<string?> ExecuteAsync(VerbExecutionContext context, CancellationToken cancellationToken = default) => ValueTask.FromResult(Environment.GetEnvironmentVariable(_name.Value));
 }
 
