@@ -76,7 +76,7 @@ public class ControlFlowPipelineTests
         options.Modules.Add(new FailFastFixtureModule());
         using ServiceProvider host = FluNetHost.Create(options);
         var state = new RuntimeState();
-        state.SetVariable("items", new[] { 0, 1, 2, 3, 4, 5 });
+        state.SetVariable("items", new[] { 1, 0, 2, 3, 4, 5 });
         DateTimeOffset started = DateTimeOffset.UtcNow;
 
         RuntimeResult result = await host.GetRequiredService<ClassicEngine>().RunAsync("FOR EACH [item] IN [items], PARALLEL 2, DO\nPROBE [item].\nEND FOR.", state);

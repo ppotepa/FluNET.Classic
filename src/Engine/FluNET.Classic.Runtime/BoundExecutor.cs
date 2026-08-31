@@ -204,6 +204,7 @@ public sealed class BoundExecutor
         using var gate = new SemaphoreSlim(workers, workers);
         using var stop = CancellationTokenSource.CreateLinkedTokenSource(ct);
         CancellationToken iterationToken = stop.Token;
+        Exception? firstFailure = null;
         Task[] tasks = items.Select(async item =>
         {
             bool entered = false;
@@ -219,8 +220,9 @@ public sealed class BoundExecutor
                 iteration.SetVariable("it", item);
                 await ExecuteBlock(loop.Body, iteration, iterationToken).ConfigureAwait(false);
             }
-            catch
+            catch (Exception exception)
             {
+                Interlocked.CompareExchange(ref firstFailure, exception, null);
                 stop.Cancel();
                 throw;
             }
@@ -230,7 +232,17 @@ public sealed class BoundExecutor
                     gate.Release();
             }
         }).ToArray();
-        await Task.WhenAll(tasks).ConfigureAwait(false);
+        try
+        {
+            await Task.WhenAll(tasks).ConfigureAwait(false);
+        }
+        catch
+        {
+            stop.Cancel();
+            if (firstFailure is not null)
+                throw firstFailure;
+            throw;
+        }
     }
     private async ValueTask ExecuteBlock(BoundBlock block, RuntimeState state, CancellationToken ct)
     {
