@@ -11,6 +11,7 @@ The format follows the spirit of [Keep a Changelog](https://keepachangelog.com/e
 - Zero-role `IQuery<TResult>` verbs for context-backed queries such as `GET PRINCIPAL`.
 - `REQUIRE` assertions with stable `FLU-RUN-040` runtime diagnostics.
 - Stable `FLU-PROC-002` diagnostics for native-process start failures.
+- Stable `FLU-PROC-003` diagnostics for native-process timeouts.
 - Previous-pipeline (`THEM`) and current-loop-item (`IT`) bindings.
 
 ### Changed

@@ -110,7 +110,18 @@ public sealed class RunProcess : IVerb<ProcessResult>, IRun, IWhat<ProcessSpec>,
         {
             await process.WaitForExitAsync(token).ConfigureAwait(false);
         }
-        catch (OperationCanceledException) { if (!process.HasExited) process.Kill(true); throw; }
+        catch (OperationCanceledException) when (timeout is not null && timeout.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
+        {
+            if (!process.HasExited)
+                process.Kill(true);
+            throw new ExecutionFailureException("FLU-PROC-003", $"Process '{_spec.FileName}' exceeded its timeout.");
+        }
+        catch (OperationCanceledException)
+        {
+            if (!process.HasExited)
+                process.Kill(true);
+            throw;
+        }
         await Task.WhenAll(stdout, stderr).ConfigureAwait(false);
         stopwatch.Stop();
         return new(process.ExitCode, stdout.Result, stderr.Result, stopwatch.Elapsed);

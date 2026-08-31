@@ -44,7 +44,7 @@ The argument values are passed directly to the executable. Flu does not invoke a
 
 Native execution requires `process.execute`. `fluc plan` reports the requested and resolved executable, argument count, result type, capability and effective execution policy before running the process. Sensitive values are redacted in plans, traces, diagnostics and verbose output.
 
-Process start failures, missing executables, cancellation and timeout are runtime failures. A process that starts and exits with a non-zero code still produces a `ProcessResult` with `Succeeded` set to `false`, allowing the program to inspect or explicitly require success.
+Process start failures and missing executables use `FLU-PROC-002`. A process timeout uses `FLU-PROC-003`; caller cancellation remains the normal cancellation result. A process that starts and exits with a non-zero code still produces a `ProcessResult` with `IsOk` set to `false`, allowing the program to inspect or explicitly require success.
 
 ## Conformance fixture
 

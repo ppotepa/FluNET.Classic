@@ -71,6 +71,13 @@ public sealed class NativeProcessTests
         Assert.ThrowsAsync<TaskCanceledException>(async () => await RunFixtureAsync(cancellation.Token, "sleep", "5000"));
     }
 
+    [Test]
+    public void Runner_reports_a_process_timeout_separately_from_cancellation()
+    {
+        ExecutionFailureException exception = Assert.ThrowsAsync<ExecutionFailureException>(async () => await RunFixtureAsync(TimeSpan.FromMilliseconds(250), "sleep", "5000"))!;
+        Assert.That(exception.Code, Is.EqualTo("FLU-PROC-003"));
+    }
+
     private static async Task<ProcessResult> RunFixtureAsync(params string[] arguments) => await RunFixtureAsync(CancellationToken.None, arguments);
 
     private static async Task<ProcessResult> RunFixtureAsync(CancellationToken cancellationToken, params string[] arguments)
@@ -79,6 +86,14 @@ public sealed class NativeProcessTests
         Assert.That(File.Exists(fixture), Is.True, $"Fixture was not copied to {fixture}.");
         var process = new RunProcess(new ProcessSpec("dotnet", string.Join(" ", new[] { fixture }.Concat(arguments).Select(Quote))));
         return await process.ExecuteAsync(new VerbExecutionContext(null, new Dictionary<string, object?>(), null), cancellationToken);
+    }
+
+    private static async Task<ProcessResult> RunFixtureAsync(TimeSpan timeout, params string[] arguments)
+    {
+        string fixture = Path.Combine(AppContext.BaseDirectory, "FluNET.Classic.ProcessFixture.dll");
+        Assert.That(File.Exists(fixture), Is.True, $"Fixture was not copied to {fixture}.");
+        var process = new RunProcess(new ProcessSpec("dotnet", string.Join(" ", new[] { fixture }.Concat(arguments).Select(Quote)), Timeout: timeout));
+        return await process.ExecuteAsync(new VerbExecutionContext(null, new Dictionary<string, object?>(), null));
     }
 
     private static string Quote(string value) => $"\"{value.Replace("\\", "\\\\").Replace("\"", "\\\"")}\"";
