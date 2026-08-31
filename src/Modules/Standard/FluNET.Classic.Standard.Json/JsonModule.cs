@@ -18,7 +18,8 @@ public sealed class JsonModule : LanguageModule
         new("qualifier:json-items", "ITEMS", typeof(JsonItem[])),
         new("qualifier:json-property-name", "NAME", typeof(string)),
         new("qualifier:json-value", "VALUE", typeof(JsonNode)),
-        new("qualifier:json-item-index", "INDEX", typeof(int))
+        new("qualifier:json-item-index", "INDEX", typeof(int)),
+        new("qualifier:json-validation-errors", "ERRORS", typeof(string[]))
     };
 }
 

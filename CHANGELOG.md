@@ -40,6 +40,7 @@ The format follows the spirit of [Keep a Changelog](https://keepachangelog.com/e
 - Directory metadata now supports typed count/existence projections.
 - OS, current-user, and working-directory values now expose typed field projections.
 - JSON properties and items now expose scalar and collection-aware typed field projections.
+- JSON validation results now expose typed validation-error projections.
 - Explicit qualifier surfaces no longer match unrelated verbs solely because their result types happen to be equal.
 - Typed HTTP status and ETag values now reject invalid CLR construction inputs.
 - HTTP responses and statuses now expose typed `CODE`, `REASON`, and `CONTENTTYPE` projections.

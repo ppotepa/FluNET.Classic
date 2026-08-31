@@ -183,6 +183,14 @@ public sealed class CheckJsonShape : IVerb<JsonValidationResult>, ICheck, IWhat<
     }
 }
 
+[Qualifier("ERRORS")]
+[ExecutionTrait(ExecutionTrait.Pure)]
+public sealed class GetJsonValidationErrors : Get<string[], JsonValidationResult>
+{
+    public GetJsonValidationErrors([From] JsonValidationResult from) : base(from) { }
+    protected override ValueTask<string[]> ActAsync(JsonValidationResult from, CancellationToken cancellationToken) => ValueTask.FromResult(from.Errors.ToArray());
+}
+
 [Verb("FORMAT")]
 [Qualifier("JSON")]
 [ExecutionTrait(ExecutionTrait.Pure)]
