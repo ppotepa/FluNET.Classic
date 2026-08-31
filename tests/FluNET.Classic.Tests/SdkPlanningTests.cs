@@ -29,6 +29,19 @@ public class SdkPlanningTests
     }
 
     [Test]
+    public void Generated_module_manifest_is_deterministic()
+    {
+        var module = new TextModule();
+        ModuleValidationResult validation = FluNetModuleTestHarness.Validate(module);
+        var generator = new ModuleArtifactGenerator();
+
+        string first = generator.GenerateManifest(validation.Snapshot!, module);
+        string second = generator.GenerateManifest(validation.Snapshot!, module);
+
+        Assert.That(second, Is.EqualTo(first));
+    }
+
+    [Test]
     public void Planner_exposes_overload_resolution_capabilities_and_traits_without_execution()
     {
         using ServiceProvider host = FluNetHost.Create();

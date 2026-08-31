@@ -22,25 +22,25 @@ public sealed class ModuleArtifactGenerator
             name = module.Name,
             version = module.Version.ToString(),
             languageContract = ClassicLanguageContract.Id,
-            dependencies = module.Dependencies,
-            assemblies = module.Assemblies.Select(x => x.GetName().Name).Where(x => x is not null),
-            qualifiers = module.Qualifiers.Select(q => new { id = q.StableId, name = q.Name, type = q.TargetType?.FullName, sensitive = q.TargetType is not null && SensitiveValueMetadata.IsSensitiveType(q.TargetType), aliases = q.AllAliases }),
-            predicates = module.Predicates.Select(p => new
+            dependencies = module.Dependencies.OrderBy(x => x, StringComparer.OrdinalIgnoreCase),
+            assemblies = module.Assemblies.Select(x => x.GetName().Name).Where(x => x is not null).OrderBy(x => x, StringComparer.Ordinal),
+            qualifiers = module.Qualifiers.OrderBy(q => q.StableId, StringComparer.Ordinal).Select(q => new { id = q.StableId, name = q.Name, type = q.TargetType?.FullName, sensitive = q.TargetType is not null && SensitiveValueMetadata.IsSensitiveType(q.TargetType), aliases = q.AllAliases.OrderBy(x => x, StringComparer.OrdinalIgnoreCase) }),
+            predicates = module.Predicates.OrderBy(p => p.StableId, StringComparer.Ordinal).Select(p => new
             {
                 id = p.StableId,
                 name = p.Name,
-                surface = p.AllSurfaceNames,
+                surface = p.AllSurfaceNames.OrderBy(x => x, StringComparer.OrdinalIgnoreCase),
                 syntax = p.Syntax.ToString(),
                 precedence = p.Precedence,
-                operandTypes = p.SupportedOperandTypes.Select(x => x.FullName),
+                operandTypes = p.SupportedOperandTypes.Select(x => x.FullName).OrderBy(x => x, StringComparer.Ordinal),
                 referenceOperandType = p.ReferenceOperandType?.FullName,
-                capabilities = p.RequiredCapabilities
+                capabilities = p.RequiredCapabilities.OrderBy(x => x, StringComparer.OrdinalIgnoreCase)
             }),
-            operators = module.Operators.Select(o => new
+            operators = module.Operators.OrderBy(o => o.StableId, StringComparer.Ordinal).Select(o => new
             {
                 id = o.StableId,
                 name = o.Name,
-                surface = o.AllSurfaceNames,
+                surface = o.AllSurfaceNames.OrderBy(x => x, StringComparer.OrdinalIgnoreCase),
                 precedence = o.Precedence,
                 arity = o.Arity.ToString(),
                 associativity = o.Associativity.ToString(),
@@ -49,34 +49,34 @@ public sealed class ModuleArtifactGenerator
                 evaluation = o.Evaluation.ToString(),
                 resultType = o.EffectiveResultType.FullName
             }),
-            intrinsics = module.Intrinsics.Select(i => new
+            intrinsics = module.Intrinsics.OrderBy(i => i.StableId, StringComparer.Ordinal).Select(i => new
             {
                 id = i.StableId,
                 name = i.Name,
-                surface = i.AllSurfaceNames,
+                surface = i.AllSurfaceNames.OrderBy(x => x, StringComparer.OrdinalIgnoreCase),
                 syntax = i.Syntax.ToString(),
                 semantic = i.Semantic.ToString(),
                 execution = i.Execution.ToString(),
                 strategyType = i.StrategyType?.FullName,
                 strategyRole = i.StrategyType is null ? null : i.StrategyRole
             }),
-            verbs = implementations.GroupBy(x => x.Name, StringComparer.OrdinalIgnoreCase).Select(group => new
+            verbs = implementations.GroupBy(x => x.Name, StringComparer.OrdinalIgnoreCase).OrderBy(group => group.Key, StringComparer.OrdinalIgnoreCase).Select(group => new
             {
                 name = group.Key,
-                overloads = group.Select(i => new
+                overloads = group.OrderBy(i => i.StableId, StringComparer.Ordinal).Select(i => new
                 {
                     id = i.StableId,
                     type = i.ImplementationType.FullName,
-                    aliases = i.Aliases,
-                    qualifiers = i.Qualifiers,
+                    aliases = i.Aliases.OrderBy(x => x, StringComparer.OrdinalIgnoreCase),
+                    qualifiers = i.Qualifiers.OrderBy(x => x, StringComparer.OrdinalIgnoreCase),
                     resultType = i.ResultType.FullName,
                     resultSensitive = SensitiveValueMetadata.IsSensitiveType(i.ResultType),
-                    capabilities = i.Capabilities,
-                    traits = i.Traits,
-                    patterns = i.Patterns.Select(p => new
+                    capabilities = i.Capabilities.OrderBy(x => x, StringComparer.OrdinalIgnoreCase),
+                    traits = i.Traits.OrderBy(x => x),
+                    patterns = i.Patterns.OrderBy(p => p.StableId, StringComparer.Ordinal).Select(p => new
                     {
                         id = p.StableId,
-                        roles = p.Roles.Select(r => new
+                        roles = p.Roles.OrderBy(r => r.Position).Select(r => new
                         {
                             id = r.StableId,
                             name = r.Name,
