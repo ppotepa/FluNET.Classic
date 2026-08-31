@@ -73,6 +73,8 @@ public sealed class LanguageCompiler
         }
 
         SentencePattern[] patterns = constructors.Select(constructor => CompilePattern(constructor, implementationId, diagnostics)).ToArray();
+        if (patterns.All(pattern => pattern.Roles.Count == 0) && !ImplementsGeneric(type, typeof(IQuery<>)))
+            diagnostics.Add(new("FLU-LANG-015", $"Verb '{type.FullName}' has no constructor with language roles; use IQuery<TResult> for a context-backed query.", LanguageDiagnosticSeverity.Error, type));
         string[] capabilities = type.GetCustomAttributes<RequiresCapabilityAttribute>(true).Select(x => x.Capability).Concat(InferCapabilities(type, patterns)).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
         ExecutionTrait[] explicitTraits = type.GetCustomAttributes<ExecutionTraitAttribute>(true).Select(x => x.Trait).Distinct().ToArray();
         ExecutionTrait[] inferredTraits = InferTraits(type)
