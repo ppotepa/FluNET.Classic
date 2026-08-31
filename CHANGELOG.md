@@ -62,6 +62,7 @@ The format follows the spirit of [Keep a Changelog](https://keepachangelog.com/e
 - Public demo and executable documentation examples now pass the production CLI `check`, `format`, `plan`, and `run` audit.
 - CLI text introspection now includes stable IDs and module, qualifier, overload, capability, and execution metadata.
 - The language-server host now has an end-to-end JSON-RPC lifecycle test covering initialization, document diagnostics, completion, and shutdown through `ClassicDocumentService`.
+- Generated module artifacts now declare the `flunet.module` v1 schema and reuse the compiled module stable ID in both manifest and documentation.
 - Explicit qualifier surfaces no longer match unrelated verbs solely because their result types happen to be equal.
 - Typed HTTP status and ETag values now reject invalid CLR construction inputs.
 - HTTP responses and statuses now expose typed `CODE`, `REASON`, and `CONTENTTYPE` projections.

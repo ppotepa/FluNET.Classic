@@ -15,10 +15,14 @@ public sealed class ModuleArtifactGenerator
     {
         ArgumentNullException.ThrowIfNull(snapshot);
         ArgumentNullException.ThrowIfNull(module);
+        ModuleDescriptor moduleDescriptor = snapshot.Modules.FirstOrDefault(x => x.Name.Equals(module.Name, StringComparison.OrdinalIgnoreCase))
+            ?? throw new InvalidOperationException($"Module '{module.Name}' is not present in the language snapshot.");
         VerbImplementationDescriptor[] implementations = Implementations(snapshot, module).ToArray();
         object manifest = new
         {
-            id = $"module:{Slug(module.Name)}",
+            schema = "flunet.module",
+            schemaVersion = 1,
+            id = moduleDescriptor.StableId,
             name = module.Name,
             version = module.Version.ToString(),
             languageContract = ClassicLanguageContract.Id,
@@ -104,6 +108,8 @@ public sealed class ModuleArtifactGenerator
         var text = new StringBuilder();
         text.AppendLine($"# {module.Name}");
         text.AppendLine();
+        text.AppendLine($"Manifest schema: `flunet.module` v1");
+        text.AppendLine($"Stable ID: `{snapshot.Modules.FirstOrDefault(x => x.Name.Equals(module.Name, StringComparison.OrdinalIgnoreCase))?.StableId ?? $"module:{Slug(module.Name)}"}`");
         text.AppendLine($"Version: `{module.Version}`");
         text.AppendLine($"Language contract: `{ClassicLanguageContract.Id}`");
         if (module.Dependencies.Count > 0)

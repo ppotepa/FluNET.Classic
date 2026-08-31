@@ -21,6 +21,9 @@ public class SemanticManifestTests
         var generator = new ModuleArtifactGenerator();
 
         using JsonDocument json = JsonDocument.Parse(generator.GenerateManifest(snapshot, module));
+        Assert.That(json.RootElement.GetProperty("schema").GetString(), Is.EqualTo("flunet.module"));
+        Assert.That(json.RootElement.GetProperty("schemaVersion").GetInt32(), Is.EqualTo(1));
+        Assert.That(json.RootElement.GetProperty("id").GetString(), Is.EqualTo(snapshot.Modules.Single(x => x.Name == module.Name).StableId));
         JsonElement top = json.RootElement.GetProperty("intrinsics").EnumerateArray().Single(x => x.GetProperty("name").GetString() == "TOP");
 
         Assert.That(top.GetProperty("syntax").GetString(), Is.EqualTo("CollectionAmountFrom"));
