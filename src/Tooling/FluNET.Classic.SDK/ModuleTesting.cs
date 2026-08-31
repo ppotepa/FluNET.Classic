@@ -4,7 +4,11 @@ using FluNET.Classic.Syntax;
 
 namespace FluNET.Classic.SDK;
 
-public sealed record ModuleValidationDiagnostic(string Code, string Message, string? Example = null);
+public sealed record ModuleValidationDiagnostic(
+    string Code,
+    string Message,
+    string? Example = null,
+    LanguageDiagnosticSeverity Severity = LanguageDiagnosticSeverity.Error);
 
 public sealed record ModuleValidationResult(
     LanguageSnapshot? Snapshot,
@@ -13,7 +17,7 @@ public sealed record ModuleValidationResult(
 {
     public bool Success => Snapshot is not null
         && LanguageDiagnostics.All(x => x.Severity != LanguageDiagnosticSeverity.Error)
-        && Diagnostics.Count == 0;
+        && Diagnostics.All(x => x.Severity != LanguageDiagnosticSeverity.Error);
 }
 
 public sealed class ModuleTestOptions
@@ -52,6 +56,8 @@ public static class FluNetModuleTestHarness
         LanguageSnapshot snapshot = build.Snapshot;
         ValidateStableIds(snapshot, diagnostics);
         ValidateSurfaceNames(snapshot, diagnostics);
+        foreach (ModuleQualityIssue issue in new ModuleQualityAnalyzer().Analyze(snapshot))
+            diagnostics.Add(new(issue.Code, issue.Message, Severity: issue.Severity));
 
         var resolvers = new ValueResolverRegistry();
         var converters = new ValueConversionRegistry();
@@ -63,7 +69,7 @@ public static class FluNetModuleTestHarness
         var lexer = new ClassicLexer();
         var parser = new ClassicParser(snapshot, lexer);
         var binder = new SemanticBinder(snapshot, resolvers, converters, predicates);
-        var formatter = new ClassicFormatter();
+        var formatter = new ClassicFormatter(snapshot);
 
         foreach (string example in options.Examples)
         {
@@ -73,14 +79,20 @@ public static class FluNetModuleTestHarness
             if (!parse.Success) continue;
 
             BoundScript bound = binder.Bind(parse.Script);
-            foreach (BindingDiagnostic diagnostic in bound.Diagnostics)
-                diagnostics.Add(new(diagnostic.Code, diagnostic.Message, example));
-            if (bound.Diagnostics.Count > 0) continue;
+            foreach (BindingDiagnostic diagnostic in bound.AllDiagnostics)
+                diagnostics.Add(new(diagnostic.Code, diagnostic.Message, example, ToLanguageSeverity(diagnostic.Severity)));
+            if (bound.HasErrors) continue;
 
             string canonical = formatter.Format(parse.Script);
             ParseResult roundTrip = parser.Parse(canonical);
             foreach (SyntaxDiagnostic diagnostic in roundTrip.Diagnostics)
                 diagnostics.Add(new("FLU-SDK-003", $"Canonical formatter round-trip failed: {diagnostic.Message}", example));
+            if (roundTrip.Success)
+            {
+                string secondCanonical = formatter.Format(roundTrip.Script);
+                if (!canonical.Equals(secondCanonical, StringComparison.Ordinal))
+                    diagnostics.Add(new("FLU-SDK-004", "Canonical formatter is not idempotent after a parse/format round-trip.", example));
+            }
         }
 
         return new(snapshot, languageDiagnostics, diagnostics);
@@ -114,4 +126,11 @@ public static class FluNetModuleTestHarness
             }
         }
     }
+
+    private static LanguageDiagnosticSeverity ToLanguageSeverity(BindingDiagnosticSeverity severity) => severity switch
+    {
+        BindingDiagnosticSeverity.Info => LanguageDiagnosticSeverity.Info,
+        BindingDiagnosticSeverity.Warning => LanguageDiagnosticSeverity.Warning,
+        _ => LanguageDiagnosticSeverity.Error
+    };
 }
