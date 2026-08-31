@@ -66,20 +66,20 @@ public sealed class ControlledEnglishTests
         Assert.That(result.Success, Is.False, "THEM must refer to a collection, not the scalar produced by COUNT.");
         Assert.That(result.Diagnostics.Any(x => x.Code == "FLU-BIND-181"), Is.True);
 
-        result = await engine.RunAsync("FIND ITEMS IN [values] WHERE true. FOR EACH [value] IN THEM, DO SAY IT. END FOR.", state);
+        result = await engine.RunAsync("FILTER [values] WHERE true. FOR EACH [value] IN THEM, DO SAY IT. END FOR.", state);
         Assert.That(result.Success, Is.True);
         Assert.That(output.Lines, Is.EqualTo(new[] { "one", "two" }));
     }
 
     [Test]
-    public async Task Find_items_binds_its_to_the_collection_item()
+    public async Task Filter_items_binds_properties_to_the_collection_item()
     {
         using ServiceProvider host = FluNetHost.Create();
         ClassicEngine engine = host.GetRequiredService<ClassicEngine>();
         var state = new RuntimeState();
         state.SetVariable("values", new[] { "a", "alphabet" });
 
-        RuntimeResult result = await engine.RunAsync("FIND ITEMS IN [values] WHERE ITS Length IS GREATER THAN 3 INTO [long]. COUNT [long].", state);
+        RuntimeResult result = await engine.RunAsync("FILTER [values] WHERE Length > 3 INTO [long]. COUNT [long].", state);
         Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics.Select(x => x.Message)));
         Assert.That(result.Result, Is.EqualTo(1));
     }
