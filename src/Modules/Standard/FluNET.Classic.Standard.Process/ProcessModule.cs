@@ -166,8 +166,11 @@ public sealed class RunProcess : IVerb<ProcessResult>, IRun, IWhat<ProcessSpec>,
 [ExecutionTrait(ExecutionTrait.LongRunning)]
 public sealed class RunBackgroundProcess : IVerb<ProcessHandle>, IRun, IWhat<ProcessSpec>, IUsing<ProcessRunMode>, IWith<string>, IPipelineProducer<ProcessHandle>
 {
-    private readonly ProcessSpec _spec; private readonly ProcessRunMode _mode; private readonly string? _arguments;
-    public RunBackgroundProcess([What] ProcessSpec spec, [Using] ProcessRunMode mode, [With] string? arguments = null)
+    private readonly ProcessSpec _spec;
+    private readonly ProcessRunMode _mode;
+    private readonly string? _arguments;
+
+    public RunBackgroundProcess([What] ProcessSpec spec, [Using] ProcessRunMode mode, [With, RoleAlias("ARGUMENTS")] string? arguments = null)
     {
         _spec = spec;
         _mode = mode;

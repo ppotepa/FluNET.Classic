@@ -54,6 +54,15 @@ public sealed class NativeProcessTests
     }
 
     [Test]
+    public void Background_process_uses_the_same_argument_surface_as_foreground_processes()
+    {
+        using ServiceProvider host = FluNetHost.Create();
+        CheckResult check = host.GetRequiredService<ClassicEngine>().Check("RUN PROCESS {dotnet} USING BACKGROUND WITH ARGUMENTS \"--version\".");
+
+        Assert.That(check.Success, Is.True, string.Join("; ", check.Bound?.Diagnostics.Select(x => x.Message) ?? Array.Empty<string>()));
+    }
+
+    [Test]
     public async Task Missing_executable_returns_a_stable_process_diagnostic()
     {
         using ServiceProvider host = FluNetHost.Create();
