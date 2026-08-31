@@ -86,16 +86,14 @@ public interface IContextualValueResolver : IValueResolver
 public sealed class ValueResolverRegistry
 {
     private readonly Dictionary<Type, List<ResolverEntry>> _resolvers = new();
-    private long _sequence;
-
-    public void Register<T>(IValueResolver<T> resolver, int priority = 0)
+    public void Register<T>(IValueResolver<T> resolver, int priority = 0, string? id = null)
     {
         ArgumentNullException.ThrowIfNull(resolver);
         Type type = typeof(T);
         if (!_resolvers.TryGetValue(type, out List<ResolverEntry>? entries))
             _resolvers[type] = entries = [];
-        string id = $"{resolver.GetType().AssemblyQualifiedName ?? resolver.GetType().FullName ?? resolver.GetType().Name}#{Interlocked.Increment(ref _sequence)}";
-        entries.Add(new(id, resolver, priority));
+        string registrationId = RegistrationId("resolver", resolver.GetType(), priority, id, entries.Select(x => x.Id));
+        entries.Add(new(registrationId, resolver, priority));
         entries.Sort((a, b) => b.Priority != a.Priority ? b.Priority.CompareTo(a.Priority) : string.Compare(a.Id, b.Id, StringComparison.Ordinal));
     }
 
@@ -233,4 +231,20 @@ public sealed class ValueResolverRegistry
     }
 
     private sealed record ResolverEntry(string Id, IValueResolver Resolver, int Priority);
+
+    private static string RegistrationId(string kind, Type implementationType, int priority, string? requestedId, IEnumerable<string> existingIds)
+    {
+        string baseId = string.IsNullOrWhiteSpace(requestedId)
+            ? $"{kind}:{implementationType.FullName ?? implementationType.Name}:priority:{priority}"
+            : requestedId.Trim();
+        if (!string.IsNullOrWhiteSpace(requestedId) && existingIds.Contains(baseId, StringComparer.Ordinal))
+            throw new ArgumentException($"A {kind} with ID '{baseId}' is already registered.", nameof(requestedId));
+        if (!string.IsNullOrWhiteSpace(requestedId))
+            return baseId;
+        int suffix = 1;
+        string candidate = baseId;
+        while (existingIds.Contains(candidate, StringComparer.Ordinal))
+            candidate = $"{baseId}:{++suffix}";
+        return candidate;
+    }
 }

@@ -76,6 +76,11 @@ use a resolver to hide arbitrary I/O, a converter to silently discard data, or a
 predicate to mutate state. Do not add parser branches for an ordinary typed
 sentence; use a verb family, qualifier, role metadata, and a normal overload.
 
+When a host registers more than one resolver or converter of the same implementation
+shape, pass an explicit stable `id` (`Register(resolver, id: "my-source")`). The
+fallback identifier is deterministic for a single registration shape, but explicit
+IDs are the durable choice for diagnostics and execution-plan snapshots.
+
 ### Context-backed queries
 
 Not every query needs a source value. For operations that read host context, use

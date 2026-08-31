@@ -97,6 +97,35 @@ public class ConversionResolutionDeterminismTests
         Assert.That(((Resolved)result.Value!).Value, Is.EqualTo("fallback"));
     }
 
+    [Test]
+    public void Explicit_resolver_and_converter_ids_are_stable_and_explainable()
+    {
+        var resolvers = new ValueResolverRegistry();
+        resolvers.Register(new TestResolver("value"), priority: 5, id: "fixture.resolver");
+        ResolutionResult resolution = resolvers.Resolve("source", typeof(Resolved), new ResolutionContext(typeof(Resolved)));
+
+        var converters = new ValueConversionRegistry();
+        converters.Register(new AToB(), priority: 5, id: "fixture.converter");
+        ConversionPlan plan = converters.Plan(typeof(A), typeof(B)).Plan!;
+
+        Assert.That(resolution.Resolver, Is.EqualTo("fixture.resolver"));
+        Assert.That(plan.Steps.Single().ConverterId, Is.EqualTo("fixture.converter"));
+    }
+
+    [Test]
+    public void Default_registration_ids_do_not_depend_on_registration_order_counter()
+    {
+        var first = new ValueResolverRegistry();
+        first.Register(new TestResolver("first"));
+        var second = new ValueResolverRegistry();
+        second.Register(new TestResolver("second"));
+
+        ResolutionResult firstResult = first.Resolve("source", typeof(Resolved), new ResolutionContext(typeof(Resolved)));
+        ResolutionResult secondResult = second.Resolve("source", typeof(Resolved), new ResolutionContext(typeof(Resolved)));
+
+        Assert.That(secondResult.Resolver, Is.EqualTo(firstResult.Resolver));
+    }
+
     private sealed record A(string Value);
     private sealed record B(string Value);
     private sealed record C(string Value);

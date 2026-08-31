@@ -118,22 +118,20 @@ public sealed class ValueConversionRegistry
 {
     private readonly Dictionary<(Type Source, Type Target), List<ConverterEntry>> _converters = new();
     private readonly Dictionary<string, ConverterEntry> _byId = new(StringComparer.Ordinal);
-    private long _registrationSequence;
-
     public int MaxPathLength { get; set; } = 4;
     public int MaxPathCost { get; set; } = 16;
 
-    public void Register(IValueConverter converter, int priority = 0, ConversionSafety safety = ConversionSafety.Lossless)
+    public void Register(IValueConverter converter, int priority = 0, ConversionSafety safety = ConversionSafety.Lossless, string? id = null)
     {
         ArgumentNullException.ThrowIfNull(converter);
         Type source = Normalize(converter.SourceType);
         Type target = Normalize(converter.TargetType);
-        string id = $"{converter.GetType().AssemblyQualifiedName ?? converter.GetType().FullName ?? converter.GetType().Name}#{Interlocked.Increment(ref _registrationSequence)}";
-        var entry = new ConverterEntry(id, converter, source, target, priority, safety);
+        string registrationId = RegistrationId(converter.GetType(), source, target, priority, id);
+        var entry = new ConverterEntry(registrationId, converter, source, target, priority, safety);
         if (!_converters.TryGetValue((source, target), out List<ConverterEntry>? entries))
             _converters[(source, target)] = entries = [];
         entries.Add(entry);
-        _byId[id] = entry;
+        _byId[registrationId] = entry;
     }
 
     public bool CanConvert(Type source, Type target, out ConversionKind kind, out int cost)
@@ -345,4 +343,20 @@ public sealed class ValueConversionRegistry
 
     private sealed record ConverterEntry(string Id, IValueConverter Converter, Type Source, Type Target, int Priority, ConversionSafety Safety);
     private sealed record PathState(Type Type, IReadOnlyList<ConversionStep> Steps, int Cost);
+
+    private string RegistrationId(Type implementationType, Type source, Type target, int priority, string? requestedId)
+    {
+        string baseId = string.IsNullOrWhiteSpace(requestedId)
+            ? $"converter:{implementationType.FullName ?? implementationType.Name}:{TypeName(source)}->{TypeName(target)}:priority:{priority}"
+            : requestedId.Trim();
+        if (!string.IsNullOrWhiteSpace(requestedId) && _byId.ContainsKey(baseId))
+            throw new ArgumentException($"A converter with ID '{baseId}' is already registered.", nameof(requestedId));
+        if (!string.IsNullOrWhiteSpace(requestedId))
+            return baseId;
+        int suffix = 1;
+        string candidate = baseId;
+        while (_byId.ContainsKey(candidate))
+            candidate = $"{baseId}:{++suffix}";
+        return candidate;
+    }
 }
