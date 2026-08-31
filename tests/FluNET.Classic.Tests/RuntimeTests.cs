@@ -1,6 +1,7 @@
 using FluNET.Classic.Hosting;
 using FluNET.Classic.Runtime;
 using FluNET.Classic.Standard.Text;
+using System.Net;
 using FluNET.Classic.Syntax;
 using Microsoft.Extensions.DependencyInjection;
 using NUnit.Framework;
@@ -105,6 +106,22 @@ public class RuntimeTests
     }
 
     [Test]
+    public async Task Stage_timeout_is_reported_separately_from_caller_cancellation()
+    {
+        var options = new FluNetOptions
+        {
+            ConfigureExecution = policy => policy.DefaultTimeout = TimeSpan.FromMilliseconds(25)
+        };
+        using ServiceProvider host = FluNetHost.Create(options, services => services.AddSingleton(new HttpClient(new DelayingHandler())));
+        ClassicEngine engine = host.GetRequiredService<ClassicEngine>();
+
+        RuntimeResult result = await engine.RunAsync("GET RESPONSE FROM {https://example.com} INTO [response].");
+
+        Assert.That(result.Success, Is.False);
+        Assert.That(result.Diagnostics.Select(x => x.Code), Does.Contain("FLU-RUN-021"));
+    }
+
+    [Test]
     public void Parser_builds_control_flow_ast_directly()
     {
         using ServiceProvider host = FluNetHost.Create();
@@ -122,6 +139,15 @@ public class RuntimeTests
         {
             Lines.Add(text);
             return ValueTask.CompletedTask;
+        }
+    }
+
+    private sealed class DelayingHandler : HttpMessageHandler
+    {
+        protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            await Task.Delay(TimeSpan.FromSeconds(1), cancellationToken);
+            return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("ok") };
         }
     }
 }

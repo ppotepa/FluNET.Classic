@@ -47,6 +47,8 @@ The parser owns sentence punctuation and controlled-natural-language surface syn
 
 `ExecutionPlanner` projects a bound script into a non-executing plan containing selected implementations, patterns, typed role values, resolution/conversion information, capabilities and execution traits. Planning is intentionally downstream of binding: it describes what the compiler actually selected instead of re-interpreting source text.
 
+Execution-policy timeouts are applied per stage. Caller cancellation is reported as `FLU-RUN-020`, while a stage that exceeds its configured timeout is reported as `FLU-RUN-021`; hosts can therefore distinguish user cancellation from an execution deadline without parsing exception messages.
+
 `FILTER ... WHERE`, `REQUIRE`, `IF ... THEN`, `CHECK IF`, and `FOR EACH` are compiler nodes rather than ad-hoc verb rules. `IF`, `CHECK IF`, `REQUIRE`, and `FILTER ... WHERE` share one typed expression tree. Named predicates such as `EXISTS`, `OK`, and `VALID` bind through `PredicateRegistry`, so modules can extend boolean language without adding parser-specific special cases. `THEM` refers to the previous pipeline value and `IT` to the current loop item; both are bound explicitly and are not magic runtime string values.
 
 `FluNET.Classic.SDK` sits above Core/Syntax/Binding/Runtime as the module-authoring surface. It validates compiled module contracts and generates manifests/documentation from `LanguageSnapshot`; it does not define a second language model.

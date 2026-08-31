@@ -12,6 +12,7 @@ The format follows the spirit of [Keep a Changelog](https://keepachangelog.com/e
 - `REQUIRE` assertions with stable `FLU-RUN-040` runtime diagnostics.
 - Stable `FLU-PROC-002` diagnostics for native-process start failures.
 - Stable `FLU-PROC-003` diagnostics for native-process timeouts.
+- Stable `FLU-RUN-021` diagnostics for stage execution timeouts, distinct from caller cancellation.
 - Previous-pipeline (`THEM`) and current-loop-item (`IT`) bindings.
 - Exact native-process argument lists backed by `ProcessStartInfo.ArgumentList`.
 - All NuGet packages now include the repository README as package documentation.

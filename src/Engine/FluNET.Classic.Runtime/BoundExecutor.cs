@@ -247,9 +247,9 @@ public sealed class BoundExecutor
         for (int attempt = 1; attempt <= attempts; attempt++)
         {
             used = attempt;
+            CancellationTokenSource? timeout = CreateTimeout(ct, _policy.TimeoutFor(sentence.Implementation.Traits));
             try
             {
-                using CancellationTokenSource? timeout = CreateTimeout(ct, _policy.TimeoutFor(sentence.Implementation.Traits));
                 CancellationToken token = timeout?.Token ?? ct;
                 object? result = await InvokeSentenceAttempt(sentence, args, state, token).ConfigureAwait(false);
                 state.PipelineValue = result;
@@ -261,8 +261,14 @@ public sealed class BoundExecutor
                 await PublishAsync(new ExecutionEvent(++_sequence, ExecutionEventKind.StageCompleted, Verb: sentence.Verb.Name, Implementation: sentence.Implementation.ImplementationType.FullName, Success: true, Attempts: used, Duration: timer.Elapsed, Detail: sentence.Verb.Name));
                 return;
             }
+            catch (OperationCanceledException) when (timeout is not null && timeout.IsCancellationRequested && !ct.IsCancellationRequested)
+            {
+                last = new ExecutionFailureException("FLU-RUN-021", $"Stage '{sentence.Verb.Name}' exceeded its execution timeout.");
+                break;
+            }
             catch (Exception ex) when (attempt < attempts && ex is not OperationCanceledException && ex is not UnauthorizedAccessException) { last = ex; if (_policy.RetryDelay > TimeSpan.Zero) await Task.Delay(_policy.RetryDelay, ct).ConfigureAwait(false); }
             catch (Exception ex) { last = ex; break; }
+            finally { timeout?.Dispose(); }
         }
         timer.Stop();
         _trace.Add(new(++_sequence, "sentence", sentence.Verb.Name, sentence.Implementation.ImplementationType.FullName, started, timer.Elapsed, false, used, sentence.ResultType.FullName, sentence.Implementation.Capabilities, sentence.Implementation.Traits, last?.Message));
