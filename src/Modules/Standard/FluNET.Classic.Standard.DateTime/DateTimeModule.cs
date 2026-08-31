@@ -70,19 +70,23 @@ public sealed class DateTimeModule : LanguageModule
     };
 }
 
-[Verb("GET")]
 [Qualifier("NOW")]
-public sealed class GetNow : IVerb<DateTimeOffset>, IGet, IWhat<DateTimeOffset>, IPipelineProducer<DateTimeOffset>
+public sealed class GetNow : IQuery<DateTimeOffset>, IPipelineProducer<DateTimeOffset>
 {
-    private readonly IClock _clock; public GetNow([What] DateTimeOffset what, [FromServices] IClock clock) => _clock = clock;
+    private readonly IClock _clock;
+
+    public GetNow([FromServices] IClock clock) => _clock = clock;
+
     public ValueTask<DateTimeOffset> ExecuteAsync(VerbExecutionContext context, CancellationToken cancellationToken = default) => ValueTask.FromResult(_clock.Now);
 }
 
-[Verb("GET")]
 [Qualifier("TODAY")]
-public sealed class GetToday : IVerb<DateOnly>, IGet, IWhat<DateOnly>, IPipelineProducer<DateOnly>
+public sealed class GetToday : IQuery<DateOnly>, IPipelineProducer<DateOnly>
 {
-    private readonly IClock _clock; public GetToday([What] DateOnly what, [FromServices] IClock clock) => _clock = clock;
+    private readonly IClock _clock;
+
+    public GetToday([FromServices] IClock clock) => _clock = clock;
+
     public ValueTask<DateOnly> ExecuteAsync(VerbExecutionContext context, CancellationToken cancellationToken = default) => ValueTask.FromResult(_clock.Today);
 }
 
