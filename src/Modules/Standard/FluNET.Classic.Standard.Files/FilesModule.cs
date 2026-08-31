@@ -46,14 +46,14 @@ public sealed class FilesModule : LanguageModule
 [Qualifier("TEXT")]
 public sealed class GetText : Get<string[], FileInfo>, IAs<TextFileRepresentation>
 {
-    public GetText([What] string[] what, [From] FileInfo from, [As] TextFileRepresentation @as = TextFileRepresentation.TEXT) : base(what, from) { }
+    public GetText([From] FileInfo from, [As] TextFileRepresentation @as = TextFileRepresentation.TEXT) : base(from) { }
     protected override async ValueTask<string[]> ActAsync(FileInfo from, CancellationToken cancellationToken) => await File.ReadAllLinesAsync(from.FullName, cancellationToken).ConfigureAwait(false);
 }
 
 [Qualifier("TEXT")]
 public sealed class GetTextMany : Get<string[], FileInfo[]>
 {
-    public GetTextMany([What] string[] what, [From] params FileInfo[] from) : base(what, from) { }
+    public GetTextMany([From] params FileInfo[] from) : base(from) { }
     protected override async ValueTask<string[]> ActAsync(FileInfo[] from, CancellationToken cancellationToken)
     {
         var lines = new List<string>();
@@ -66,14 +66,14 @@ public sealed class GetTextMany : Get<string[], FileInfo[]>
 [Qualifier("BINARY")]
 public sealed class GetBinary : Get<byte[], FileInfo>, IAs<BinaryFileRepresentation>
 {
-    public GetBinary([What] byte[] what, [From] FileInfo from, [As] BinaryFileRepresentation @as = BinaryFileRepresentation.BINARY) : base(what, from) { }
+    public GetBinary([From] FileInfo from, [As] BinaryFileRepresentation @as = BinaryFileRepresentation.BINARY) : base(from) { }
     protected override async ValueTask<byte[]> ActAsync(FileInfo from, CancellationToken cancellationToken) => await File.ReadAllBytesAsync(from.FullName, cancellationToken).ConfigureAwait(false);
 }
 
 [Qualifier("METADATA")]
 public sealed class GetFileMetadata : Get<FileMetadata, FileInfo>
 {
-    public GetFileMetadata([What] FileMetadata what, [From] FileInfo from) : base(what, from) { }
+    public GetFileMetadata([From] FileInfo from) : base(from) { }
     protected override ValueTask<FileMetadata> ActAsync(FileInfo from, CancellationToken cancellationToken)
     {
         from.Refresh();

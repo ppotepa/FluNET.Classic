@@ -94,7 +94,7 @@ public sealed class HttpModule : LanguageModule
 public sealed class GetJsonHttp : Get<JsonNode, HttpEndpoint>, IAs<HttpJsonRepresentation>
 {
     private readonly HttpClient _client;
-    public GetJsonHttp([What] JsonNode what, [From, RoleAlias("AT")] HttpEndpoint from, [As] HttpJsonRepresentation @as = HttpJsonRepresentation.JSON, [FromServices] HttpClient client = null!) : base(what, from) => _client = client;
+    public GetJsonHttp([From, RoleAlias("AT")] HttpEndpoint from, [As] HttpJsonRepresentation @as = HttpJsonRepresentation.JSON, [FromServices] HttpClient client = null!) : base(from) => _client = client;
     protected override async ValueTask<JsonNode> ActAsync(HttpEndpoint from, CancellationToken cancellationToken)
     {
         string text = await _client.GetStringAsync(from.Uri, cancellationToken).ConfigureAwait(false);
@@ -108,7 +108,7 @@ public sealed class GetJsonHttp : Get<JsonNode, HttpEndpoint>, IAs<HttpJsonRepre
 public sealed class GetHttpResponse : Get<HttpResponse, HttpEndpoint>
 {
     private readonly HttpClient _client;
-    public GetHttpResponse([What] HttpResponse what, [From, RoleAlias("AT")] HttpEndpoint from, [FromServices] HttpClient client = null!) : base(what, from) => _client = client;
+    public GetHttpResponse([From, RoleAlias("AT")] HttpEndpoint from, [FromServices] HttpClient client = null!) : base(from) => _client = client;
     protected override async ValueTask<HttpResponse> ActAsync(HttpEndpoint from, CancellationToken cancellationToken)
     {
         using HttpResponseMessage response = await _client.GetAsync(from.Uri, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
@@ -128,7 +128,7 @@ public sealed class GetHttpResponse : Get<HttpResponse, HttpEndpoint>
 [ExecutionTrait(ExecutionTrait.Pure)]
 public sealed class GetHttpStatus : Get<HttpStatus, HttpResponse>
 {
-    public GetHttpStatus([What] HttpStatus what, [From] HttpResponse from) : base(what, from) { }
+    public GetHttpStatus([From] HttpResponse from) : base(from) { }
     protected override ValueTask<HttpStatus> ActAsync(HttpResponse from, CancellationToken cancellationToken) => ValueTask.FromResult(from.Status);
 }
 
@@ -136,7 +136,7 @@ public sealed class GetHttpStatus : Get<HttpStatus, HttpResponse>
 [ExecutionTrait(ExecutionTrait.Pure)]
 public sealed class GetHttpHeaders : Get<HttpHeaders, HttpResponse>
 {
-    public GetHttpHeaders([What] HttpHeaders what, [From] HttpResponse from) : base(what, from) { }
+    public GetHttpHeaders([From] HttpResponse from) : base(from) { }
     protected override ValueTask<HttpHeaders> ActAsync(HttpResponse from, CancellationToken cancellationToken) => ValueTask.FromResult(from.Headers);
 }
 
@@ -144,7 +144,7 @@ public sealed class GetHttpHeaders : Get<HttpHeaders, HttpResponse>
 [ExecutionTrait(ExecutionTrait.Pure)]
 public sealed class GetHttpText : Get<string, HttpResponse>
 {
-    public GetHttpText([What] string what, [From] HttpResponse from) : base(what, from) { }
+    public GetHttpText([From] HttpResponse from) : base(from) { }
     protected override ValueTask<string> ActAsync(HttpResponse from, CancellationToken cancellationToken) => ValueTask.FromResult(from.Text);
 }
 
@@ -152,7 +152,7 @@ public sealed class GetHttpText : Get<string, HttpResponse>
 [ExecutionTrait(ExecutionTrait.Pure)]
 public sealed class GetHttpJson : Get<JsonNode, HttpResponse>
 {
-    public GetHttpJson([What] JsonNode what, [From] HttpResponse from) : base(what, from) { }
+    public GetHttpJson([From] HttpResponse from) : base(from) { }
     protected override ValueTask<JsonNode> ActAsync(HttpResponse from, CancellationToken cancellationToken) =>
         ValueTask.FromResult(JsonNode.Parse(from.Text) ?? new JsonObject());
 }

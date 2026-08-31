@@ -23,6 +23,7 @@ The format follows the spirit of [Keep a Changelog](https://keepachangelog.com/e
 - Concurrent checks on one engine now serialize access to the stateful semantic binder.
 - Empty environment variable names are rejected during binding.
 - `GET ENV` no longer requires an unused output-side `WHAT` constructor parameter.
+- Base `GET ... FROM ...` verbs no longer force unused output-side `WHAT` parameters.
 - Language snapshots now expose immutable collection implementations and copy nested descriptor inputs for tooling consumers.
 - `HttpEndpoint` now accepts only absolute HTTP and HTTPS URIs and rejects invalid schemes during binding.
 - Non-idempotent HTTP operations no longer opt into automatic retries that could duplicate side effects.

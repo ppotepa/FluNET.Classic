@@ -4,9 +4,9 @@ namespace FluNET.Classic.Core;
 [Alias("READ")]
 [Alias("FETCH")]
 [Alias("RETRIEVE")]
-public abstract class Get<TResult, TFrom> : IVerb<TResult>, IGet, IWhat<TResult>, IFrom<TFrom>, IPipelineProducer<TResult>
+public abstract class Get<TResult, TFrom> : IVerb<TResult>, IGet, IFrom<TFrom>, IPipelineProducer<TResult>
 {
-    protected Get(TResult what, TFrom from) => From = from;
+    protected Get(TFrom from) => From = from;
     protected TFrom From
     {
         get;

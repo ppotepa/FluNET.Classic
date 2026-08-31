@@ -203,19 +203,19 @@ public sealed class RunBackgroundProcess : IVerb<ProcessHandle>, IRun, IWhat<Pro
 [Qualifier("STDOUT")]
 public sealed class GetStandardOutput : Get<string, ProcessResult>
 {
-    public GetStandardOutput([What] string what, [From] ProcessResult from) : base(what, from) { }
+    public GetStandardOutput([From] ProcessResult from) : base(from) { }
     protected override ValueTask<string> ActAsync(ProcessResult from, CancellationToken cancellationToken) => ValueTask.FromResult(from.StdOut);
 }
 [Qualifier("STDERR")]
 public sealed class GetStandardError : Get<string, ProcessResult>
 {
-    public GetStandardError([What] string what, [From] ProcessResult from) : base(what, from) { }
+    public GetStandardError([From] ProcessResult from) : base(from) { }
     protected override ValueTask<string> ActAsync(ProcessResult from, CancellationToken cancellationToken) => ValueTask.FromResult(from.StdErr);
 }
 [Qualifier("EXITCODE")]
 public sealed class GetExitCode : Get<int, ProcessResult>
 {
-    public GetExitCode([What] int what, [From] ProcessResult from) : base(what, from) { }
+    public GetExitCode([From] ProcessResult from) : base(from) { }
     protected override ValueTask<int> ActAsync(ProcessResult from, CancellationToken cancellationToken) => ValueTask.FromResult(from.ExitCode);
 }
 
