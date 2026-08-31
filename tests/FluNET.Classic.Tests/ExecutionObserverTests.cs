@@ -66,6 +66,18 @@ public sealed class ExecutionObserverTests
         }
     }
 
+    [Test]
+    public async Task Concurrent_checks_on_one_engine_keep_binding_state_isolated()
+    {
+        using ServiceProvider host = FluNetHost.Create();
+        ClassicEngine engine = host.GetRequiredService<ClassicEngine>();
+
+        CheckResult[] checks = await Task.WhenAll(
+            Enumerable.Range(0, 16).Select(_ => Task.Run(() => engine.Check("SAY \"concurrent\"."))).ToArray());
+
+        Assert.That(checks, Has.All.Matches<CheckResult>(check => check.Success));
+    }
+
     private sealed class CapturingObserver : IExecutionObserver
     {
         public ConcurrentQueue<ExecutionEvent> Events { get; } = new();

@@ -20,6 +20,7 @@ The format follows the spirit of [Keep a Changelog](https://keepachangelog.com/e
 - Parallel loop failures now cancel sibling iterations while preserving the original failure diagnostic.
 - Concurrent runs on a shared executor now keep trace and observer state isolated per run.
 - `BoundExecutor` now releases its observer synchronization resource with the host lifecycle.
+- Concurrent checks on one engine now serialize access to the stateful semantic binder.
 - Empty environment variable names are rejected during binding.
 - `HttpEndpoint` now accepts only absolute HTTP and HTTPS URIs and rejects invalid schemes during binding.
 - Non-idempotent HTTP operations no longer opt into automatic retries that could duplicate side effects.

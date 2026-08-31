@@ -16,6 +16,7 @@ public sealed class ClassicEngine
     private readonly BoundExecutor _executor;
     private readonly ClassicFormatter _formatter;
     private readonly ExecutionPlanner _planner;
+    private readonly object _bindingGate = new();
 
     public ClassicEngine(ClassicParser parser, SemanticBinder binder, BoundExecutor executor, ClassicFormatter formatter, ExecutionPlanner planner)
     {
@@ -40,10 +41,13 @@ public sealed class ClassicEngine
 
     public CheckResult Check(string source, IReadOnlyDictionary<string, Type>? variableTypes = null)
     {
-        ParseResult parse = _parser.Parse(source);
-        if (!parse.Success)
-            return new(parse, null);
-        return new(parse, _binder.Bind(parse.Script, variableTypes));
+        lock (_bindingGate)
+        {
+            ParseResult parse = _parser.Parse(source);
+            if (!parse.Success)
+                return new(parse, null);
+            return new(parse, _binder.Bind(parse.Script, variableTypes));
+        }
     }
 
     public ExecutionPlan Plan(string source, IReadOnlyDictionary<string, Type>? variableTypes = null) => _planner.Build(Check(source, variableTypes));
