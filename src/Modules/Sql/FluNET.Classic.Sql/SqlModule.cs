@@ -20,7 +20,43 @@ public interface ISqlExecutor
 public sealed class SqlModule : LanguageModule
 {
     public override string Name => "sql";
-    public override IReadOnlyCollection<QualifierDescriptor> Qualifiers => new QualifierDescriptor[] { new("qualifier:rows", "ROWS", typeof(SqlRow[])), new("qualifier:sql-result", "RESULT", typeof(SqlResult)) };
+    public override IReadOnlyCollection<QualifierDescriptor> Qualifiers => new QualifierDescriptor[]
+    {
+        new("qualifier:rows", "ROWS", typeof(SqlRow[])),
+        new("qualifier:sql-result", "RESULT", typeof(SqlResult)),
+        new("qualifier:affected-rows", "AFFECTEDROWS", typeof(int)),
+        new("qualifier:row-values", "VALUES", typeof(IReadOnlyDictionary<string, object?>))
+    };
+}
+
+[Verb("GET")]
+[Qualifier("ROWS")]
+[ExecutionTrait(ExecutionTrait.Pure)]
+public sealed class GetSqlResultRows : Get<SqlRow[], SqlResult>
+{
+    public GetSqlResultRows([From] SqlResult from) : base(from) { }
+
+    protected override ValueTask<SqlRow[]> ActAsync(SqlResult from, CancellationToken cancellationToken) => ValueTask.FromResult(from.Rows.ToArray());
+}
+
+[Verb("GET")]
+[Qualifier("AFFECTEDROWS")]
+[ExecutionTrait(ExecutionTrait.Pure)]
+public sealed class GetSqlAffectedRows : Get<int, SqlResult>
+{
+    public GetSqlAffectedRows([From] SqlResult from) : base(from) { }
+
+    protected override ValueTask<int> ActAsync(SqlResult from, CancellationToken cancellationToken) => ValueTask.FromResult(from.AffectedRows);
+}
+
+[Verb("GET")]
+[Qualifier("VALUES")]
+[ExecutionTrait(ExecutionTrait.Pure)]
+public sealed class GetSqlRowValues : Get<IReadOnlyDictionary<string, object?>, SqlRow>
+{
+    public GetSqlRowValues([From] SqlRow from) : base(from) { }
+
+    protected override ValueTask<IReadOnlyDictionary<string, object?>> ActAsync(SqlRow from, CancellationToken cancellationToken) => ValueTask.FromResult(from.Values);
 }
 
 [Verb("GET")]
