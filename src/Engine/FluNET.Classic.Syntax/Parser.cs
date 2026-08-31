@@ -145,6 +145,7 @@ public sealed class ClassicParser
             if (Current.Kind == TokenKind.Comma) { Advance(); SkipNewLines(); continue; }
             SyntaxToken role = Current;
             if (role.Kind != TokenKind.Word) { _diagnostics.Add(new("FLU-SYN-142", "Expected a parameter role.", role.Span)); Advance(); continue; }
+            if (!LanguageRoleNames.IsContextual(role.Text)) _diagnostics.Add(new("FLU-SYN-155", $"Definition role '{role.Text}' is not part of the canonical contextual role vocabulary.", role.Span));
             Advance();
             SyntaxToken variable = Current;
             if (variable.Kind != TokenKind.Variable) { _diagnostics.Add(new("FLU-SYN-143", $"Parameter role {role.Text} requires a [variable].", variable.Span)); break; }
@@ -211,8 +212,8 @@ public sealed class ClassicParser
         return false;
     }
     private PipelineStageNode? ParseStage() { if (IsWord("FILTER")) return ParseFilter(); if (IsWord("CHECK") && IsWord("IF", 1)) return ParseCheck(); if (Current.Kind == TokenKind.Word && _language.TryGetIntrinsic(Current.Text, out IntrinsicDescriptor intrinsic)) return ParseIntrinsic(intrinsic); return ParseSentence(); }
-    private FilterStageNode ParseFilter() { int start = Advance().Span.Start; ExpressionNode? source = null; if (!IsWord("WHERE")) source = ParseAtomic(); ExpectWord("WHERE", "FLU-SYN-120", "FILTER requires WHERE."); ExpressionNode predicate = ParseExpressionUntil("INTO", "AS", "THEN", "ELSE"); string? alias = ParseOptionalResultAlias(); return new(source, predicate, alias, TextSpan.FromBounds(start, alias is not null ? Previous.Span.End : predicate.Span.End)); }
-    private CheckStageNode ParseCheck() { int start = Advance().Span.Start; ExpectWord("IF", "FLU-SYN-125", "CHECK requires IF."); ExpressionNode condition = ParseExpressionUntil("INTO", "AS", "THEN", "ELSE"); string? alias = ParseOptionalResultAlias(); return new(condition, alias, TextSpan.FromBounds(start, alias is not null ? Previous.Span.End : condition.Span.End)); }
+    private FilterStageNode ParseFilter() { int start = Advance().Span.Start; ExpressionNode? source = null; if (!IsWord("WHERE")) source = ParseAtomic(); ExpectWord("WHERE", "FLU-SYN-120", "FILTER requires WHERE."); ExpressionNode predicate = ParseExpressionUntil("INTO", "THEN", "ELSE"); string? alias = ParseOptionalResultAlias(); return new(source, predicate, alias, TextSpan.FromBounds(start, alias is not null ? Previous.Span.End : predicate.Span.End)); }
+    private CheckStageNode ParseCheck() { int start = Advance().Span.Start; ExpectWord("IF", "FLU-SYN-125", "CHECK requires IF."); ExpressionNode condition = ParseExpressionUntil("INTO", "THEN", "ELSE"); string? alias = ParseOptionalResultAlias(); return new(condition, alias, TextSpan.FromBounds(start, alias is not null ? Previous.Span.End : condition.Span.End)); }
     private CollectionStageNode ParseIntrinsic(IntrinsicDescriptor intrinsic)
     {
         SyntaxToken operation = Advance(); int start = operation.Span.Start; string name = intrinsic.Name.ToUpperInvariant(); ExpressionNode? source = null; ExpressionNode? argument = null; ExpressionNode? strategy = null;
@@ -237,7 +238,7 @@ public sealed class ClassicParser
         if (Current.Kind != TokenKind.Word) { _diagnostics.Add(new("FLU-SYN-001", $"Expected a verb but found '{Current.Text}'.", Current.Span)); return null; }
         SyntaxToken verbToken = Advance(); _language.TryGetVerb(verbToken.Text, out VerbDescriptor? verb);
         string? qualifier = null; if (Current.Kind == TokenKind.Word && _language.TryGetQualifier(Current.Text, out QualifierDescriptor qualifierDescriptor)) { qualifier = qualifierDescriptor.Name; Advance(); } else if (verb is null && Current.Kind == TokenKind.Word && !GenericScriptRoleSet().Contains(Current.Text)) { qualifier = Current.Text; Advance(); }
-        HashSet<string> surfaceRoles = verb is null ? GenericScriptRoleSet() : BuildSurfaceRoleSet(verb); string? currentRole = verb is null ? "WHAT" : DetermineImplicitRole(verb); SyntaxToken? roleToken = null; var clauses = new List<ClauseNode>(); var values = new List<ExpressionNode>(); string? alias = null;
+        HashSet<string> surfaceRoles = verb is null ? GenericScriptRoleSet() : BuildSurfaceRoleSet(verb); string? currentRole = verb is null ? LanguageRoleNames.What : DetermineImplicitRole(verb); SyntaxToken? roleToken = null; var clauses = new List<ClauseNode>(); var values = new List<ExpressionNode>(); string? alias = null;
         while (!IsStageBoundary(Current))
         {
             if (Current.Kind == TokenKind.Comma) { Advance(); SkipNewLines(); continue; }
@@ -257,16 +258,16 @@ public sealed class ClassicParser
         return ParseExpressionUntil(stops);
     }
 
-    private static HashSet<string> BuildSurfaceRoleSet(VerbDescriptor verb) => verb.Implementations.SelectMany(x => x.Patterns).SelectMany(x => x.Roles).Where(x => !x.Name.Equals("WHAT", StringComparison.OrdinalIgnoreCase) && !x.Name.Equals("THEN", StringComparison.OrdinalIgnoreCase)).SelectMany(x => x.AllSurfaceNames).Where(x => !x.Equals("INTO", StringComparison.OrdinalIgnoreCase) && !x.Equals("THEN", StringComparison.OrdinalIgnoreCase)).ToHashSet(StringComparer.OrdinalIgnoreCase);
-    private static HashSet<string> GenericScriptRoleSet() => new(new[] { "WHAT", "FROM", "TO", "WITH", "IN", "AT", "AS", "USING", "BY", "UNTIL", "FOR" }, StringComparer.OrdinalIgnoreCase);
+    private static HashSet<string> BuildSurfaceRoleSet(VerbDescriptor verb) => verb.Implementations.SelectMany(x => x.Patterns).SelectMany(x => x.Roles).Where(x => !x.Name.Equals(LanguageRoleNames.What, StringComparison.OrdinalIgnoreCase)).SelectMany(x => x.AllSurfaceNames).Where(x => !LanguageRoleNames.StructuralOnly.Contains(x)).ToHashSet(StringComparer.OrdinalIgnoreCase);
+    private static HashSet<string> GenericScriptRoleSet() => new(LanguageRoleNames.Contextual, StringComparer.OrdinalIgnoreCase);
     private static string? DetermineImplicitRole(VerbDescriptor verb)
     {
         RoleSlotDescriptor[] roles = verb.Implementations.SelectMany(x => x.Patterns).SelectMany(x => x.Roles).ToArray();
-        if (roles.Any(x => x.Name.Equals("WHAT", StringComparison.OrdinalIgnoreCase) && x.Direction is RoleDirection.Input or RoleDirection.InputOutput)) return "WHAT";
-        string[] requiredInputs = roles.Where(x => x.Direction != RoleDirection.Output && x.Required && !x.Name.Equals("WHAT", StringComparison.OrdinalIgnoreCase) && !x.Name.Equals("THEN", StringComparison.OrdinalIgnoreCase)).Select(x => x.Name).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+        if (roles.Any(x => x.Name.Equals(LanguageRoleNames.What, StringComparison.OrdinalIgnoreCase) && x.Direction is RoleDirection.Input or RoleDirection.InputOutput)) return LanguageRoleNames.What;
+        string[] requiredInputs = roles.Where(x => x.Direction != RoleDirection.Output && x.Required && !x.Name.Equals(LanguageRoleNames.What, StringComparison.OrdinalIgnoreCase)).Select(x => x.Name).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
         if (requiredInputs.Length == 1) return requiredInputs[0];
-        if (requiredInputs.Contains("FROM", StringComparer.OrdinalIgnoreCase)) return "FROM";
-        if (requiredInputs.Contains("AT", StringComparer.OrdinalIgnoreCase)) return "AT";
+        if (requiredInputs.Contains(LanguageRoleNames.From, StringComparer.OrdinalIgnoreCase)) return LanguageRoleNames.From;
+        if (requiredInputs.Contains(LanguageRoleNames.At, StringComparer.OrdinalIgnoreCase)) return LanguageRoleNames.At;
         return null;
     }
     private string? ParseOptionalResultAlias() { if (!IsWord("INTO")) return null; Advance(); SkipNewLines(); if (Current.Kind != TokenKind.Variable) { _diagnostics.Add(new("FLU-SYN-130", "INTO requires a [variable].", Current.Span)); return null; } string alias = Current.Value?.ToString() ?? string.Empty; Advance(); return alias; }
