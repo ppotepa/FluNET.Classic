@@ -13,7 +13,7 @@ public sealed record RuntimeResult(RuntimeState State, IReadOnlyList<RuntimeDiag
     public object? Result => State.PipelineValue;
 }
 
-public sealed class BoundExecutor
+public sealed class BoundExecutor : IDisposable
 {
     private readonly IServiceProvider? _services; private readonly ValueConversionRegistry _conversions; private readonly PredicateRegistry _predicates; private readonly ICapabilityPolicy _capabilities; private readonly ExecutionPolicy _policy; private readonly OperatorEvaluatorRegistry _operatorEvaluators; private readonly IExecutionObserver _observer; private readonly SemaphoreSlim _observerGate = new(1, 1); private readonly AsyncLocal<ExecutionRun?> _run = new();
     public BoundExecutor(ValueConversionRegistry conversions, PredicateRegistry predicates, ICapabilityPolicy capabilities, IServiceProvider? services = null, ExecutionPolicy? policy = null, OperatorEvaluatorRegistry? operatorEvaluators = null, IExecutionObserver? observer = null)
@@ -854,4 +854,6 @@ public sealed class BoundExecutor
     {
         public object? Value { get; } = value;
     }
+
+    public void Dispose() => _observerGate.Dispose();
 }
