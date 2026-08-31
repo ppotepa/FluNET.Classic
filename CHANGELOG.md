@@ -71,6 +71,8 @@ The format follows the spirit of [Keep a Changelog](https://keepachangelog.com/e
 - NuGet packages now share explicit product description, tags, license-acceptance, and README metadata; the SDK adds its module-authoring-specific description.
 - Native-process documentation now matches the current 0.2 contract, including background handles, typed projections, and deferred interactive-shell features.
 - HTTP requests now expose typed method, endpoint, headers, body, and condition projections through ordinary `GET` overloads.
+- The standard vocabulary audit now covers composite result projections across the existing reference domains without introducing parser-specific syntax.
+- The 0.2 stable-gate audit now verifies grammar/formatter round trips, deterministic binding, runtime policy semantics, typed standard domains, intentional SDK/tooling boundaries, and aligned distribution documentation.
 - The beta.2 roadmap now classifies required 0.2 contract fixes separately from deferred 0.3 shell and ecosystem work.
 - Explicit qualifier surfaces no longer match unrelated verbs solely because their result types happen to be equal.
 - Typed HTTP status and ETag values now reject invalid CLR construction inputs.

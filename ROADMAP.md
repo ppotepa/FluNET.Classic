@@ -57,8 +57,8 @@ Exit criterion: **met**. Ordinary sentence patterns are expressed through canoni
 
 Goal: deepen the standard vocabulary without weakening the language model.
 
-- [ ] Complete typed semantics for the existing standard domains before adding unrelated domains.
-- [ ] Expand useful projections and operations through normal typed sentence overloads instead of dedicated parser syntax.
+- [x] Complete typed semantics for the existing standard domains before adding unrelated domains.
+- [x] Expand useful projections and operations through normal typed sentence overloads instead of dedicated parser syntax.
 - [x] Review cross-domain conversions and resolution costs so overload selection remains deterministic and explainable.
 - [x] Strengthen resource lifecycle, cancellation, timeout, and failure semantics across effectful operations.
 - [x] Harden bounded concurrency and isolated execution-state behavior for loops, tasks, and nested execution.
@@ -66,6 +66,11 @@ Goal: deepen the standard vocabulary without weakening the language model.
 - [x] Increase semantic tests around edge cases, invalid programs, overload ambiguity, and typed failure behavior.
 
 Exit criterion: the standard modules form a coherent reference implementation of how third-party FluNET modules should model domain semantics.
+
+Completed on 2026-08-31. The standard reference vocabulary uses typed resource
+values, normal sentence overloads, stable projections, and executable planning
+coverage across files, processes, JSON, HTTP, operating-system values, date/time,
+collections, and text.
 
 ## 0.2.0-beta.1 — SDK and tooling contract
 
@@ -112,12 +117,12 @@ runtime and authoring surface.
 
 The 0.2 release is ready when all of the following are true:
 
-- [ ] The grammar and canonical formatter agree on every supported construct.
-- [ ] Binding and overload selection are deterministic and explainable for the supported standard vocabulary.
-- [ ] Runtime execution, cancellation, failure, and bounded-concurrency semantics are documented and covered by tests.
-- [ ] Standard modules consistently use typed domain semantics where type information materially improves correctness or tooling.
-- [ ] The module SDK and document-tooling APIs have an intentional public surface.
-- [ ] CLI, SDK, tooling, language server, installers, demo, and documentation describe the same product state.
+- [x] The grammar and canonical formatter agree on every supported construct.
+- [x] Binding and overload selection are deterministic and explainable for the supported standard vocabulary.
+- [x] Runtime execution, cancellation, failure, and bounded-concurrency semantics are documented and covered by tests.
+- [x] Standard modules consistently use typed domain semantics where type information materially improves correctness or tooling.
+- [x] The module SDK and document-tooling APIs have an intentional public surface.
+- [x] CLI, SDK, tooling, language server, installers, demo, and documentation describe the same product state.
 - [ ] The changelog contains the complete user-visible delta from the `0.2.0-alpha.1` baseline.
 
 ## 0.3 — after 0.2
