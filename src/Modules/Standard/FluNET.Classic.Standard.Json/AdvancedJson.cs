@@ -87,6 +87,70 @@ public sealed class ListJsonItems : IVerb<JsonItem[]>, IListVerb, IFrom<JsonNode
     }
 }
 
+[Qualifier("NAME")]
+[ExecutionTrait(ExecutionTrait.Pure)]
+public sealed class GetJsonPropertyName : Get<string, JsonProperty>
+{
+    public GetJsonPropertyName([From] JsonProperty from) : base(from) { }
+    protected override ValueTask<string> ActAsync(JsonProperty from, CancellationToken cancellationToken) => ValueTask.FromResult(from.Name);
+}
+
+[Qualifier("VALUE")]
+[ExecutionTrait(ExecutionTrait.Pure)]
+public sealed class GetJsonPropertyValue : Get<JsonNode?, JsonProperty>
+{
+    public GetJsonPropertyValue([From] JsonProperty from) : base(from) { }
+    protected override ValueTask<JsonNode?> ActAsync(JsonProperty from, CancellationToken cancellationToken) => ValueTask.FromResult(from.Value);
+}
+
+[Qualifier("INDEX")]
+[ExecutionTrait(ExecutionTrait.Pure)]
+public sealed class GetJsonItemIndex : Get<int, JsonItem>
+{
+    public GetJsonItemIndex([From] JsonItem from) : base(from) { }
+    protected override ValueTask<int> ActAsync(JsonItem from, CancellationToken cancellationToken) => ValueTask.FromResult(from.Index);
+}
+
+[Qualifier("VALUE")]
+[ExecutionTrait(ExecutionTrait.Pure)]
+public sealed class GetJsonItemValue : Get<JsonNode?, JsonItem>
+{
+    public GetJsonItemValue([From] JsonItem from) : base(from) { }
+    protected override ValueTask<JsonNode?> ActAsync(JsonItem from, CancellationToken cancellationToken) => ValueTask.FromResult(from.Value);
+}
+
+[Qualifier("NAME")]
+[ExecutionTrait(ExecutionTrait.Pure)]
+public sealed class GetJsonPropertyNames : Get<string[], JsonProperty[]>
+{
+    public GetJsonPropertyNames([From] JsonProperty[] from) : base(from) { }
+    protected override ValueTask<string[]> ActAsync(JsonProperty[] from, CancellationToken cancellationToken) => ValueTask.FromResult(from.Select(property => property.Name).ToArray());
+}
+
+[Qualifier("VALUE")]
+[ExecutionTrait(ExecutionTrait.Pure)]
+public sealed class GetJsonPropertyValues : Get<JsonNode?[], JsonProperty[]>
+{
+    public GetJsonPropertyValues([From] JsonProperty[] from) : base(from) { }
+    protected override ValueTask<JsonNode?[]> ActAsync(JsonProperty[] from, CancellationToken cancellationToken) => ValueTask.FromResult(from.Select(property => property.Value).ToArray());
+}
+
+[Qualifier("INDEX")]
+[ExecutionTrait(ExecutionTrait.Pure)]
+public sealed class GetJsonItemIndices : Get<int[], JsonItem[]>
+{
+    public GetJsonItemIndices([From] JsonItem[] from) : base(from) { }
+    protected override ValueTask<int[]> ActAsync(JsonItem[] from, CancellationToken cancellationToken) => ValueTask.FromResult(from.Select(item => item.Index).ToArray());
+}
+
+[Qualifier("VALUE")]
+[ExecutionTrait(ExecutionTrait.Pure)]
+public sealed class GetJsonItemValues : Get<JsonNode?[], JsonItem[]>
+{
+    public GetJsonItemValues([From] JsonItem[] from) : base(from) { }
+    protected override ValueTask<JsonNode?[]> ActAsync(JsonItem[] from, CancellationToken cancellationToken) => ValueTask.FromResult(from.Select(item => item.Value).ToArray());
+}
+
 [Verb("CHECK")]
 [Qualifier("JSON")]
 [ExecutionTrait(ExecutionTrait.Pure)]

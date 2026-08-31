@@ -4,6 +4,7 @@ using FluNET.Classic.Runtime;
 using FluNET.Classic.SDK;
 using FluNET.Classic.Standard.Files;
 using FluNET.Classic.Standard.Http;
+using FluNET.Classic.Standard.Json;
 using FluNET.Classic.Standard.OS;
 using FluNET.Classic.Standard.Text;
 using FluNET.Classic.Tooling;
@@ -119,6 +120,17 @@ public class SdkPlanningTests
         Assert.That(steps.Any(x => x.Implementation?.EndsWith("GetOperatingSystemDescription", StringComparison.Ordinal) == true), Is.True);
         Assert.That(steps.Any(x => x.Implementation?.EndsWith("GetCurrentUserName", StringComparison.Ordinal) == true), Is.True);
         Assert.That(steps.Any(x => x.Implementation?.EndsWith("GetWorkingDirectoryPath", StringComparison.Ordinal) == true), Is.True);
+    }
+
+    [Test]
+    public void Json_property_and_item_fields_bind_through_typed_projections()
+    {
+        using ServiceProvider host = FluNetHost.Create();
+        ClassicEngine engine = host.GetRequiredService<ClassicEngine>();
+        ExecutionPlan plan = engine.Plan("PARSE JSON FROM \"{\\\"name\\\":\\\"Alice\\\"}\" INTO [json], THEN LIST PROPERTIES FROM [json] INTO [properties], THEN GET NAME FROM [properties] INTO [name].");
+
+        Assert.That(plan.Success, Is.True, string.Join("; ", plan.Diagnostics.Select(x => x.Message)));
+        Assert.That(Flatten(plan.Steps).Any(x => x.Implementation?.EndsWith("GetJsonPropertyNames", StringComparison.Ordinal) == true), Is.True);
     }
 
     [Test]

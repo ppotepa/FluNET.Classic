@@ -15,7 +15,10 @@ public sealed class JsonModule : LanguageModule
     public override IReadOnlyCollection<QualifierDescriptor> Qualifiers => new QualifierDescriptor[]
     {
         new("qualifier:json-properties", "PROPERTIES", typeof(JsonProperty[])),
-        new("qualifier:json-items", "ITEMS", typeof(JsonItem[]))
+        new("qualifier:json-items", "ITEMS", typeof(JsonItem[])),
+        new("qualifier:json-property-name", "NAME", typeof(string)),
+        new("qualifier:json-value", "VALUE", typeof(JsonNode)),
+        new("qualifier:json-item-index", "INDEX", typeof(int))
     };
 }
 
