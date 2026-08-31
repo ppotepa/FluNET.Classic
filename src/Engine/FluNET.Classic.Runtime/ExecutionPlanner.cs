@@ -64,11 +64,44 @@ public sealed record ExecutionPlan
     {
         this.Success = Success;
         this.Diagnostics = (Diagnostics ?? throw new ArgumentNullException(nameof(Diagnostics))).ToArray();
-        this.Steps = (Steps ?? throw new ArgumentNullException(nameof(Steps))).ToArray();
+        this.Steps = (Steps ?? throw new ArgumentNullException(nameof(Steps))).Select(SnapshotStep).ToArray();
         this.RequiredCapabilities = (RequiredCapabilities ?? throw new ArgumentNullException(nameof(RequiredCapabilities))).ToArray();
         this.Traits = (Traits ?? throw new ArgumentNullException(nameof(Traits))).ToArray();
         this.ResultType = ResultType;
     }
+
+    private static ExecutionPlanStep SnapshotStep(ExecutionPlanStep step) => new(
+        step.Kind,
+        step.Verb,
+        step.Implementation,
+        step.Pattern,
+        step.ResultType,
+        step.ResultAlias,
+        step.BindingCost,
+        step.ExecutionMode,
+        step.Capabilities.ToArray(),
+        step.Traits.ToArray(),
+        step.Roles.Select(SnapshotRole).ToArray(),
+        step.Children.Select(SnapshotStep).ToArray(),
+        step.Sensitive);
+
+    private static ExecutionPlanRole SnapshotRole(ExecutionPlanRole role) => new(
+        role.Name,
+        role.Direction,
+        role.Cardinality,
+        role.ValueType,
+        role.Values.Select(SnapshotValue).ToArray(),
+        role.Sensitive,
+        role.Projection);
+
+    private static ExecutionPlanValue SnapshotValue(ExecutionPlanValue value) => new(
+        value.Kind,
+        value.Type,
+        value.Detail,
+        value.Conversion,
+        value.Cost,
+        value.Sensitive,
+        value.ConversionSteps?.Select(step => new ExecutionPlanConversionStep(step.SourceType, step.TargetType, step.Kind, step.Cost)).ToArray());
 }
 
 public sealed class ExecutionPlanner
