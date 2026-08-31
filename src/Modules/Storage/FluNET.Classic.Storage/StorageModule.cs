@@ -53,6 +53,16 @@ public sealed class GetStorageObjectKey : Get<StorageKey, StorageObject>
 }
 
 [Verb("GET")]
+[Qualifier("KEY")]
+[ExecutionTrait(ExecutionTrait.Pure)]
+public sealed class GetStorageObjectKeys : Get<StorageKey[], StorageObject[]>
+{
+    public GetStorageObjectKeys([From] StorageObject[] from) : base(from) { }
+
+    protected override ValueTask<StorageKey[]> ActAsync(StorageObject[] from, CancellationToken cancellationToken) => ValueTask.FromResult(from.Select(item => item.Key).ToArray());
+}
+
+[Verb("GET")]
 [Qualifier("LENGTH")]
 [ExecutionTrait(ExecutionTrait.Pure)]
 public sealed class GetStorageMetadataLength : Get<long, StorageMetadata>

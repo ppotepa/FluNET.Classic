@@ -49,6 +49,7 @@ The format follows the spirit of [Keep a Changelog](https://keepachangelog.com/e
 - System memory and runtime information now expose typed diagnostic projections.
 - Cache values and expiration settings now expose typed content, existence, data, and duration projections.
 - Archive documents and entries now expose typed format, name, and length projections.
+- Storage and archive field projections now support collection-valued pipeline results.
 - Explicit qualifier surfaces no longer match unrelated verbs solely because their result types happen to be equal.
 - Typed HTTP status and ETag values now reject invalid CLR construction inputs.
 - HTTP responses and statuses now expose typed `CODE`, `REASON`, and `CONTENTTYPE` projections.

@@ -44,6 +44,16 @@ public sealed class GetArchiveEntryName : Get<string, ArchiveEntry>
 }
 
 [Verb("GET")]
+[Qualifier("NAME")]
+[ExecutionTrait(ExecutionTrait.Pure)]
+public sealed class GetArchiveEntryNames : Get<string[], ArchiveEntry[]>
+{
+    public GetArchiveEntryNames([From] ArchiveEntry[] from) : base(from) { }
+
+    protected override ValueTask<string[]> ActAsync(ArchiveEntry[] from, CancellationToken cancellationToken) => ValueTask.FromResult(from.Select(entry => entry.Name).ToArray());
+}
+
+[Verb("GET")]
 [Qualifier("LENGTH")]
 [ExecutionTrait(ExecutionTrait.Pure)]
 public sealed class GetArchiveEntryLength : Get<long, ArchiveEntry>
@@ -51,6 +61,16 @@ public sealed class GetArchiveEntryLength : Get<long, ArchiveEntry>
     public GetArchiveEntryLength([From] ArchiveEntry from) : base(from) { }
 
     protected override ValueTask<long> ActAsync(ArchiveEntry from, CancellationToken cancellationToken) => ValueTask.FromResult(from.Length);
+}
+
+[Verb("GET")]
+[Qualifier("LENGTH")]
+[ExecutionTrait(ExecutionTrait.Pure)]
+public sealed class GetArchiveEntryLengths : Get<long[], ArchiveEntry[]>
+{
+    public GetArchiveEntryLengths([From] ArchiveEntry[] from) : base(from) { }
+
+    protected override ValueTask<long[]> ActAsync(ArchiveEntry[] from, CancellationToken cancellationToken) => ValueTask.FromResult(from.Select(entry => entry.Length).ToArray());
 }
 
 [Verb("CREATE")]
