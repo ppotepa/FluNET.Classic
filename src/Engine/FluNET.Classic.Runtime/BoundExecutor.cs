@@ -202,20 +202,33 @@ public sealed class BoundExecutor
     {
         int workers = Math.Clamp(loop.Parallelism!.Value, 1, Math.Max(1, _policy.MaxParallelism));
         using var gate = new SemaphoreSlim(workers, workers);
+        using var stop = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        CancellationToken iterationToken = stop.Token;
         Task[] tasks = items.Select(async item =>
         {
-            await gate.WaitAsync(ct).ConfigureAwait(false);
+            bool entered = false;
             try
             {
+                await gate.WaitAsync(iterationToken).ConfigureAwait(false);
+                entered = true;
                 var iteration = new RuntimeState();
                 foreach ((string name, object? value) in parent.Variables)
                     iteration.SetVariable(name, value);
                 iteration.PipelineValue = parent.PipelineValue;
                 iteration.SetVariable(loop.Variable, item);
                 iteration.SetVariable("it", item);
-                await ExecuteBlock(loop.Body, iteration, ct).ConfigureAwait(false);
+                await ExecuteBlock(loop.Body, iteration, iterationToken).ConfigureAwait(false);
             }
-            finally { gate.Release(); }
+            catch
+            {
+                stop.Cancel();
+                throw;
+            }
+            finally
+            {
+                if (entered)
+                    gate.Release();
+            }
         }).ToArray();
         await Task.WhenAll(tasks).ConfigureAwait(false);
     }
