@@ -17,7 +17,7 @@ public abstract record PipelineStageNode(TextSpan Span) : SyntaxNode(Span);
 
 public sealed record SentenceNode(string Verb, string? Qualifier, IReadOnlyList<ClauseNode> Clauses, string? ResultAlias, TextSpan Span) : PipelineStageNode(Span);
 public sealed record FilterStageNode(ExpressionNode? Source, ExpressionNode Predicate, string? ResultAlias, TextSpan Span) : PipelineStageNode(Span);
-public sealed record CheckStageNode(ExpressionNode Condition, string? ResultAlias, TextSpan Span) : PipelineStageNode(Span);
+public sealed record CheckStageNode(ExpressionNode Condition, string? ResultAlias, TextSpan Span, bool IsRequirement = false) : PipelineStageNode(Span);
 public sealed record CollectionStageNode(string Operation, ExpressionNode? Source, ExpressionNode? Argument, ExpressionNode? Strategy, string? ResultAlias, TextSpan Span) : PipelineStageNode(Span);
 public sealed record ClauseNode(string RoleName, IReadOnlyList<ExpressionNode> Values, TextSpan Span) : SyntaxNode(Span);
 

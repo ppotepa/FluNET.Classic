@@ -75,6 +75,9 @@ public interface IVerb<TResult> : IVerb
 public interface IVerbFamily : IVerb
 {
 }
+public interface IQuery<TResult> : IVerb<TResult>
+{
+}
 public interface IGet : IVerbFamily
 {
 }

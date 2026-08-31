@@ -239,9 +239,9 @@ public static class StandardLanguageSurface
         new("operator:is", "IS", 4, Semantic: OperatorSemanticKind.Equality, Compatibility: OperatorCompatibilityRule.ComparablePair, Evaluation: OperatorEvaluationKind.Equal),
         new("operator:eq", "=", 4, Aliases: new[] { "==" }, Semantic: OperatorSemanticKind.Equality, Compatibility: OperatorCompatibilityRule.ComparablePair, Evaluation: OperatorEvaluationKind.Equal),
         new("operator:neq", "!=", 4, Semantic: OperatorSemanticKind.Equality, Compatibility: OperatorCompatibilityRule.ComparablePair, Evaluation: OperatorEvaluationKind.NotEqual),
-        new("operator:gte", ">=", 4, Semantic: OperatorSemanticKind.Ordering, Compatibility: OperatorCompatibilityRule.OrderedPair, Evaluation: OperatorEvaluationKind.GreaterThanOrEqual),
+        new("operator:gte", ">=", 4, Aliases: new[] { "AT LEAST", "IS AT LEAST" }, Semantic: OperatorSemanticKind.Ordering, Compatibility: OperatorCompatibilityRule.OrderedPair, Evaluation: OperatorEvaluationKind.GreaterThanOrEqual),
         new("operator:lte", "<=", 4, Semantic: OperatorSemanticKind.Ordering, Compatibility: OperatorCompatibilityRule.OrderedPair, Evaluation: OperatorEvaluationKind.LessThanOrEqual),
-        new("operator:gt", ">", 4, Semantic: OperatorSemanticKind.Ordering, Compatibility: OperatorCompatibilityRule.OrderedPair, Evaluation: OperatorEvaluationKind.GreaterThan),
+        new("operator:gt", ">", 4, Aliases: new[] { "GREATER THAN", "IS GREATER THAN" }, Semantic: OperatorSemanticKind.Ordering, Compatibility: OperatorCompatibilityRule.OrderedPair, Evaluation: OperatorEvaluationKind.GreaterThan),
         new("operator:lt", "<", 4, Semantic: OperatorSemanticKind.Ordering, Compatibility: OperatorCompatibilityRule.OrderedPair, Evaluation: OperatorEvaluationKind.LessThan)
     };
 

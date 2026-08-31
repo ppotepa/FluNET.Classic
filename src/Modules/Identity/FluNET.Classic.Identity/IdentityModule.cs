@@ -16,13 +16,13 @@ public sealed class IdentityModule : LanguageModule
     public override string Name => "identity"; public override IReadOnlyCollection<QualifierDescriptor> Qualifiers => new[] { new QualifierDescriptor("qualifier:principal", "PRINCIPAL", typeof(PrincipalInfo)) };
 }
 
-[Verb("GET")]
 [Qualifier("PRINCIPAL")]
 [RequiresCapability(StandardCapabilities.IdentityRead)]
-[ExecutionTrait(ExecutionTrait.Idempotent)]
-public sealed class GetPrincipal : IVerb<PrincipalInfo>, IGet, IWhat<PrincipalInfo>, IPipelineProducer<PrincipalInfo>
+public sealed class GetPrincipal : IQuery<PrincipalInfo>, IPipelineProducer<PrincipalInfo>
 {
-    private readonly IPrincipalProvider _provider; public GetPrincipal([What] PrincipalInfo what, [FromServices] IPrincipalProvider provider) => _provider = provider;
+    private readonly IPrincipalProvider _provider;
+
+    public GetPrincipal([FromServices] IPrincipalProvider provider) => _provider = provider;
     public ValueTask<PrincipalInfo> ExecuteAsync(VerbExecutionContext context, CancellationToken cancellationToken = default)
     {
         ClaimsPrincipal p = _provider.Current;

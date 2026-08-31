@@ -6,7 +6,18 @@ The format follows the spirit of [Keep a Changelog](https://keepachangelog.com/e
 
 ## [Unreleased]
 
-No user-visible changes are recorded after `0.2.0-alpha.2` yet.
+### Added
+
+- Zero-role `IQuery<TResult>` verbs for context-backed queries such as `GET PRINCIPAL`.
+- `REQUIRE` assertions with stable `FLU-RUN-040` runtime diagnostics.
+- Stable `FLU-PROC-002` diagnostics for native-process start failures.
+- Previous-pipeline (`THEM`) and current-loop-item (`IT`) bindings.
+
+### Changed
+
+- Explicit execution traits now override conflicting inferred traits.
+- `READ` is accepted as a GET surface alias and formatter output uses the canonical GET form.
+- Native process arguments use the canonical `WITH` role while accepting `ARGUMENTS` as a surface alias.
 
 ## [0.2.0-alpha.2] - 2026-08-31
 

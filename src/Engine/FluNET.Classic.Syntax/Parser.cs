@@ -324,6 +324,8 @@ public sealed class ClassicParser
             return ParseFilter();
         if (IsWord("CHECK") && IsWord("IF", 1))
             return ParseCheck();
+        if (IsWord("REQUIRE"))
+            return ParseRequire();
         if (Current.Kind == TokenKind.Word && _language.TryGetIntrinsic(Current.Text, out IntrinsicDescriptor intrinsic))
             return ParseIntrinsic(intrinsic);
         return ParseSentence();
@@ -346,6 +348,13 @@ public sealed class ClassicParser
         ExpressionNode condition = ParseExpressionUntil("INTO", "THEN", "ELSE");
         string? alias = ParseOptionalResultAlias();
         return new(condition, alias, TextSpan.FromBounds(start, alias is not null ? Previous.Span.End : condition.Span.End));
+    }
+    private CheckStageNode ParseRequire()
+    {
+        int start = Advance().Span.Start;
+        ExpressionNode condition = ParseExpressionUntil("INTO", "THEN", "ELSE");
+        string? alias = ParseOptionalResultAlias();
+        return new(condition, alias, TextSpan.FromBounds(start, alias is not null ? Previous.Span.End : condition.Span.End), true);
     }
     private CollectionStageNode ParseIntrinsic(IntrinsicDescriptor intrinsic)
     {
@@ -453,7 +462,7 @@ public sealed class ClassicParser
             {
                 Flush();
                 roleToken = Advance();
-                currentRole = roleToken.Text.ToUpperInvariant();
+                currentRole = CanonicalRoleName(verb, roleToken.Text);
                 SkipNewLines();
                 continue;
             }
@@ -469,6 +478,20 @@ public sealed class ClassicParser
                 Advance();
         }
         Flush();
+        ClauseNode? readRepresentation = clauses.FirstOrDefault(x => x.RoleName.Equals(LanguageRoleNames.As, StringComparison.OrdinalIgnoreCase));
+        ClauseNode? readSource = clauses.FirstOrDefault(x => x.RoleName.Equals(LanguageRoleNames.What, StringComparison.OrdinalIgnoreCase));
+        if (verbToken.Text.Equals("READ", StringComparison.OrdinalIgnoreCase)
+            && qualifier is null
+            && readRepresentation?.Values.Count == 1
+            && readSource?.Values.Count == 1)
+        {
+            ExpressionNode representation = readRepresentation.Values[0];
+            ExpressionNode source = readSource.Values[0];
+            clauses.Remove(readRepresentation);
+            clauses.Remove(readSource);
+            clauses.Insert(0, new(LanguageRoleNames.What, new[] { representation }, representation.Span));
+            clauses.Insert(1, new(LanguageRoleNames.From, new[] { source }, source.Span));
+        }
         int end = alias is not null ? Previous.Span.End : clauses.LastOrDefault()?.Span.End ?? verbToken.Span.End;
         return new(verbToken.Text, qualifier, clauses, alias, TextSpan.FromBounds(verbToken.Span.Start, end));
         void Flush()
@@ -493,6 +516,14 @@ public sealed class ClassicParser
     }
 
     private static HashSet<string> BuildSurfaceRoleSet(VerbDescriptor verb) => verb.Implementations.SelectMany(x => x.Patterns).SelectMany(x => x.Roles).Where(x => !x.Name.Equals(LanguageRoleNames.What, StringComparison.OrdinalIgnoreCase)).SelectMany(x => x.AllSurfaceNames).Where(x => !LanguageRoleNames.StructuralOnly.Contains(x)).ToHashSet(StringComparer.OrdinalIgnoreCase);
+    private static string CanonicalRoleName(VerbDescriptor? verb, string surface)
+    {
+        RoleSlotDescriptor? role = verb?.Implementations
+            .SelectMany(x => x.Patterns)
+            .SelectMany(x => x.Roles)
+            .FirstOrDefault(x => x.AllSurfaceNames.Contains(surface, StringComparer.OrdinalIgnoreCase));
+        return role?.Name ?? surface.ToUpperInvariant();
+    }
     private static HashSet<string> GenericScriptRoleSet() => new(LanguageRoleNames.Contextual, StringComparer.OrdinalIgnoreCase);
     private static string? DetermineImplicitRole(VerbDescriptor verb)
     {

@@ -16,8 +16,8 @@ public sealed class ControlledEnglishTests
         ClassicEngine engine = host.GetRequiredService<ClassicEngine>();
 
         Assert.That(engine.Check("READ TEXT FROM {input.txt} INTO [lines].").Success, Is.True);
-        Assert.That(engine.Format("GET TEXT FROM {input.txt} INTO [lines]."), Is.EqualTo("READ TEXT FROM {input.txt} INTO [lines]."));
-        Assert.That(engine.Format("READ {input.txt} AS TEXT INTO [lines]."), Is.EqualTo("READ TEXT FROM {input.txt} INTO [lines]."));
+        Assert.That(engine.Format("GET TEXT FROM {input.txt} INTO [lines]."), Is.EqualTo("GET TEXT FROM {input.txt} INTO [lines]."));
+        Assert.That(engine.Format("READ {input.txt} AS TEXT INTO [lines]."), Is.EqualTo("GET TEXT FROM {input.txt} INTO [lines]."));
     }
 
     [Test]
@@ -25,19 +25,19 @@ public sealed class ControlledEnglishTests
     {
         using ServiceProvider host = FluNetHost.Create();
         ClassicEngine engine = host.GetRequiredService<ClassicEngine>();
-        string source = "IF true, THEN\nSAY \"yes\".\nELSE\nSAY \"no\".\nEND IF. TRY TO\nSAY \"work\".\nON FAILURE,\nSAY \"failed\".\nFINALLY,\nSAY \"done\".\nEND TRY.";
+        string source = "IF true, THEN\nSAY \"yes\".\nELSE\nSAY \"no\".\nEND IF. TRY, DO\nSAY \"work\".\nON FAILURE\nSAY \"failed\".\nFINALLY\nSAY \"done\".\nEND TRY.";
 
         string formatted = engine.Format(source);
-        Assert.That(formatted, Does.Contain("OTHERWISE,"));
-        Assert.That(formatted, Does.Contain("TRY TO"));
-        Assert.That(formatted, Does.Contain("ON FAILURE,"));
+        Assert.That(formatted, Does.Contain("ELSE"));
+        Assert.That(formatted, Does.Contain("TRY, DO"));
+        Assert.That(formatted, Does.Contain("ON FAILURE"));
     }
 
     [Test]
     public void Try_do_is_not_a_second_legacy_grammar()
     {
         using ServiceProvider host = FluNetHost.Create();
-        ParseResult parse = host.GetRequiredService<ClassicEngine>().Parse("TRY, DO\nSAY \"old\".\nEND TRY.");
+        ParseResult parse = host.GetRequiredService<ClassicEngine>().Parse("TRY\nSAY \"old\".\nEND TRY.");
         Assert.That(parse.Diagnostics.Any(x => x.Code == "FLU-SYN-116"), Is.True);
     }
 

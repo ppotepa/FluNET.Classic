@@ -72,11 +72,13 @@ public sealed class LanguageCompiler
             return null;
         }
 
-        SentencePattern[] patterns = constructors.Select(constructor => CompilePattern(constructor, implementationId, diagnostics)).Where(x => x.Roles.Count > 0).ToArray();
-        if (patterns.Length == 0)
-            diagnostics.Add(new("FLU-LANG-015", $"Verb '{type.FullName}' has no constructor with language roles.", LanguageDiagnosticSeverity.Error, type));
+        SentencePattern[] patterns = constructors.Select(constructor => CompilePattern(constructor, implementationId, diagnostics)).ToArray();
         string[] capabilities = type.GetCustomAttributes<RequiresCapabilityAttribute>(true).Select(x => x.Capability).Concat(InferCapabilities(type, patterns)).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
-        ExecutionTrait[] traits = type.GetCustomAttributes<ExecutionTraitAttribute>(true).Select(x => x.Trait).Concat(InferTraits(type)).Distinct().ToArray();
+        ExecutionTrait[] explicitTraits = type.GetCustomAttributes<ExecutionTraitAttribute>(true).Select(x => x.Trait).Distinct().ToArray();
+        ExecutionTrait[] inferredTraits = InferTraits(type)
+            .Where(trait => !ConflictsWithExplicitTrait(trait, explicitTraits))
+            .ToArray();
+        ExecutionTrait[] traits = explicitTraits.Concat(inferredTraits).Distinct().ToArray();
         return new(implementationId, type, name, aliases, implementationQualifiers, constructors, patterns, resultType, capabilities, traits, CompileInvoker(resultType));
     }
 
@@ -238,13 +240,17 @@ public sealed class LanguageCompiler
     {
         if (typeof(ITransform).IsAssignableFrom(type) || typeof(IParse).IsAssignableFrom(type) || typeof(IFormat).IsAssignableFrom(type) || typeof(ICheck).IsAssignableFrom(type) || typeof(IFilter).IsAssignableFrom(type))
             yield return ExecutionTrait.Pure;
-        if (typeof(IGet).IsAssignableFrom(type) || typeof(ILoad).IsAssignableFrom(type) || typeof(IListVerb).IsAssignableFrom(type) || typeof(ICheck).IsAssignableFrom(type))
+        if (typeof(IGet).IsAssignableFrom(type) || ImplementsGeneric(type, typeof(IQuery<>)) || typeof(ILoad).IsAssignableFrom(type) || typeof(IListVerb).IsAssignableFrom(type) || typeof(ICheck).IsAssignableFrom(type))
             yield return ExecutionTrait.Idempotent;
         if (typeof(ISave).IsAssignableFrom(type) || typeof(IDelete).IsAssignableFrom(type) || typeof(ICreate).IsAssignableFrom(type) || typeof(ICopy).IsAssignableFrom(type) || typeof(IMove).IsAssignableFrom(type) || typeof(IRun).IsAssignableFrom(type) || typeof(IStop).IsAssignableFrom(type) || typeof(IPost).IsAssignableFrom(type) || typeof(ISend).IsAssignableFrom(type) || typeof(IDownload).IsAssignableFrom(type))
             yield return ExecutionTrait.SideEffecting;
-        if (typeof(IGet).IsAssignableFrom(type) || typeof(ILoad).IsAssignableFrom(type) || typeof(IDownload).IsAssignableFrom(type))
+        if (typeof(IGet).IsAssignableFrom(type) || ImplementsGeneric(type, typeof(IQuery<>)) || typeof(ILoad).IsAssignableFrom(type) || typeof(IDownload).IsAssignableFrom(type))
             yield return ExecutionTrait.Retryable;
     }
+
+    private static bool ConflictsWithExplicitTrait(ExecutionTrait inferred, IReadOnlyCollection<ExecutionTrait> explicitTraits) =>
+        (inferred == ExecutionTrait.Pure && explicitTraits.Contains(ExecutionTrait.SideEffecting))
+        || (inferred == ExecutionTrait.SideEffecting && explicitTraits.Contains(ExecutionTrait.Pure));
 
     private static string? ResolveVerbName(Type type)
     {
@@ -253,16 +259,19 @@ public sealed class LanguageCompiler
             return attribute.Name.ToUpperInvariant();
         (Type Marker, string Name)[] families =
         {
-            (typeof(IGet), "GET"), (typeof(ISave), "SAVE"), (typeof(ILoad), "LOAD"), (typeof(ICreate), "CREATE"), (typeof(IDelete), "DELETE"),
+            (typeof(IGet), "GET"), (typeof(IQuery<>), "GET"), (typeof(ISave), "SAVE"), (typeof(ILoad), "LOAD"), (typeof(ICreate), "CREATE"), (typeof(IDelete), "DELETE"),
             (typeof(IListVerb), "LIST"), (typeof(ICopy), "COPY"), (typeof(IMove), "MOVE"), (typeof(IRun), "RUN"), (typeof(IStop), "STOP"),
             (typeof(ISend), "SEND"), (typeof(IDownload), "DOWNLOAD"), (typeof(IPost), "POST"), (typeof(ICheck), "CHECK"), (typeof(IParse), "PARSE"),
             (typeof(IFormat), "FORMAT"), (typeof(ITransform), "TRANSFORM"), (typeof(IWait), "WAIT"), (typeof(IFilter), "FILTER"), (typeof(ISay), "SAY")
         };
         foreach ((Type marker, string familyName) in families)
-            if (marker.IsAssignableFrom(type))
+            if (marker.IsGenericTypeDefinition ? ImplementsGeneric(type, marker) : marker.IsAssignableFrom(type))
                 return familyName;
         return null;
     }
+
+    private static bool ImplementsGeneric(Type type, Type generic) =>
+        type.GetInterfaces().Any(candidate => candidate.IsGenericType && candidate.GetGenericTypeDefinition() == generic);
 
     private static Type? ResolveResultType(Type type) => type.GetInterfaces().FirstOrDefault(x => x.IsGenericType && x.GetGenericTypeDefinition() == typeof(IVerb<>))?.GetGenericArguments()[0];
     private static string? InferRoleName(string? name) => name?.ToLowerInvariant() switch

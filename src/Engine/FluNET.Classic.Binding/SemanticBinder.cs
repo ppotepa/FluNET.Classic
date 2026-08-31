@@ -44,11 +44,26 @@ public sealed class SemanticBinder
         if (initialVariables is not null)
             foreach ((string name, Type type) in initialVariables)
                 symbols.Define(name, type);
-        BoundStatement[] statements = script.Statements.Where(x => x is not DefinitionNode and not RecordDefinitionNode).Select(x => BindStatement(x, symbols)).Where(x => x is not null).Cast<BoundStatement>().ToArray();
+        BoundStatement[] statements = BindStatements(script.Statements.Where(x => x is not DefinitionNode and not RecordDefinitionNode), symbols);
         return new(statements, _diagnostics.ToArray(), _scriptCallables);
     }
 
-    private BoundStatement? BindStatement(StatementNode statement, SymbolScope symbols) => statement switch { PipelineNode pipeline => BindPipeline(pipeline, symbols), IfNode conditional => BindIf(conditional, symbols), ForEachNode loop => BindForEach(loop, symbols), TryNode @try => BindTry(@try, symbols), ReturnNode @return => BindReturn(@return, symbols), DefinitionNode or RecordDefinitionNode => null, _ => null };
+    private BoundStatement[] BindStatements(IEnumerable<StatementNode> source, SymbolScope symbols)
+    {
+        var bound = new List<BoundStatement>();
+        Type? previousPipelineType = null;
+        foreach (StatementNode statement in source)
+        {
+            BoundStatement? item = BindStatement(statement, symbols, previousPipelineType);
+            if (item is null)
+                continue;
+            bound.Add(item);
+            previousPipelineType = item is BoundPipeline pipeline ? pipeline.ResultType : null;
+        }
+        return bound.ToArray();
+    }
+
+    private BoundStatement? BindStatement(StatementNode statement, SymbolScope symbols, Type? previousPipelineType = null) => statement switch { PipelineNode pipeline => BindPipeline(pipeline, symbols), IfNode conditional => BindIf(conditional, symbols), ForEachNode loop => BindForEach(loop, symbols, previousPipelineType), TryNode @try => BindTry(@try, symbols), ReturnNode @return => BindReturn(@return, symbols), DefinitionNode or RecordDefinitionNode => null, _ => null };
 
     private void RegisterRecord(RecordDefinitionNode record)
     {
@@ -526,7 +541,7 @@ public sealed class SemanticBinder
         BoundExpression condition = BindExpression(check.Condition, symbols, null);
         if (condition.Type != typeof(bool))
             _diagnostics.Add(new("FLU-BIND-124", "CHECK IF condition must be BOOLEAN.", check.Condition.Span));
-        return new(condition, check.ResultAlias, check.Span);
+        return new(condition, check.ResultAlias, check.Span, check.IsRequirement);
     }
 
     private BoundIf BindIf(IfNode node, SymbolScope symbols)
@@ -592,9 +607,19 @@ public sealed class SemanticBinder
         return false;
     }
 
-    private BoundForEach? BindForEach(ForEachNode node, SymbolScope symbols)
+    private BoundForEach? BindForEach(ForEachNode node, SymbolScope symbols, Type? previousPipelineType = null)
     {
-        if (!TryBindValue(node.Source, null, RoleDirection.Input, "FOR EACH", null, symbols, out BoundValue? source, out _))
+        BoundValue? source;
+        if (node.Source is IdentifierExpression { Name: var name } && name.Equals("THEM", StringComparison.OrdinalIgnoreCase))
+        {
+            if (previousPipelineType is null)
+            {
+                _diagnostics.Add(new("FLU-BIND-181", "THEM refers to the previous pipeline, but no previous pipeline is available.", node.Source.Span));
+                return null;
+            }
+            source = new BoundPipelineValue(previousPipelineType, node.Source.Span);
+        }
+        else if (!TryBindValue(node.Source, null, RoleDirection.Input, "FOR EACH", null, symbols, out source, out _))
         {
             _diagnostics.Add(new("FLU-BIND-140", "FOR EACH source cannot be bound.", node.Source.Span));
             return null;
@@ -611,9 +636,10 @@ public sealed class SemanticBinder
             _diagnostics.Add(new("FLU-BIND-142", $"Iterator '[{node.Variable}]' conflicts with an existing binding.", node.Span));
             child.DefineLocal(node.Variable, element);
         }
+        child.Define("IT", element);
         return new(node.Variable, source, element, node.Parallelism, BindBlock(node.Body, child), node.Span);
     }
-    private BoundBlock BindBlock(BlockNode block, SymbolScope symbols) => new(block.Statements.Select(x => BindStatement(x, symbols)).Where(x => x is not null).Cast<BoundStatement>().ToArray(), block.Span);
+    private BoundBlock BindBlock(BlockNode block, SymbolScope symbols) => new(BindStatements(block.Statements, symbols), block.Span);
 
     private BoundExpression BindExpression(ExpressionNode expression, SymbolScope symbols, Type? itemType) => expression switch
     {
@@ -911,6 +937,11 @@ public sealed class SemanticBinder
                 }
                 return ResolveText(reference.Value, expected, reference.Span, verb, qualifier, roleName, ResolutionSourceKind.Reference, out bound, out cost);
             case IdentifierExpression identifier:
+                if (identifier.Name.Equals("IT", StringComparison.OrdinalIgnoreCase) && symbols.TryGet("IT", out Type itemType))
+                {
+                    bound = new BoundVariableValue("it", itemType, false, identifier.Span);
+                    return ApplyExpected(ref bound, expected, identifier.Span, out cost);
+                }
                 if (expected is null)
                 {
                     bound = new BoundConstantValue(identifier.Name, typeof(string), identifier.Span);

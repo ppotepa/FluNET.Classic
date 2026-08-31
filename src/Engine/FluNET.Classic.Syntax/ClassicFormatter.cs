@@ -38,7 +38,19 @@ public sealed class ClassicFormatter
     private string FormatStage(PipelineStageNode stage) => stage switch { SentenceNode sentence => FormatSentence(sentence), FilterStageNode filter => FormatFilter(filter), CheckStageNode check => FormatCheck(check), CollectionStageNode collection => FormatCollection(collection), _ => string.Empty };
     private string FormatSentence(SentenceNode sentence)
     {
-        var sb = new StringBuilder(sentence.Verb.ToUpperInvariant());
+        string verb = _language is not null && _language.TryGetVerb(sentence.Verb, out VerbDescriptor descriptor)
+            ? descriptor.Name
+            : sentence.Verb.ToUpperInvariant();
+        if (sentence.Verb.Equals("READ", StringComparison.OrdinalIgnoreCase)
+            && sentence.Clauses.FirstOrDefault(x => x.RoleName.Equals(LanguageRoleNames.As, StringComparison.OrdinalIgnoreCase)) is { Values.Count: 1 } representationClause
+            && sentence.Clauses.FirstOrDefault(x => x.RoleName.Equals(LanguageRoleNames.From, StringComparison.OrdinalIgnoreCase)) is { Values.Count: 1 } sourceClause)
+        {
+            string representation = FormatExpression(representationClause.Values[0]);
+            string source = FormatExpression(sourceClause.Values[0]);
+            string? alias = string.IsNullOrWhiteSpace(sentence.ResultAlias) ? null : $" INTO [{sentence.ResultAlias}]";
+            return $"{verb} {representation} FROM {source}{alias}";
+        }
+        var sb = new StringBuilder(verb);
         if (!string.IsNullOrWhiteSpace(sentence.Qualifier))
             sb.Append(' ').Append(sentence.Qualifier!.ToUpperInvariant());
         foreach (ClauseNode clause in sentence.Clauses)
@@ -66,7 +78,7 @@ public sealed class ClassicFormatter
     }
     private string FormatCheck(CheckStageNode check)
     {
-        var sb = new StringBuilder("CHECK IF ").Append(FormatExpression(check.Condition));
+        var sb = new StringBuilder(check.IsRequirement ? "REQUIRE " : "CHECK IF ").Append(FormatExpression(check.Condition));
         if (!string.IsNullOrWhiteSpace(check.ResultAlias))
             sb.Append(" INTO [").Append(check.ResultAlias).Append(']');
         return sb.ToString();

@@ -36,7 +36,7 @@ public sealed class NativeProcessTests
     {
         using ServiceProvider host = FluNetHost.Create();
         ClassicEngine engine = host.GetRequiredService<ClassicEngine>();
-        RuntimeResult result = await engine.RunAsync("RUN {dotnet} WITH ARGUMENTS \"--version\" INTO [version].");
+        RuntimeResult result = await engine.RunAsync("CREATE PROCESS FROM \"dotnet\" WITH \"--version\" INTO [spec], THEN RUN [spec] INTO [version].");
 
         Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics.Select(x => x.Message)));
         Assert.That(result.State.TryGetVariable("version", out object? value), Is.True);
@@ -50,7 +50,7 @@ public sealed class NativeProcessTests
         using ServiceProvider host = FluNetHost.Create();
         ClassicEngine engine = host.GetRequiredService<ClassicEngine>();
 
-        Assert.That(engine.Format("RUN {git} WITH \"status\", \"--short\" INTO [status]."), Is.EqualTo("RUN {git} WITH ARGUMENTS \"status\", \"--short\" INTO [status]."));
+        Assert.That(engine.Format("RUN {git} WITH \"status\", \"--short\" INTO [status]."), Is.EqualTo("RUN {git} WITH \"status\", \"--short\" INTO [status]."));
     }
 
     [Test]
@@ -58,7 +58,7 @@ public sealed class NativeProcessTests
     {
         using ServiceProvider host = FluNetHost.Create();
         ClassicEngine engine = host.GetRequiredService<ClassicEngine>();
-        RuntimeResult result = await engine.RunAsync("RUN {flu-executable-that-does-not-exist}.");
+        RuntimeResult result = await engine.RunAsync("CREATE PROCESS FROM \"flu-executable-that-does-not-exist\" INTO [spec], THEN RUN [spec].");
 
         Assert.That(result.Success, Is.False);
         Assert.That(result.Diagnostics.Single().Code, Is.EqualTo("FLU-PROC-002"));

@@ -1,4 +1,5 @@
 using FluNET.Classic.Core;
+using System.ComponentModel;
 using System.Diagnostics;
 
 namespace FluNET.Classic.Standard.Process;
@@ -84,19 +85,21 @@ public sealed class CreateProcessSpec : IVerb<ProcessSpec>, ICreate, IFrom<strin
 [ExecutionTrait(ExecutionTrait.LongRunning)]
 public sealed class RunProcess : IVerb<ProcessResult>, IRun, IWhat<ProcessSpec>, IWith<string>, IPipelineProducer<ProcessResult>
 {
-    private readonly ProcessSpec _spec; private readonly string? _arguments;
-    public RunProcess([What] ProcessSpec spec, [With] string? arguments = null)
+    private readonly ProcessSpec _spec;
+    private readonly string? _arguments;
+
+    public RunProcess([What] ProcessSpec spec, [With, RoleAlias("ARGUMENTS")] string? arguments = null)
     {
         _spec = spec;
         _arguments = arguments;
     }
+
     public async ValueTask<ProcessResult> ExecuteAsync(VerbExecutionContext context, CancellationToken cancellationToken = default)
     {
         var startInfo = BuildStartInfo(_spec, _arguments, redirect: true);
         using var process = new System.Diagnostics.Process { StartInfo = startInfo };
         var stopwatch = Stopwatch.StartNew();
-        if (!process.Start())
-            throw new InvalidOperationException($"Could not start process '{_spec.FileName}'.");
+        Start(process, _spec.FileName);
         Task<string> stdout = process.StandardOutput.ReadToEndAsync();
         Task<string> stderr = process.StandardError.ReadToEndAsync();
         using CancellationTokenSource? timeout = _spec.Timeout is { } duration && duration > TimeSpan.Zero ? CancellationTokenSource.CreateLinkedTokenSource(cancellationToken) : null;
@@ -111,6 +114,22 @@ public sealed class RunProcess : IVerb<ProcessResult>, IRun, IWhat<ProcessSpec>,
         await Task.WhenAll(stdout, stderr).ConfigureAwait(false);
         stopwatch.Stop();
         return new(process.ExitCode, stdout.Result, stderr.Result, stopwatch.Elapsed);
+    }
+    private static void Start(System.Diagnostics.Process process, string fileName)
+    {
+        try
+        {
+            if (!process.Start())
+                throw new ExecutionFailureException("FLU-PROC-002", $"Could not start process '{fileName}'.");
+        }
+        catch (FileNotFoundException)
+        {
+            throw new ExecutionFailureException("FLU-PROC-002", $"Executable '{fileName}' was not found.");
+        }
+        catch (Win32Exception)
+        {
+            throw new ExecutionFailureException("FLU-PROC-002", $"Could not start executable '{fileName}'.");
+        }
     }
     internal static ProcessStartInfo BuildStartInfo(ProcessSpec spec, string? arguments, bool redirect)
     {
@@ -148,8 +167,19 @@ public sealed class RunBackgroundProcess : IVerb<ProcessHandle>, IRun, IWhat<Pro
         if (_mode != ProcessRunMode.BACKGROUND)
             throw new NotSupportedException(_mode.ToString());
         var process = new System.Diagnostics.Process { StartInfo = RunProcess.BuildStartInfo(_spec, _arguments, redirect: false), EnableRaisingEvents = false };
-        if (!process.Start())
-            throw new InvalidOperationException($"Could not start process '{_spec.FileName}'.");
+        try
+        {
+            if (!process.Start())
+                throw new ExecutionFailureException("FLU-PROC-002", $"Could not start process '{_spec.FileName}'.");
+        }
+        catch (FileNotFoundException)
+        {
+            throw new ExecutionFailureException("FLU-PROC-002", $"Executable '{_spec.FileName}' was not found.");
+        }
+        catch (Win32Exception)
+        {
+            throw new ExecutionFailureException("FLU-PROC-002", $"Could not start executable '{_spec.FileName}'.");
+        }
         int id = process.Id;
         process.Dispose();
         return ValueTask.FromResult(new ProcessHandle(id, _spec, DateTimeOffset.UtcNow));

@@ -1,6 +1,7 @@
 namespace FluNET.Classic.Core;
 
 [Verb("GET")]
+[Alias("READ")]
 [Alias("FETCH")]
 [Alias("RETRIEVE")]
 public abstract class Get<TResult, TFrom> : IVerb<TResult>, IGet, IWhat<TResult>, IFrom<TFrom>, IPipelineProducer<TResult>

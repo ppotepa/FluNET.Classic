@@ -50,6 +50,7 @@ public sealed class BoundExecutor
         catch (UnauthorizedAccessException ex) { diagnostics.Add(new("FLU-RUN-010", ex.Message)); }
         catch (InvalidCastException ex) { diagnostics.Add(new("FLU-RUN-030", ex.Message)); }
         catch (KeyNotFoundException ex) { diagnostics.Add(new("FLU-RUN-031", ex.Message)); }
+        catch (ExecutionFailureException ex) { diagnostics.Add(new(ex.Code, ex.Message)); }
         catch (Exception ex) { diagnostics.Add(new("FLU-RUN-001", ex.Message)); }
         await PublishAsync(new ExecutionEvent(++_sequence, ExecutionEventKind.RunCompleted, Success: diagnostics.Count == 0, Duration: TimeSpan.Zero, Error: diagnostics.FirstOrDefault()?.Message));
         return new(state, diagnostics, _trace.ToArray());
@@ -183,6 +184,7 @@ public sealed class BoundExecutor
         ct.ThrowIfCancellationRequested();
         using IDisposable scope = state.PushScope();
         state.SetVariable(loop.Variable, item);
+        state.SetVariable("it", item);
         await ExecuteBlock(loop.Body, state, ct).ConfigureAwait(false);
     }
     private async ValueTask ExecuteParallelLoop(BoundForEach loop, RuntimeState parent, IReadOnlyList<object?> items, CancellationToken ct)
@@ -198,6 +200,7 @@ public sealed class BoundExecutor
                 foreach ((string name, object? value) in parent.Variables)
                     iteration.SetVariable(name, value);
                 iteration.SetVariable(loop.Variable, item);
+                iteration.SetVariable("it", item);
                 await ExecuteBlock(loop.Body, iteration, ct).ConfigureAwait(false);
             }
             finally { gate.Release(); }
@@ -374,6 +377,8 @@ public sealed class BoundExecutor
     private void ExecuteCheck(BoundCheck check, RuntimeState state)
     {
         bool result = ToBoolean(EvaluateExpression(check.Condition, state, null));
+        if (check.IsRequirement && !result)
+            throw new ExecutionFailureException("FLU-RUN-040", "Requirement was not satisfied.");
         state.PipelineValue = result;
         if (check.ResultAlias is { Length: > 0 } alias)
             state.SetVariable(alias, result);

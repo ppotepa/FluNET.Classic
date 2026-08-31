@@ -46,7 +46,7 @@ public sealed record BoundFilter(BoundValue Source, BoundExpression Predicate, T
             ? typeof(IAsyncEnumerable<>).MakeGenericType(elementType)
             : elementType.MakeArrayType();
 }
-public sealed record BoundCheck(BoundExpression Condition, string? ResultAlias, TextSpan Span) : BoundStage(typeof(bool), Span)
+public sealed record BoundCheck(BoundExpression Condition, string? ResultAlias, TextSpan Span, bool IsRequirement = false) : BoundStage(typeof(bool), Span)
 {
     public override bool IsSensitive => Condition.IsSensitive;
 }
