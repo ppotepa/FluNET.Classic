@@ -81,6 +81,11 @@ shape, pass an explicit stable `id` (`Register(resolver, id: "my-source")`). The
 fallback identifier is deterministic for a single registration shape, but explicit
 IDs are the durable choice for diagnostics and execution-plan snapshots.
 
+Predicate evaluators follow the same rule: use a higher `priority` to deliberately
+override a lower-priority evaluator, and use an explicit `id` when registering
+multiple evaluators with the same name. Equal-priority evaluators are rejected as
+ambiguous instead of being selected by registration order.
+
 ### Context-backed queries
 
 Not every query needs a source value. For operations that read host context, use

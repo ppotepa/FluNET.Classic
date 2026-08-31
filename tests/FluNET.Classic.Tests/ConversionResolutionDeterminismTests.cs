@@ -126,6 +126,28 @@ public class ConversionResolutionDeterminismTests
         Assert.That(secondResult.Resolver, Is.EqualTo(firstResult.Resolver));
     }
 
+    [Test]
+    public void Equal_priority_predicates_are_rejected_instead_of_using_registration_order()
+    {
+        var predicates = new PredicateRegistry();
+        predicates.Register(new TestPredicate(), priority: 5, id: "fixture.first");
+        predicates.Register(new TestPredicate(), priority: 5, id: "fixture.second");
+
+        InvalidOperationException error = Assert.Throws<InvalidOperationException>(() =>
+            predicates.Evaluate("TEST", new Resolved("value"), new PredicateContext()))!;
+        Assert.That(error.Message, Does.Contain("fixture.first").And.Contain("fixture.second"));
+    }
+
+    [Test]
+    public void Higher_priority_predicate_wins_explicitly()
+    {
+        var predicates = new PredicateRegistry();
+        predicates.Register(new TestPredicate(result: false), priority: 0);
+        predicates.Register(new TestPredicate(result: true), priority: 10);
+
+        Assert.That(predicates.Evaluate("TEST", new Resolved("value"), new PredicateContext()), Is.True);
+    }
+
     private sealed record A(string Value);
     private sealed record B(string Value);
     private sealed record C(string Value);
@@ -184,5 +206,12 @@ public class ConversionResolutionDeterminismTests
     private sealed class VerbScopedResolver(string value, string verb) : TestResolver(value), IContextualValueResolver
     {
         public bool CanResolve(ResolutionContext context) => string.Equals(context.VerbName, verb, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private sealed class TestPredicate(bool result = true) : IValuePredicate
+    {
+        public string Name => "TEST";
+        public bool CanEvaluate(Type valueType) => valueType == typeof(Resolved);
+        public bool Evaluate(object? value, PredicateContext context) => result;
     }
 }
