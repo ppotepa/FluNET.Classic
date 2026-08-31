@@ -19,6 +19,7 @@ The format follows the spirit of [Keep a Changelog](https://keepachangelog.com/e
 - Parallel execution traces and observer callbacks now remain thread-safe and use unique sequence numbers.
 - Parallel loop failures now cancel sibling iterations while preserving the original failure diagnostic.
 - `HttpEndpoint` now accepts only absolute HTTP and HTTPS URIs and rejects invalid schemes during binding.
+- Non-idempotent HTTP operations no longer opt into automatic retries that could duplicate side effects.
 - Previous-pipeline (`THEM`) and current-loop-item (`IT`) bindings.
 - Exact native-process argument lists backed by `ProcessStartInfo.ArgumentList`.
 - All NuGet packages now include the repository README as package documentation.
