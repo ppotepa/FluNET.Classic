@@ -14,8 +14,61 @@ public sealed record CommandLine(string Value)
     public override string ToString() => Value;
 }
 
-public sealed record ProcessSpec(string FileName, string? Arguments = null, DirectoryInfo? WorkingDirectory = null, IReadOnlyDictionary<string, string?>? Environment = null, TimeSpan? Timeout = null, IReadOnlyList<string>? ArgumentList = null)
+public sealed record ProcessSpec
 {
+    public string FileName
+    {
+        get;
+    }
+
+    public string? Arguments
+    {
+        get;
+    }
+
+    public DirectoryInfo? WorkingDirectory
+    {
+        get;
+    }
+
+    public IReadOnlyDictionary<string, string?>? Environment
+    {
+        get;
+    }
+
+    public TimeSpan? Timeout
+    {
+        get;
+    }
+
+    public IReadOnlyList<string>? ArgumentList
+    {
+        get;
+    }
+
+    public ProcessSpec(
+        string FileName,
+        string? Arguments = null,
+        DirectoryInfo? WorkingDirectory = null,
+        IReadOnlyDictionary<string, string?>? Environment = null,
+        TimeSpan? Timeout = null,
+        IReadOnlyList<string>? ArgumentList = null)
+    {
+        if (string.IsNullOrWhiteSpace(FileName))
+            throw new ArgumentException("A process file name cannot be empty.", nameof(FileName));
+        if (Timeout is { } duration && duration < TimeSpan.Zero)
+            throw new ArgumentOutOfRangeException(nameof(Timeout), Timeout, "A process timeout cannot be negative.");
+
+        this.FileName = FileName.Trim();
+        this.Arguments = Arguments;
+        this.WorkingDirectory = WorkingDirectory;
+        this.Environment = Environment is null
+            ? null
+            : new Dictionary<string, string?>(Environment, StringComparer.OrdinalIgnoreCase);
+        this.Timeout = Timeout;
+        this.ArgumentList = ArgumentList?.ToArray();
+    }
+
     public static bool TryParse(string value, out ProcessSpec? result)
     {
         if (string.IsNullOrWhiteSpace(value))
