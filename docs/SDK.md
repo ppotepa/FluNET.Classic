@@ -27,6 +27,42 @@ Use the canonical role attributes `[What]`, `[From]`, `[To]`, `[Using]`, `[With]
 
 `INTO` and `THEN` are not CLR roles. `INTO` belongs to language-level result binding and `THEN` belongs to structural pipeline/control-flow syntax.
 
+### Context-backed queries
+
+Not every query needs a source value. For operations that read host context, use
+`IQuery<TResult>` and a service-only constructor. The compiler derives the `GET`
+family and idempotent/retryable traits, so no dummy `[What]` parameter or explicit
+`[Verb("GET")]` is required:
+
+```csharp
+[Qualifier("PRINCIPAL")]
+[RequiresCapability(StandardCapabilities.IdentityRead)]
+public sealed class GetPrincipal : IQuery<PrincipalInfo>, IPipelineProducer<PrincipalInfo>
+{
+    private readonly IPrincipalProvider _provider;
+
+    public GetPrincipal([FromServices] IPrincipalProvider provider)
+        => _provider = provider;
+
+    public ValueTask<PrincipalInfo> ExecuteAsync(
+        VerbExecutionContext context,
+        CancellationToken cancellationToken = default)
+    {
+        ClaimsPrincipal principal = _provider.Current;
+        var claims = principal.Claims
+            .GroupBy(claim => claim.Type)
+            .ToDictionary(group => group.Key, group => group.Select(claim => claim.Value).ToArray());
+        return ValueTask.FromResult(new PrincipalInfo(
+            principal.Identity?.Name,
+            principal.Identity?.IsAuthenticated == true,
+            claims));
+    }
+}
+```
+
+This produces the zero-input sentence `GET PRINCIPAL INTO [principal].` while
+keeping the service dependency out of the language surface.
+
 ## Contextual surface aliases
 
 A role can expose a contextual surface alias without changing its semantic role when the alternate wording is genuinely natural for that specific pattern:

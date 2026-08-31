@@ -29,14 +29,16 @@
 ## Canonical syntax
 
 ```flu
-RUN {dotnet} WITH ARGUMENTS "--version" INTO [version].
-RUN {git} WITH ARGUMENTS "status", "--short" INTO [status].
-REQUIRE [status] SUCCEEDED.
+CREATE PROCESS FROM "dotnet" WITH "--version" INTO [spec], THEN
+RUN [spec] INTO [version].
+CREATE PROCESS FROM "git" WITH "status", "--short" INTO [spec], THEN
+RUN [spec] INTO [status].
+REQUIRE [status] IS OK.
 ```
 
 The argument values are passed directly to the executable. Flu does not invoke an implicit `cmd`, PowerShell or Unix shell, and does not split or re-interpret argument strings after binding.
 
-`ProcessResult` exposes `ProcessId`, `Executable`, `Arguments`, `ExitCode`, `Output`, `Error`, `StartedAt`, `Duration` and `Succeeded`.
+`ProcessResult` exposes `ExitCode`, `StdOut`, `StdErr`, `Duration` and `IsOk`.
 
 ## Safety contract
 

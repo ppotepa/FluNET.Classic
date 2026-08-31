@@ -12,6 +12,8 @@ public sealed class ModuleQualityAnalyzer
         var issues = new List<ModuleQualityIssue>();
         foreach (VerbImplementationDescriptor implementation in snapshot.Verbs.SelectMany(x => x.Implementations))
         {
+            bool contextQuery = implementation.ImplementationType.GetInterfaces()
+                .Any(type => type.IsGenericType && type.GetGenericTypeDefinition() == typeof(IQuery<>));
             bool sideEffect = implementation.Traits.Contains(ExecutionTrait.SideEffecting);
             bool pure = implementation.Traits.Contains(ExecutionTrait.Pure);
             bool transactional = implementation.Traits.Contains(ExecutionTrait.Transactional);
@@ -35,7 +37,7 @@ public sealed class ModuleQualityAnalyzer
 
             foreach (SentencePattern pattern in implementation.Patterns)
             {
-                if (pattern.Roles.Count == 0)
+                if (pattern.Roles.Count == 0 && !contextQuery)
                     issues.Add(new(LanguageDiagnosticSeverity.Error, "FLU-SDK-Q005", $"Pattern '{pattern.StableId}' has no language roles.", pattern.StableId));
                 foreach (RoleSlotDescriptor role in pattern.Roles)
                 {

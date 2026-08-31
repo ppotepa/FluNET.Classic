@@ -115,7 +115,7 @@ public sealed class RunProcess : IVerb<ProcessResult>, IRun, IWhat<ProcessSpec>,
         stopwatch.Stop();
         return new(process.ExitCode, stdout.Result, stderr.Result, stopwatch.Elapsed);
     }
-    private static void Start(System.Diagnostics.Process process, string fileName)
+    internal static void Start(System.Diagnostics.Process process, string fileName)
     {
         try
         {
@@ -167,19 +167,7 @@ public sealed class RunBackgroundProcess : IVerb<ProcessHandle>, IRun, IWhat<Pro
         if (_mode != ProcessRunMode.BACKGROUND)
             throw new NotSupportedException(_mode.ToString());
         var process = new System.Diagnostics.Process { StartInfo = RunProcess.BuildStartInfo(_spec, _arguments, redirect: false), EnableRaisingEvents = false };
-        try
-        {
-            if (!process.Start())
-                throw new ExecutionFailureException("FLU-PROC-002", $"Could not start process '{_spec.FileName}'.");
-        }
-        catch (FileNotFoundException)
-        {
-            throw new ExecutionFailureException("FLU-PROC-002", $"Executable '{_spec.FileName}' was not found.");
-        }
-        catch (Win32Exception)
-        {
-            throw new ExecutionFailureException("FLU-PROC-002", $"Could not start executable '{_spec.FileName}'.");
-        }
+        RunProcess.Start(process, _spec.FileName);
         int id = process.Id;
         process.Dispose();
         return ValueTask.FromResult(new ProcessHandle(id, _spec, DateTimeOffset.UtcNow));
