@@ -115,7 +115,9 @@ public sealed class ProcessModule : LanguageModule
     public override IReadOnlyCollection<QualifierDescriptor> Qualifiers => new QualifierDescriptor[]
     {
         new("qualifier:stdout", "STDOUT", typeof(string)), new("qualifier:stderr", "STDERR", typeof(string)), new("qualifier:exitcode", "EXITCODE", typeof(int)), new("qualifier:duration", "DURATION", typeof(TimeSpan)),
-        new("qualifier:processes", "PROCESSES", typeof(ProcessInfo[])), new("qualifier:process-handle", "PROCESS", null)
+        new("qualifier:processes", "PROCESSES", typeof(ProcessInfo[])), new("qualifier:process-handle", "PROCESS", null),
+        new("qualifier:process-id", "ID", typeof(int)), new("qualifier:process-spec", "SPEC", typeof(ProcessSpec)),
+        new("qualifier:process-started", "STARTEDAT", typeof(DateTimeOffset))
     };
 }
 
@@ -278,6 +280,30 @@ public sealed class GetProcessDuration : Get<TimeSpan, ProcessResult>
 {
     public GetProcessDuration([From] ProcessResult from) : base(from) { }
     protected override ValueTask<TimeSpan> ActAsync(ProcessResult from, CancellationToken cancellationToken) => ValueTask.FromResult(from.Duration);
+}
+
+[Qualifier("ID")]
+[ExecutionTrait(ExecutionTrait.Pure)]
+public sealed class GetProcessId : Get<int, ProcessHandle>
+{
+    public GetProcessId([From] ProcessHandle from) : base(from) { }
+    protected override ValueTask<int> ActAsync(ProcessHandle from, CancellationToken cancellationToken) => ValueTask.FromResult(from.Id);
+}
+
+[Qualifier("SPEC")]
+[ExecutionTrait(ExecutionTrait.Pure)]
+public sealed class GetProcessSpec : Get<ProcessSpec, ProcessHandle>
+{
+    public GetProcessSpec([From] ProcessHandle from) : base(from) { }
+    protected override ValueTask<ProcessSpec> ActAsync(ProcessHandle from, CancellationToken cancellationToken) => ValueTask.FromResult(from.Spec);
+}
+
+[Qualifier("STARTEDAT")]
+[ExecutionTrait(ExecutionTrait.Pure)]
+public sealed class GetProcessStartedAt : Get<DateTimeOffset, ProcessHandle>
+{
+    public GetProcessStartedAt([From] ProcessHandle from) : base(from) { }
+    protected override ValueTask<DateTimeOffset> ActAsync(ProcessHandle from, CancellationToken cancellationToken) => ValueTask.FromResult(from.StartedAt);
 }
 
 [Verb("LIST")]

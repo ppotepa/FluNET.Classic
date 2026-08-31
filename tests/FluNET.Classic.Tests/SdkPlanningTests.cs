@@ -6,6 +6,7 @@ using FluNET.Classic.Standard.Files;
 using FluNET.Classic.Standard.Http;
 using FluNET.Classic.Standard.Json;
 using FluNET.Classic.Standard.OS;
+using FluNET.Classic.Standard.Process;
 using FluNET.Classic.Standard.Text;
 using FluNET.Classic.Tooling;
 using Microsoft.Extensions.DependencyInjection;
@@ -131,6 +132,21 @@ public class SdkPlanningTests
 
         Assert.That(plan.Success, Is.True, string.Join("; ", plan.Diagnostics.Select(x => x.Message)));
         Assert.That(Flatten(plan.Steps).Any(x => x.Implementation?.EndsWith("GetJsonPropertyNames", StringComparison.Ordinal) == true), Is.True);
+    }
+
+    [Test]
+    public void Process_handle_fields_bind_through_typed_projections()
+    {
+        using ServiceProvider host = FluNetHost.Create();
+        ClassicEngine engine = host.GetRequiredService<ClassicEngine>();
+        ExecutionPlan plan = engine.Plan("RUN PROCESS {dotnet} USING BACKGROUND WITH ARGUMENTS \"--version\" INTO [handle], THEN GET ID FROM [handle] INTO [id], THEN GET SPEC FROM [handle] INTO [spec], THEN GET STARTEDAT FROM [handle] INTO [started].");
+
+        Assert.That(plan.Success, Is.True, string.Join("; ", plan.Diagnostics.Select(x => x.Message)));
+        ExecutionPlanStep[] steps = Flatten(plan.Steps).ToArray();
+        Assert.That(steps.Any(x => x.Implementation?.EndsWith("RunBackgroundProcess", StringComparison.Ordinal) == true), Is.True);
+        Assert.That(steps.Any(x => x.Implementation?.EndsWith("GetProcessId", StringComparison.Ordinal) == true), Is.True);
+        Assert.That(steps.Any(x => x.Implementation?.EndsWith("GetProcessSpec", StringComparison.Ordinal) == true), Is.True);
+        Assert.That(steps.Any(x => x.Implementation?.EndsWith("GetProcessStartedAt", StringComparison.Ordinal) == true), Is.True);
     }
 
     [Test]
