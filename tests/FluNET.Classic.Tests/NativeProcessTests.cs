@@ -63,6 +63,29 @@ public sealed class NativeProcessTests
     }
 
     [Test]
+    public async Task Background_process_returns_a_handle_that_can_be_stopped()
+    {
+        string fixture = Path.Combine(AppContext.BaseDirectory, "FluNET.Classic.ProcessFixture.dll");
+        var spec = new ProcessSpec("dotnet", string.Join(" ", new[] { fixture, "sleep", "2000" }.Select(Quote)));
+        var runner = new RunBackgroundProcess(spec, ProcessRunMode.BACKGROUND);
+        ProcessHandle handle = await runner.ExecuteAsync(new VerbExecutionContext(null, new Dictionary<string, object?>(), null));
+
+        try
+        {
+            Assert.That(handle.Exists, Is.True);
+            bool stopped = await new StopProcessHandle(handle, ProcessStopMode.FORCE)
+                .ExecuteAsync(new VerbExecutionContext(null, new Dictionary<string, object?>(), null));
+            Assert.That(stopped, Is.True);
+        }
+        finally
+        {
+            if (handle.Exists)
+                await new StopProcessHandle(handle, ProcessStopMode.FORCE)
+                    .ExecuteAsync(new VerbExecutionContext(null, new Dictionary<string, object?>(), null));
+        }
+    }
+
+    [Test]
     public async Task Missing_executable_returns_a_stable_process_diagnostic()
     {
         using ServiceProvider host = FluNetHost.Create();
