@@ -15,7 +15,7 @@ public sealed record RuntimeResult(RuntimeState State, IReadOnlyList<RuntimeDiag
 
 public sealed class BoundExecutor
 {
-    private readonly IServiceProvider? _services; private readonly ValueConversionRegistry _conversions; private readonly PredicateRegistry _predicates; private readonly ICapabilityPolicy _capabilities; private readonly ExecutionPolicy _policy; private readonly OperatorEvaluatorRegistry _operatorEvaluators; private readonly IExecutionObserver _observer; private readonly AsyncLocal<ExecutionRun?> _run = new();
+    private readonly IServiceProvider? _services; private readonly ValueConversionRegistry _conversions; private readonly PredicateRegistry _predicates; private readonly ICapabilityPolicy _capabilities; private readonly ExecutionPolicy _policy; private readonly OperatorEvaluatorRegistry _operatorEvaluators; private readonly IExecutionObserver _observer; private readonly SemaphoreSlim _observerGate = new(1, 1); private readonly AsyncLocal<ExecutionRun?> _run = new();
     public BoundExecutor(ValueConversionRegistry conversions, PredicateRegistry predicates, ICapabilityPolicy capabilities, IServiceProvider? services = null, ExecutionPolicy? policy = null, OperatorEvaluatorRegistry? operatorEvaluators = null, IExecutionObserver? observer = null)
     {
         _conversions = conversions;
@@ -62,7 +62,6 @@ public sealed class BoundExecutor
         finally
         {
             _run.Value = previous;
-            run.Dispose();
         }
     }
     private async ValueTask ExecuteStatement(BoundStatement statement, RuntimeState state, CancellationToken ct)
@@ -312,14 +311,14 @@ public sealed class BoundExecutor
     }
     private async ValueTask PublishAsync(ExecutionEvent item)
     {
-        ExecutionRun run = CurrentRun();
-        await run.ObserverGate.WaitAsync().ConfigureAwait(false);
+        _ = CurrentRun();
+        await _observerGate.WaitAsync().ConfigureAwait(false);
         try
         {
             await _observer.OnEventAsync(item).ConfigureAwait(false);
         }
         catch { }
-        finally { run.ObserverGate.Release(); }
+        finally { _observerGate.Release(); }
     }
     private int NextSequence() => Interlocked.Increment(ref CurrentRun().Sequence);
     private void AddTrace(ExecutionTraceEntry entry)
@@ -330,11 +329,10 @@ public sealed class BoundExecutor
     }
     private ExecutionRun CurrentRun() => _run.Value ?? throw new InvalidOperationException("No execution run is active.");
 
-    private sealed class ExecutionRun : IDisposable
+    private sealed class ExecutionRun
     {
         public List<ExecutionTraceEntry> Trace { get; } = [];
         public object TraceGate { get; } = new();
-        public SemaphoreSlim ObserverGate { get; } = new(1, 1);
         public int Sequence;
 
         public ExecutionTraceEntry[] Snapshot()
@@ -343,7 +341,6 @@ public sealed class BoundExecutor
                 return Trace.OrderBy(x => x.Sequence).ToArray();
         }
 
-        public void Dispose() => ObserverGate.Dispose();
     }
     private async ValueTask<object?> InvokeSentenceAttempt(BoundSentence sentence, object?[] args, RuntimeState state, CancellationToken token)
     {
