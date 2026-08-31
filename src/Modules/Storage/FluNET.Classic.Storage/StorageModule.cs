@@ -42,6 +42,7 @@ public sealed class StorageModule : LanguageModule
 [RequiresCapability(StandardCapabilities.StorageRead)]
 [ExecutionTrait(ExecutionTrait.Idempotent)]
 [ExecutionTrait(ExecutionTrait.Retryable)]
+[ExecutionTrait(ExecutionTrait.LongRunning)]
 public sealed class GetStorageBinary : IVerb<byte[]>, IGet, IFrom<StorageKey>, IPipelineProducer<byte[]>
 {
     private readonly StorageKey _key; private readonly IStorageProvider _provider;
@@ -57,6 +58,7 @@ public sealed class GetStorageBinary : IVerb<byte[]>, IGet, IFrom<StorageKey>, I
 [Qualifier("BINARY")]
 [RequiresCapability(StandardCapabilities.StorageWrite)]
 [ExecutionTrait(ExecutionTrait.SideEffecting)]
+[ExecutionTrait(ExecutionTrait.LongRunning)]
 public sealed class SaveStorageBinary : IVerb<byte[]>, ISave, IWhat<byte[]>, ITo<StorageKey>, IPipelineConsumer<byte[]>, IPipelineProducer<byte[]>
 {
     private readonly byte[] _data; private readonly StorageKey _key; private readonly IStorageProvider _provider;
@@ -77,6 +79,7 @@ public sealed class SaveStorageBinary : IVerb<byte[]>, ISave, IWhat<byte[]>, ITo
 [Qualifier("OBJECT")]
 [RequiresCapability(StandardCapabilities.StorageWrite)]
 [ExecutionTrait(ExecutionTrait.SideEffecting)]
+[ExecutionTrait(ExecutionTrait.LongRunning)]
 public sealed class DeleteStorageObject : IVerb<bool>, IDelete, IAt<StorageKey>, IPipelineProducer<bool>
 {
     private readonly StorageKey _key; private readonly IStorageProvider _provider;
@@ -92,6 +95,7 @@ public sealed class DeleteStorageObject : IVerb<bool>, IDelete, IAt<StorageKey>,
 [Qualifier("OBJECTS")]
 [RequiresCapability(StandardCapabilities.StorageRead)]
 [ExecutionTrait(ExecutionTrait.Idempotent)]
+[ExecutionTrait(ExecutionTrait.LongRunning)]
 public sealed class ListStorageObjects : IVerb<StorageObject[]>, IListVerb, IIn<StorageContainer>, IPipelineProducer<StorageObject[]>
 {
     private readonly StorageContainer _container; private readonly IStorageProvider _provider;
@@ -108,6 +112,7 @@ public sealed class ListStorageObjects : IVerb<StorageObject[]>, IListVerb, IIn<
 [RequiresCapability(StandardCapabilities.StorageRead)]
 [RequiresCapability(StandardCapabilities.StorageWrite)]
 [ExecutionTrait(ExecutionTrait.SideEffecting)]
+[ExecutionTrait(ExecutionTrait.LongRunning)]
 public sealed class CopyStorageObject : IVerb<StorageKey>, ICopy, IWhat<StorageKey>, ITo<StorageKey>, IPipelineConsumer<StorageKey>, IPipelineProducer<StorageKey>
 {
     private readonly StorageKey _source; private readonly StorageKey _destination; private readonly IStorageProvider _provider;
@@ -129,6 +134,7 @@ public sealed class CopyStorageObject : IVerb<StorageKey>, ICopy, IWhat<StorageK
 [RequiresCapability(StandardCapabilities.StorageRead)]
 [RequiresCapability(StandardCapabilities.StorageWrite)]
 [ExecutionTrait(ExecutionTrait.SideEffecting)]
+[ExecutionTrait(ExecutionTrait.LongRunning)]
 public sealed class MoveStorageObject : IVerb<StorageKey>, IMove, IWhat<StorageKey>, ITo<StorageKey>, IPipelineConsumer<StorageKey>, IPipelineProducer<StorageKey>
 {
     private readonly StorageKey _source; private readonly StorageKey _destination; private readonly IStorageProvider _provider;

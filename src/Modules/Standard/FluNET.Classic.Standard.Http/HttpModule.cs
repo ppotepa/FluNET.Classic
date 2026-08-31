@@ -62,6 +62,7 @@ public sealed class HttpModule : LanguageModule
 
 [Qualifier("JSON")]
 [RequiresCapability(StandardCapabilities.NetworkHttp)]
+[ExecutionTrait(ExecutionTrait.LongRunning)]
 public sealed class GetJsonHttp : Get<JsonNode, HttpEndpoint>, IAs<HttpJsonRepresentation>
 {
     private readonly HttpClient _client;
@@ -75,6 +76,7 @@ public sealed class GetJsonHttp : Get<JsonNode, HttpEndpoint>, IAs<HttpJsonRepre
 
 [Qualifier("RESPONSE")]
 [RequiresCapability(StandardCapabilities.Network)]
+[ExecutionTrait(ExecutionTrait.LongRunning)]
 public sealed class GetHttpResponse : Get<HttpResponse, HttpEndpoint>
 {
     private readonly HttpClient _client;
@@ -153,6 +155,7 @@ public sealed class DownloadFile : IVerb<byte[]>, IDownload, IWhat<byte[]>, IFro
 [Verb("POST")]
 [Qualifier("JSON")]
 [RequiresCapability(StandardCapabilities.Network)]
+[ExecutionTrait(ExecutionTrait.LongRunning)]
 public sealed class PostJson : IVerb<JsonNode>, IPost, IWhat<JsonNode>, ITo<HttpEndpoint>
 {
     private readonly JsonNode _body;
@@ -177,6 +180,7 @@ public sealed class PostJson : IVerb<JsonNode>, IPost, IWhat<JsonNode>, ITo<Http
 [Verb("SEND")]
 [Qualifier("TEXT")]
 [RequiresCapability(StandardCapabilities.EmailSend)]
+[ExecutionTrait(ExecutionTrait.LongRunning)]
 public sealed class SendEmail : IVerb<string>, ISend, IWhat<string>, ITo<string>
 {
     private readonly string _message;

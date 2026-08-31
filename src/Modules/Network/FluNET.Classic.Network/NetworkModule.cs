@@ -28,6 +28,7 @@ public sealed class NetworkModule : LanguageModule
 [Qualifier("ADDRESSES")]
 [RequiresCapability(StandardCapabilities.NetworkDns)]
 [ExecutionTrait(ExecutionTrait.Retryable)]
+[ExecutionTrait(ExecutionTrait.LongRunning)]
 public sealed class ResolveDns : IVerb<IPAddress[]>, IGet, IFrom<DnsName>, IPipelineProducer<IPAddress[]>
 {
     private readonly DnsName _name; public ResolveDns([From] DnsName name) => _name = name;
@@ -38,6 +39,7 @@ public sealed class ResolveDns : IVerb<IPAddress[]>, IGet, IFrom<DnsName>, IPipe
 [Qualifier("CONNECTIVITY")]
 [RequiresCapability(StandardCapabilities.NetworkConnect)]
 [ExecutionTrait(ExecutionTrait.Retryable)]
+[ExecutionTrait(ExecutionTrait.LongRunning)]
 public sealed class GetConnectivity : IVerb<ConnectivityResult>, IGet, IFrom<NetworkEndpoint>, IPipelineProducer<ConnectivityResult>
 {
     private readonly NetworkEndpoint _endpoint; public GetConnectivity([From] NetworkEndpoint endpoint) => _endpoint = endpoint;

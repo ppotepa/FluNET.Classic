@@ -32,6 +32,7 @@ public sealed class EmailModule : LanguageModule
 [Qualifier("EMAIL")]
 [RequiresCapability(StandardCapabilities.EmailSend)]
 [ExecutionTrait(ExecutionTrait.SideEffecting)]
+[ExecutionTrait(ExecutionTrait.LongRunning)]
 public sealed class SendEmailMessage : IVerb<EmailMessage>, ISend, IWhat<EmailMessage>, ITo<EmailAddress>, IPipelineConsumer<EmailMessage>, IPipelineProducer<EmailMessage>
 {
     private readonly EmailMessage _message; private readonly EmailAddress _to; private readonly IEmailTransport _transport;

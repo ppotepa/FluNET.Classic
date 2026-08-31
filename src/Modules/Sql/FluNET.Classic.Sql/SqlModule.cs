@@ -27,6 +27,7 @@ public sealed class SqlModule : LanguageModule
 [Qualifier("ROWS")]
 [RequiresCapability(StandardCapabilities.SqlRead)]
 [ExecutionTrait(ExecutionTrait.Retryable)]
+[ExecutionTrait(ExecutionTrait.LongRunning)]
 public sealed class GetSqlRows : IVerb<SqlRow[]>, IGet, IFrom<SqlQuery>, IUsing<DatabaseConnection>, IPipelineProducer<SqlRow[]>
 {
     private readonly SqlQuery _query; private readonly DatabaseConnection _connection; private readonly ISqlExecutor _executor;
@@ -44,6 +45,7 @@ public sealed class GetSqlRows : IVerb<SqlRow[]>, IGet, IFrom<SqlQuery>, IUsing<
 [RequiresCapability(StandardCapabilities.SqlWrite)]
 [ExecutionTrait(ExecutionTrait.SideEffecting)]
 [ExecutionTrait(ExecutionTrait.Transactional)]
+[ExecutionTrait(ExecutionTrait.LongRunning)]
 public sealed class RunSqlCommand : IVerb<SqlResult>, IRun, IWhat<SqlCommand>, IUsing<DatabaseConnection>, IPipelineProducer<SqlResult>
 {
     private readonly SqlCommand _command; private readonly DatabaseConnection _connection; private readonly ISqlExecutor _executor;

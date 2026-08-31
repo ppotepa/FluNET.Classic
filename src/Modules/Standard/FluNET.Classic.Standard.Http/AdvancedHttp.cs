@@ -85,6 +85,7 @@ public sealed class AddHttpCondition : IVerb<HttpRequest>, ITransform, IWhat<Htt
 [Qualifier("RESPONSE")]
 [RequiresCapability(StandardCapabilities.NetworkHttp)]
 [ExecutionTrait(ExecutionTrait.Retryable)]
+[ExecutionTrait(ExecutionTrait.LongRunning)]
 public sealed class SendHttpRequest : IVerb<HttpResponse>, ISend, IWhat<HttpRequest>, IPipelineConsumer<HttpRequest>, IPipelineProducer<HttpResponse>
 {
     private readonly HttpRequest _request; private readonly HttpClient _client; public SendHttpRequest([What] HttpRequest request, [FromServices] HttpClient client)
@@ -121,6 +122,7 @@ public sealed class SendHttpRequest : IVerb<HttpResponse>, ISend, IWhat<HttpRequ
 [Qualifier("RESPONSE")]
 [RequiresCapability(StandardCapabilities.NetworkHttp)]
 [ExecutionTrait(ExecutionTrait.Retryable)]
+[ExecutionTrait(ExecutionTrait.LongRunning)]
 public sealed class PostJsonResponse : IVerb<HttpResponse>, IPost, IWhat<JsonNode>, ITo<HttpEndpoint>, IPipelineProducer<HttpResponse>
 {
     private readonly JsonNode _body; private readonly HttpEndpoint _endpoint; private readonly HttpClient _client; public PostJsonResponse([What] JsonNode body, [To] HttpEndpoint endpoint, [FromServices] HttpClient client)
