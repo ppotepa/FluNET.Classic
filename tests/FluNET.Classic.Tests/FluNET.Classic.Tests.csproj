@@ -8,4 +8,7 @@
     <ProjectReference Include="../../src/Modules/Ecosystem/FluNET.Classic.Ecosystem/FluNET.Classic.Ecosystem.csproj" />
     <ProjectReference Include="../FluNET.Classic.OutputProjectionFixture/FluNET.Classic.OutputProjectionFixture.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="../../docs/examples/*.flu" Link="docs/examples/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
 </Project>

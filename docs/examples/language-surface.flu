@@ -1,0 +1,23 @@
+DEFINE FUNCTION NORMALIZE, WHAT [value] AS TEXT, RETURNING TEXT, DO
+    RETURN [value].
+END FUNCTION.
+
+DEFINE RECORD STATUS, NAME AS TEXT, CODE AS INTEGER.
+
+TRANSFORM "hello" USING UPPER INTO [upper].
+CHECK IF [upper] IS "HELLO" INTO [ok].
+
+IF [ok] IS true, THEN
+    SAY "surface-ok".
+ELSE
+    SAY "surface-failed".
+END IF.
+
+NORMALIZE [upper] INTO [normalized].
+MAKE STATUS WITH [normalized], 200 INTO [status].
+
+TRY, DO
+    SAY [normalized].
+FINALLY
+    SAY "cleanup".
+END TRY.
