@@ -11,8 +11,8 @@ The default design rule is simple: extend the typed language model before extend
 [Qualifier("TEXT")]
 public sealed class GetMySource : Get<string, MySource>
 {
-    public GetMySource([What] string what, [From] MySource from)
-        : base(what, from)
+    public GetMySource([From] MySource from)
+        : base(from)
     {
     }
 
@@ -26,6 +26,55 @@ public sealed class GetMySource : Get<string, MySource>
 Use the canonical role attributes `[What]`, `[From]`, `[To]`, `[Using]`, `[With]`, `[As]`, `[In]`, `[At]`, `[For]`, `[Until]`, and `[By]`. They map to the shared `LanguageRoleNames` catalog used by the compiler and parser.
 
 `INTO` and `THEN` are not CLR roles. `INTO` belongs to language-level result binding and `THEN` belongs to structural pipeline/control-flow syntax.
+
+## Resolver, converter, and predicate extensions
+
+Use a resolver when source text must become a domain value, a converter when an
+already typed value needs a different representation, and a predicate when a
+reusable boolean rule belongs in the language surface:
+
+```csharp
+public sealed class MySourceResolver : IValueResolver<MySource>
+{
+    public bool TryResolve(string source, ResolutionContext context, out MySource? value)
+    {
+        value = source.StartsWith("source:", StringComparison.OrdinalIgnoreCase)
+            ? new MySource(source[7..])
+            : null;
+        return value is not null;
+    }
+
+    bool IValueResolver.TryResolve(string source, ResolutionContext context, out object? value)
+    {
+        bool resolved = TryResolve(source, context, out MySource? typed);
+        value = typed;
+        return resolved;
+    }
+}
+
+public sealed class MySourceToText : ValueConverter<MySource, string>
+{
+    public override bool TryConvert(MySource value, out string? result)
+    {
+        result = value.ToString();
+        return true;
+    }
+}
+
+public sealed class AvailableSourcePredicate : IValuePredicate
+{
+    public string Name => "AVAILABLE";
+    public bool CanEvaluate(Type valueType) => valueType == typeof(MySource);
+    public bool Evaluate(object? value, PredicateContext context) => value is MySource source && source.IsAvailable;
+}
+```
+
+Register these through the host composition boundary (`ValueResolverRegistry`,
+`ValueConversionRegistry`, and `PredicateRegistry`). Keep resolver and converter
+behavior deterministic, side-effect free, and explicit about failure. Do not
+use a resolver to hide arbitrary I/O, a converter to silently discard data, or a
+predicate to mutate state. Do not add parser branches for an ordinary typed
+sentence; use a verb family, qualifier, role metadata, and a normal overload.
 
 ### Context-backed queries
 

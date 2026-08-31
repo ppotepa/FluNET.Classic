@@ -68,6 +68,7 @@ The format follows the spirit of [Keep a Changelog](https://keepachangelog.com/e
 
 ### Changed
 
+- SDK documentation now includes concrete resolver, converter, predicate, and anti-pattern guidance.
 - Explicit execution traits now override conflicting inferred traits.
 - Context-backed standard queries now use `IQuery<TResult>` without dummy `WHAT` parameters.
 - Context-backed date/time queries now follow the same zero-input `IQuery<TResult>` contract.
