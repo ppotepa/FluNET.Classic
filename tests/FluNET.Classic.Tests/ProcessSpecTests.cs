@@ -21,4 +21,16 @@ public class ProcessSpecTests
         Assert.That(((ProcessSpec)result.State.Variables["spec"]!).FileName, Is.EqualTo("dotnet"));
         Assert.That(((ProcessSpec)result.State.Variables["spec"]!).Arguments, Is.EqualTo("--info"));
     }
+
+    [Test]
+    public async Task Process_spec_preserves_multiple_language_arguments()
+    {
+        using ServiceProvider host = FluNetHost.Create();
+        RuntimeResult result = await host.GetRequiredService<ClassicEngine>()
+            .RunAsync("CREATE PROCESS FROM \"dotnet\" WITH \"--info\", \"--version\" INTO [spec].");
+
+        Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics.Select(x => x.Message)));
+        ProcessSpec spec = (ProcessSpec)result.State.Variables["spec"]!;
+        Assert.That(spec.ArgumentList, Is.EqualTo(new[] { "--info", "--version" }));
+    }
 }
