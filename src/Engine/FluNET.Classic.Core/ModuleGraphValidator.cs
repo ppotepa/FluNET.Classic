@@ -4,7 +4,12 @@ public static class ModuleGraphValidator
 {
     public static IReadOnlyList<LanguageDiagnostic> Validate(IEnumerable<ILanguageModule> modules)
     {
-        ILanguageModule[] source = (modules ?? Array.Empty<ILanguageModule>()).ToArray();
+        ArgumentNullException.ThrowIfNull(modules);
+        ILanguageModule[] source = modules
+            .Where(module => module is not null)
+            .OrderBy(module => module.Name, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(module => module.GetType().FullName, StringComparer.Ordinal)
+            .ToArray();
         var diagnostics = new List<LanguageDiagnostic>();
         var byName = new Dictionary<string, ILanguageModule>(StringComparer.OrdinalIgnoreCase);
 
@@ -15,7 +20,7 @@ public static class ModuleGraphValidator
         }
 
         foreach (ILanguageModule module in source)
-            foreach (string dependency in module.Dependencies)
+            foreach (string dependency in module.Dependencies.OrderBy(value => value, StringComparer.OrdinalIgnoreCase))
                 if (!byName.ContainsKey(dependency))
                     diagnostics.Add(new("FLU-LANG-030", $"Module '{module.Name}' requires missing module '{dependency}'.", LanguageDiagnosticSeverity.Error));
 
@@ -26,7 +31,7 @@ public static class ModuleGraphValidator
         foreach (string module in byName.Keys)
             Visit(module);
 
-        return diagnostics;
+        return Array.AsReadOnly(diagnostics.ToArray());
 
         void Visit(string name)
         {
@@ -44,7 +49,7 @@ public static class ModuleGraphValidator
             state[name] = 1;
             path.Push(name);
             if (byName.TryGetValue(name, out ILanguageModule? module))
-                foreach (string dependency in module.Dependencies)
+                foreach (string dependency in module.Dependencies.OrderBy(value => value, StringComparer.OrdinalIgnoreCase))
                     if (byName.ContainsKey(dependency))
                         Visit(dependency);
             path.Pop();

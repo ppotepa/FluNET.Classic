@@ -54,6 +54,7 @@ The format follows the spirit of [Keep a Changelog](https://keepachangelog.com/e
 - CSV documents and rows now expose typed header, row, and value projections.
 - HTML documents and web links now expose typed source, validity, href, and text projections.
 - Module discovery is now deterministic and returns an immutable snapshot.
+- Module graph validation is now deterministic and returns an immutable diagnostic snapshot.
 - Explicit qualifier surfaces no longer match unrelated verbs solely because their result types happen to be equal.
 - Typed HTTP status and ETag values now reject invalid CLR construction inputs.
 - HTTP responses and statuses now expose typed `CODE`, `REASON`, and `CONTENTTYPE` projections.
