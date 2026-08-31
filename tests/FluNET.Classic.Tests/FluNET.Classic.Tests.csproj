@@ -6,6 +6,7 @@
     <ProjectReference Include="../../src/Tooling/FluNET.Classic.SDK/FluNET.Classic.SDK.csproj" />
     <ProjectReference Include="../../src/Tooling/FluNET.Classic.Tooling/FluNET.Classic.Tooling.csproj" />
     <ProjectReference Include="../../src/Modules/Ecosystem/FluNET.Classic.Ecosystem/FluNET.Classic.Ecosystem.csproj" />
+    <ProjectReference Include="../../src/Modules/Identity/FluNET.Classic.Identity/FluNET.Classic.Identity.csproj" />
     <ProjectReference Include="../FluNET.Classic.OutputProjectionFixture/FluNET.Classic.OutputProjectionFixture.csproj" />
     <ProjectReference Include="../FluNET.Classic.ProcessFixture/FluNET.Classic.ProcessFixture.csproj" />
   </ItemGroup>
