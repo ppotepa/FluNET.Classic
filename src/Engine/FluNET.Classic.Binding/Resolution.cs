@@ -25,8 +25,42 @@ public sealed record ResolutionContext(
     ResolutionSourceKind SourceKind = ResolutionSourceKind.Unknown);
 
 public sealed record ResolutionCandidate(string Resolver, int Priority, object? Value);
-public sealed record ResolutionResult(ResolutionStatus Status, object? Value, string? Resolver, int Priority, IReadOnlyList<ResolutionCandidate> Candidates)
+public sealed record ResolutionResult
 {
+    public ResolutionStatus Status
+    {
+        get;
+    }
+
+    public object? Value
+    {
+        get;
+    }
+
+    public string? Resolver
+    {
+        get;
+    }
+
+    public int Priority
+    {
+        get;
+    }
+
+    public IReadOnlyList<ResolutionCandidate> Candidates
+    {
+        get;
+    }
+
+    public ResolutionResult(ResolutionStatus Status, object? Value, string? Resolver, int Priority, IReadOnlyList<ResolutionCandidate> Candidates)
+    {
+        this.Status = Status;
+        this.Value = Value;
+        this.Resolver = Resolver;
+        this.Priority = Priority;
+        this.Candidates = Array.AsReadOnly((Candidates ?? throw new ArgumentNullException(nameof(Candidates))).ToArray());
+    }
+
     public bool Success => Status == ResolutionStatus.Success;
 }
 

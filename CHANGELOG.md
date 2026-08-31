@@ -43,6 +43,7 @@ The format follows the spirit of [Keep a Changelog](https://keepachangelog.com/e
 - JSON properties and items now expose scalar and collection-aware typed field projections.
 - JSON validation results now expose typed validation-error projections.
 - Background process handles now expose typed `ID`, `SPEC`, and `STARTEDAT` projections.
+- Resolver and converter planning results now expose read-only snapshots of candidate and plan collections.
 - Explicit qualifier surfaces no longer match unrelated verbs solely because their result types happen to be equal.
 - Typed HTTP status and ETag values now reject invalid CLR construction inputs.
 - HTTP responses and statuses now expose typed `CODE`, `REASON`, and `CONTENTTYPE` projections.

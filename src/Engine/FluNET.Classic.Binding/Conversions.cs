@@ -17,15 +17,65 @@ public enum ConversionPlanningStatus
 
 public sealed record ConversionResult(object? Value, ConversionKind Kind, int Cost, ConversionSafety Safety = ConversionSafety.Lossless);
 public sealed record ConversionStep(Type SourceType, Type TargetType, ConversionKind Kind, int Cost, ConversionSafety Safety = ConversionSafety.Lossless, string? ConverterId = null);
-public sealed record ConversionPlan(Type SourceType, Type TargetType, IReadOnlyList<ConversionStep> Steps, int Cost)
+public sealed record ConversionPlan
 {
+    public Type SourceType
+    {
+        get;
+    }
+
+    public Type TargetType
+    {
+        get;
+    }
+
+    public IReadOnlyList<ConversionStep> Steps
+    {
+        get;
+    }
+
+    public int Cost
+    {
+        get;
+    }
+
+    public ConversionPlan(Type SourceType, Type TargetType, IReadOnlyList<ConversionStep> Steps, int Cost)
+    {
+        this.SourceType = SourceType;
+        this.TargetType = TargetType;
+        this.Steps = Array.AsReadOnly((Steps ?? throw new ArgumentNullException(nameof(Steps))).ToArray());
+        this.Cost = Cost;
+    }
+
     public ConversionKind Kind => Steps.Count == 0 ? ConversionKind.Exact : Steps.Count == 1 ? Steps[0].Kind : ConversionKind.Registered;
     public ConversionSafety Safety => Steps.Any(x => x.Safety == ConversionSafety.PotentiallyLossy) ? ConversionSafety.PotentiallyLossy : ConversionSafety.Lossless;
     public string Signature => string.Join(" -> ", new[] { SourceType }.Concat(Steps.Select(x => x.TargetType)).Select(TypeName));
     private static string TypeName(Type type) => type.FullName ?? type.Name;
 }
-public sealed record ConversionPlanningResult(ConversionPlanningStatus Status, ConversionPlan? Plan, IReadOnlyList<ConversionPlan> Alternatives)
+public sealed record ConversionPlanningResult
 {
+    public ConversionPlanningStatus Status
+    {
+        get;
+    }
+
+    public ConversionPlan? Plan
+    {
+        get;
+    }
+
+    public IReadOnlyList<ConversionPlan> Alternatives
+    {
+        get;
+    }
+
+    public ConversionPlanningResult(ConversionPlanningStatus Status, ConversionPlan? Plan, IReadOnlyList<ConversionPlan> Alternatives)
+    {
+        this.Status = Status;
+        this.Plan = Plan;
+        this.Alternatives = Array.AsReadOnly((Alternatives ?? throw new ArgumentNullException(nameof(Alternatives))).ToArray());
+    }
+
     public bool Success => Status == ConversionPlanningStatus.Success && Plan is not null;
 }
 
