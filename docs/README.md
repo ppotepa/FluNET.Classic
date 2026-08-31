@@ -10,6 +10,7 @@ This directory contains maintained technical documentation for FluNET.Classic. E
 | [`ARCHITECTURE.md`](ARCHITECTURE.md) | Compiler/runtime architecture, dependency direction, binding/execution flow, and repository boundaries. |
 | [`SDK.md`](SDK.md) | Module/extension authoring, canonical semantic roles, resolvers/converters/predicates, validation, and generated module artifacts. |
 | [`TOOLING.md`](TOOLING.md) | Production document services, diagnostics, formatter behavior, and the language-server adapter built on them. |
+| [`SHELL-CONFORMANCE.md`](SHELL-CONFORMANCE.md) | Native-process capabilities, safety rules, and conformance fixture. |
 | [`examples/language-surface.flu`](examples/language-surface.flu) | Executable documentation fixture for the maintained structural language surface. |
 | [`../ROADMAP.md`](../ROADMAP.md) | Planned development milestones and completion criteria. |
 | [`../CHANGELOG.md`](../CHANGELOG.md) | Completed user-visible changes by package version. |

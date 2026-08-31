@@ -86,14 +86,27 @@ Exit criterion: module authors and editor/tooling authors can use documented API
 Goal: close correctness, documentation, packaging, and usability gaps before the stable 0.2 release.
 
 - [x] Audit every public example against `check`, `format`, `plan`, and `run` where applicable.
-- [ ] Resolve known grammar ambiguities and high-impact diagnostic inconsistencies.
+- [x] Resolve known grammar ambiguities and high-impact diagnostic inconsistencies.
 - [x] Review architecture boundaries and public package references for accidental coupling.
 - [x] Review package metadata, installer behavior, demo projects, and first-run experience.
-- [ ] Bring README, language, architecture, SDK, tooling, and generated module documentation into agreement with the code.
-- [ ] Classify remaining breaking changes as either required for 0.2 or explicitly deferred to 0.3.
+- [x] Bring README, language, architecture, SDK, tooling, and generated module documentation into agreement with the code.
+- [x] Classify remaining breaking changes as either required for 0.2 or explicitly deferred to 0.3.
 - [ ] Produce release notes from the accumulated `CHANGELOG.md` entries instead of reconstructing history at release time.
 
 Exit criterion: no known blocker remains for using FluNET.Classic as a coherent pre-1.0 language/runtime/SDK release.
+
+### Breaking-change classification
+
+Required before stable 0.2: the single `flunet.classic` contract, canonical role
+and transformation semantics, deterministic stable IDs and diagnostics, the
+document-service/LSP boundary, and the intentional SDK/package surface. These
+are contract fixes and may still require breaking API changes while 0.2 remains
+pre-1.0.
+
+Deferred to 0.3: interactive shell sessions, native stdin/redirection, history and
+prompt workflows, broader ecosystem domains, and compatibility work for APIs not
+listed as part of the 0.2 SDK contract. They must not delay the coherent 0.2
+runtime and authoring surface.
 
 ## 0.2.0 — stable 0.2 milestone
 

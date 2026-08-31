@@ -1,8 +1,10 @@
 # Flu shell conformance
 
-`0.3.0-alpha.1` establishes the native-process contract. It is the first step toward making Flu useful for the work normally done in `.sh` and `.ps1` files while keeping the canonical syntax as simple English sentences.
+`0.2.0-alpha.2` establishes the native-process contract currently supported by
+FluNET.Classic. It makes Flu useful for common non-interactive process work while
+keeping the canonical syntax as simple English sentences.
 
-## Alpha.1 contract
+## Current contract
 
 | Capability | Status |
 |---|---|
@@ -20,11 +22,11 @@
 | Process execution capability | Complete |
 | Safe process planning | Complete |
 | Verbose process events | Complete |
-| Streaming byte pipelines | Planned for alpha.2 |
-| Native stdin and redirection | Planned for alpha.2 |
-| Background jobs | Planned for alpha.3 |
-| Interactive shell session | Planned for alpha.3 |
-| History, completion and prompt | Planned for alpha.4 |
+| Streaming byte pipelines | Deferred beyond 0.2 |
+| Native stdin and redirection | Deferred beyond 0.2 |
+| Background jobs | Complete |
+| Interactive shell session | Deferred beyond 0.2 |
+| History, completion and prompt | Deferred beyond 0.2 |
 
 ## Canonical syntax
 
@@ -39,6 +41,9 @@ REQUIRE [status] IS OK.
 The argument values are passed directly to the executable through an argument list. Flu does not invoke an implicit `cmd`, PowerShell or Unix shell, and does not split or re-interpret argument strings after binding. The legacy `ProcessSpec.Arguments` string remains available for directly constructed specs.
 
 `ProcessResult` exposes `ExitCode`, `StdOut`, `StdErr`, `Duration` and `IsOk`.
+Background execution returns a `ProcessHandle` with `ID`, `SPEC`, `STARTEDAT`
+and the `EXISTS` predicate. `WAIT` and `STOP` accept both process information
+and process handles.
 
 ## Safety contract
 
