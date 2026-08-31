@@ -36,7 +36,7 @@ RUN [spec] INTO [status].
 REQUIRE [status] IS OK.
 ```
 
-The argument values are passed directly to the executable. Flu does not invoke an implicit `cmd`, PowerShell or Unix shell, and does not split or re-interpret argument strings after binding.
+The argument values are passed directly to the executable through an argument list. Flu does not invoke an implicit `cmd`, PowerShell or Unix shell, and does not split or re-interpret argument strings after binding. The legacy `ProcessSpec.Arguments` string remains available for directly constructed specs.
 
 `ProcessResult` exposes `ExitCode`, `StdOut`, `StdErr`, `Duration` and `IsOk`.
 

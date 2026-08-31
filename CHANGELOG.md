@@ -13,6 +13,7 @@ The format follows the spirit of [Keep a Changelog](https://keepachangelog.com/e
 - Stable `FLU-PROC-002` diagnostics for native-process start failures.
 - Stable `FLU-PROC-003` diagnostics for native-process timeouts.
 - Previous-pipeline (`THEM`) and current-loop-item (`IT`) bindings.
+- Exact native-process argument lists backed by `ProcessStartInfo.ArgumentList`.
 
 ### Changed
 
