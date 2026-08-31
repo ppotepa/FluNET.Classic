@@ -28,6 +28,9 @@ The format follows the spirit of [Keep a Changelog](https://keepachangelog.com/e
 - Language snapshots now expose immutable collection implementations and copy nested descriptor inputs for tooling consumers.
 - `HttpEndpoint` now accepts only absolute HTTP and HTTPS URIs and rejects invalid schemes during binding.
 - Invalid textual HTTP endpoints now expose a stable `FormatException` domain error.
+- HTTP header values are normalized to case-insensitive, defensive snapshots.
+- HTTP responses expose raw body bytes through the typed `GET BODY` projection.
+- Process results expose elapsed execution time through the typed `GET DURATION` projection.
 - Non-idempotent HTTP operations no longer opt into automatic retries that could duplicate side effects.
 - Previous-pipeline (`THEM`) and current-loop-item (`IT`) bindings.
 - Exact native-process argument lists backed by `ProcessStartInfo.ArgumentList`.
