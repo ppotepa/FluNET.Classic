@@ -15,7 +15,7 @@ public sealed record RuntimeResult(RuntimeState State, IReadOnlyList<RuntimeDiag
 
 public sealed class BoundExecutor
 {
-    private readonly IServiceProvider? _services; private readonly ValueConversionRegistry _conversions; private readonly PredicateRegistry _predicates; private readonly ICapabilityPolicy _capabilities; private readonly ExecutionPolicy _policy; private readonly OperatorEvaluatorRegistry _operatorEvaluators; private readonly IExecutionObserver _observer; private readonly List<ExecutionTraceEntry> _trace = []; private readonly object _traceGate = new(); private readonly SemaphoreSlim _observerGate = new(1, 1); private int _sequence;
+    private readonly IServiceProvider? _services; private readonly ValueConversionRegistry _conversions; private readonly PredicateRegistry _predicates; private readonly ICapabilityPolicy _capabilities; private readonly ExecutionPolicy _policy; private readonly OperatorEvaluatorRegistry _operatorEvaluators; private readonly IExecutionObserver _observer; private readonly AsyncLocal<ExecutionRun?> _run = new();
     public BoundExecutor(ValueConversionRegistry conversions, PredicateRegistry predicates, ICapabilityPolicy capabilities, IServiceProvider? services = null, ExecutionPolicy? policy = null, OperatorEvaluatorRegistry? operatorEvaluators = null, IExecutionObserver? observer = null)
     {
         _conversions = conversions;
@@ -29,34 +29,41 @@ public sealed class BoundExecutor
 
     public async ValueTask<RuntimeResult> ExecuteAsync(BoundScript script, RuntimeState? state = null, CancellationToken cancellationToken = default)
     {
-        state ??= new RuntimeState();
-        _trace.Clear();
-        _sequence = 0;
-        var diagnostics = script.Diagnostics.Select(x => new RuntimeDiagnostic(x.Code, x.Message)).ToList();
-        if (diagnostics.Count > 0)
-            return new(state, diagnostics, _trace.ToArray());
-        foreach (string capability in CollectCapabilities(script).Distinct(StringComparer.OrdinalIgnoreCase))
-            if (!_capabilities.IsAllowed(capability))
-                diagnostics.Add(new("FLU-RUN-010", $"Capability '{capability}' is required by the program."));
-        if (diagnostics.Count > 0)
-            return new(state, diagnostics, _trace.ToArray());
-        await PublishAsync(new ExecutionEvent(NextSequence(), ExecutionEventKind.RunStarted));
+        await Task.Yield();
+        ExecutionRun run = new();
+        ExecutionRun? previous = _run.Value;
+        _run.Value = run;
         try
         {
-            foreach (BoundStatement statement in script.Statements)
-                await ExecuteStatement(statement, state, cancellationToken).ConfigureAwait(false);
+            state ??= new RuntimeState();
+            var diagnostics = script.Diagnostics.Select(x => new RuntimeDiagnostic(x.Code, x.Message)).ToList();
+            if (diagnostics.Count > 0)
+                return new(state, diagnostics, run.Snapshot());
+            foreach (string capability in CollectCapabilities(script).Distinct(StringComparer.OrdinalIgnoreCase))
+                if (!_capabilities.IsAllowed(capability))
+                    diagnostics.Add(new("FLU-RUN-010", $"Capability '{capability}' is required by the program."));
+            if (diagnostics.Count > 0)
+                return new(state, diagnostics, run.Snapshot());
+            await PublishAsync(new ExecutionEvent(NextSequence(), ExecutionEventKind.RunStarted));
+            try
+            {
+                foreach (BoundStatement statement in script.Statements)
+                    await ExecuteStatement(statement, state, cancellationToken).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) { diagnostics.Add(new("FLU-RUN-020", "Execution was cancelled or timed out.")); }
+            catch (UnauthorizedAccessException ex) { diagnostics.Add(new("FLU-RUN-010", ex.Message)); }
+            catch (InvalidCastException ex) { diagnostics.Add(new("FLU-RUN-030", ex.Message)); }
+            catch (KeyNotFoundException ex) { diagnostics.Add(new("FLU-RUN-031", ex.Message)); }
+            catch (ExecutionFailureException ex) { diagnostics.Add(new(ex.Code, ex.Message)); }
+            catch (Exception ex) { diagnostics.Add(new("FLU-RUN-001", ex.Message)); }
+            await PublishAsync(new ExecutionEvent(NextSequence(), ExecutionEventKind.RunCompleted, Success: diagnostics.Count == 0, Duration: TimeSpan.Zero, Error: diagnostics.FirstOrDefault()?.Message));
+            return new(state, diagnostics, run.Snapshot());
         }
-        catch (OperationCanceledException) { diagnostics.Add(new("FLU-RUN-020", "Execution was cancelled or timed out.")); }
-        catch (UnauthorizedAccessException ex) { diagnostics.Add(new("FLU-RUN-010", ex.Message)); }
-        catch (InvalidCastException ex) { diagnostics.Add(new("FLU-RUN-030", ex.Message)); }
-        catch (KeyNotFoundException ex) { diagnostics.Add(new("FLU-RUN-031", ex.Message)); }
-        catch (ExecutionFailureException ex) { diagnostics.Add(new(ex.Code, ex.Message)); }
-        catch (Exception ex) { diagnostics.Add(new("FLU-RUN-001", ex.Message)); }
-        await PublishAsync(new ExecutionEvent(NextSequence(), ExecutionEventKind.RunCompleted, Success: diagnostics.Count == 0, Duration: TimeSpan.Zero, Error: diagnostics.FirstOrDefault()?.Message));
-        ExecutionTraceEntry[] trace;
-        lock (_traceGate)
-            trace = _trace.OrderBy(x => x.Sequence).ToArray();
-        return new(state, diagnostics, trace);
+        finally
+        {
+            _run.Value = previous;
+            run.Dispose();
+        }
     }
     private async ValueTask ExecuteStatement(BoundStatement statement, RuntimeState state, CancellationToken ct)
     {
@@ -305,19 +312,38 @@ public sealed class BoundExecutor
     }
     private async ValueTask PublishAsync(ExecutionEvent item)
     {
-        await _observerGate.WaitAsync().ConfigureAwait(false);
+        ExecutionRun run = CurrentRun();
+        await run.ObserverGate.WaitAsync().ConfigureAwait(false);
         try
         {
             await _observer.OnEventAsync(item).ConfigureAwait(false);
         }
         catch { }
-        finally { _observerGate.Release(); }
+        finally { run.ObserverGate.Release(); }
     }
-    private int NextSequence() => Interlocked.Increment(ref _sequence);
+    private int NextSequence() => Interlocked.Increment(ref CurrentRun().Sequence);
     private void AddTrace(ExecutionTraceEntry entry)
     {
-        lock (_traceGate)
-            _trace.Add(entry);
+        ExecutionRun run = CurrentRun();
+        lock (run.TraceGate)
+            run.Trace.Add(entry);
+    }
+    private ExecutionRun CurrentRun() => _run.Value ?? throw new InvalidOperationException("No execution run is active.");
+
+    private sealed class ExecutionRun : IDisposable
+    {
+        public List<ExecutionTraceEntry> Trace { get; } = [];
+        public object TraceGate { get; } = new();
+        public SemaphoreSlim ObserverGate { get; } = new(1, 1);
+        public int Sequence;
+
+        public ExecutionTraceEntry[] Snapshot()
+        {
+            lock (TraceGate)
+                return Trace.OrderBy(x => x.Sequence).ToArray();
+        }
+
+        public void Dispose() => ObserverGate.Dispose();
     }
     private async ValueTask<object?> InvokeSentenceAttempt(BoundSentence sentence, object?[] args, RuntimeState state, CancellationToken token)
     {

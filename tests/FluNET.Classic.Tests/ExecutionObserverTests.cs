@@ -46,6 +46,26 @@ public sealed class ExecutionObserverTests
         Assert.That(observer.Events.Select(x => x.Sequence).Distinct().Count(), Is.EqualTo(observer.Events.Count));
     }
 
+    [Test]
+    public async Task Concurrent_runs_on_one_executor_keep_trace_state_isolated()
+    {
+        using ServiceProvider host = FluNetHost.Create();
+        ClassicEngine engine = host.GetRequiredService<ClassicEngine>();
+        CheckResult check = engine.Check("SAY \"concurrent\".");
+        Assert.That(check.Success, Is.True, string.Join("; ", check.Bound?.Diagnostics.Select(x => x.Message) ?? Array.Empty<string>()));
+
+        BoundExecutor executor = host.GetRequiredService<BoundExecutor>();
+        RuntimeResult[] results = await Task.WhenAll(
+            Enumerable.Range(0, 16).Select(_ => executor.ExecuteAsync(check.Bound!).AsTask()).ToArray());
+
+        foreach (RuntimeResult result in results)
+        {
+            Assert.That(result.Success, Is.True);
+            Assert.That(result.Trace, Has.Count.EqualTo(1));
+            Assert.That(result.Trace!.Select(x => x.Sequence), Is.EqualTo(new[] { 3 }));
+        }
+    }
+
     private sealed class CapturingObserver : IExecutionObserver
     {
         public ConcurrentQueue<ExecutionEvent> Events { get; } = new();
