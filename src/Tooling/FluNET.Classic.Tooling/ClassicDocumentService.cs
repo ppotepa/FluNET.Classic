@@ -11,12 +11,58 @@ public sealed record DocumentDiagnostic(
     string Message,
     TextSpan Span,
     LanguageDiagnosticSeverity Severity = LanguageDiagnosticSeverity.Error);
-public sealed record DocumentAnalysis(bool Success, string? CanonicalSource, IReadOnlyList<DocumentDiagnostic> Diagnostics, ExecutionPlan Plan);
+public sealed record DocumentAnalysis
+{
+    public bool Success
+    {
+        get;
+    }
+
+    public string? CanonicalSource
+    {
+        get;
+    }
+
+    public IReadOnlyList<DocumentDiagnostic> Diagnostics
+    {
+        get;
+    }
+
+    public ExecutionPlan Plan
+    {
+        get;
+    }
+
+    public DocumentAnalysis(bool Success, string? CanonicalSource, IReadOnlyList<DocumentDiagnostic> Diagnostics, ExecutionPlan Plan)
+    {
+        this.Success = Success;
+        this.CanonicalSource = CanonicalSource;
+        this.Diagnostics = (Diagnostics ?? throw new ArgumentNullException(nameof(Diagnostics))).ToArray();
+        this.Plan = Plan ?? throw new ArgumentNullException(nameof(Plan));
+    }
+}
 public sealed record SemanticDocumentToken(string Kind, TextSpan Span);
 public sealed record DocumentSymbolInfo(string Name, string Kind, TextSpan Span);
 public sealed record DocumentTextEdit(TextSpan Span, string NewText);
 public sealed record SignatureInfo(string Label, string? Detail = null);
-public sealed record SignatureHelpInfo(IReadOnlyList<SignatureInfo> Signatures, int ActiveSignature = 0);
+public sealed record SignatureHelpInfo
+{
+    public IReadOnlyList<SignatureInfo> Signatures
+    {
+        get;
+    }
+
+    public int ActiveSignature
+    {
+        get;
+    }
+
+    public SignatureHelpInfo(IReadOnlyList<SignatureInfo> Signatures, int ActiveSignature = 0)
+    {
+        this.Signatures = (Signatures ?? throw new ArgumentNullException(nameof(Signatures))).ToArray();
+        this.ActiveSignature = ActiveSignature;
+    }
+}
 
 public sealed class ClassicDocumentService
 {

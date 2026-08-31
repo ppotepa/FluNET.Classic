@@ -27,6 +27,7 @@ The format follows the spirit of [Keep a Changelog](https://keepachangelog.com/e
 - `LOAD`, `DOWNLOAD`, and JSON list operations no longer force unused output-side `WHAT` parameters.
 - Language snapshots now expose immutable collection implementations and copy nested descriptor inputs for tooling consumers.
 - SDK compatibility and module-validation reports now snapshot diagnostic collections defensively.
+- Document-tooling analysis and signature-help results now snapshot returned collections defensively.
 - `HttpEndpoint` now accepts only absolute HTTP and HTTPS URIs and rejects invalid schemes during binding.
 - Invalid textual HTTP endpoints now expose a stable `FormatException` domain error.
 - HTTP header values are normalized to case-insensitive, defensive snapshots.
