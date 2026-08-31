@@ -94,6 +94,51 @@ public sealed class AddHttpCondition : IVerb<HttpRequest>, ITransform, IWhat<Htt
     public ValueTask<HttpRequest> ExecuteAsync(VerbExecutionContext context, CancellationToken cancellationToken = default) => ValueTask.FromResult(_request with { Condition = _condition });
 }
 
+[Verb("GET")]
+[Qualifier("METHOD")]
+[ExecutionTrait(ExecutionTrait.Pure)]
+public sealed class GetHttpRequestMethod : Get<HttpMethodKind, HttpRequest>
+{
+    public GetHttpRequestMethod([From] HttpRequest from) : base(from) { }
+    protected override ValueTask<HttpMethodKind> ActAsync(HttpRequest from, CancellationToken cancellationToken) => ValueTask.FromResult(from.Method);
+}
+
+[Verb("GET")]
+[Qualifier("ENDPOINT")]
+[ExecutionTrait(ExecutionTrait.Pure)]
+public sealed class GetHttpRequestEndpoint : Get<HttpEndpoint, HttpRequest>
+{
+    public GetHttpRequestEndpoint([From] HttpRequest from) : base(from) { }
+    protected override ValueTask<HttpEndpoint> ActAsync(HttpRequest from, CancellationToken cancellationToken) => ValueTask.FromResult(from.Endpoint);
+}
+
+[Verb("GET")]
+[Qualifier("HEADERS")]
+[ExecutionTrait(ExecutionTrait.Pure)]
+public sealed class GetHttpRequestHeaders : Get<HttpHeaders?, HttpRequest>
+{
+    public GetHttpRequestHeaders([From] HttpRequest from) : base(from) { }
+    protected override ValueTask<HttpHeaders?> ActAsync(HttpRequest from, CancellationToken cancellationToken) => ValueTask.FromResult(from.Headers);
+}
+
+[Verb("GET")]
+[Qualifier("BODY")]
+[ExecutionTrait(ExecutionTrait.Pure)]
+public sealed class GetHttpRequestBody : Get<HttpBody?, HttpRequest>
+{
+    public GetHttpRequestBody([From] HttpRequest from) : base(from) { }
+    protected override ValueTask<HttpBody?> ActAsync(HttpRequest from, CancellationToken cancellationToken) => ValueTask.FromResult(from.Body);
+}
+
+[Verb("GET")]
+[Qualifier("CONDITION")]
+[ExecutionTrait(ExecutionTrait.Pure)]
+public sealed class GetHttpRequestCondition : Get<HttpCondition?, HttpRequest>
+{
+    public GetHttpRequestCondition([From] HttpRequest from) : base(from) { }
+    protected override ValueTask<HttpCondition?> ActAsync(HttpRequest from, CancellationToken cancellationToken) => ValueTask.FromResult(from.Condition);
+}
+
 [Verb("SEND")]
 [Qualifier("RESPONSE")]
 [RequiresCapability(StandardCapabilities.NetworkHttp)]

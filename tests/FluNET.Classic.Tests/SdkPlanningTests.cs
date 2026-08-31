@@ -92,6 +92,24 @@ public class SdkPlanningTests
     }
 
     [Test]
+    public void Http_request_fields_bind_through_typed_projections()
+    {
+        using ServiceProvider host = FluNetHost.Create();
+        ClassicEngine engine = host.GetRequiredService<ClassicEngine>();
+        const string source = "CREATE REQUEST FROM {https://example.com} USING GET INTO [request], THEN GET METHOD FROM [request] INTO [method], THEN GET ENDPOINT FROM [request] INTO [endpoint], THEN GET HEADERS FROM [request] INTO [headers], THEN GET BODY FROM [request] INTO [body], THEN GET CONDITION FROM [request] INTO [condition].";
+
+        ExecutionPlan plan = engine.Plan(source);
+
+        Assert.That(plan.Success, Is.True, string.Join("; ", plan.Diagnostics.Select(x => x.Message)));
+        ExecutionPlanStep[] steps = Flatten(plan.Steps).ToArray();
+        Assert.That(steps.Any(x => x.Implementation?.EndsWith("GetHttpRequestMethod", StringComparison.Ordinal) == true), Is.True);
+        Assert.That(steps.Any(x => x.Implementation?.EndsWith("GetHttpRequestEndpoint", StringComparison.Ordinal) == true), Is.True);
+        Assert.That(steps.Any(x => x.Implementation?.EndsWith("GetHttpRequestHeaders", StringComparison.Ordinal) == true), Is.True);
+        Assert.That(steps.Any(x => x.Implementation?.EndsWith("GetHttpRequestBody", StringComparison.Ordinal) == true), Is.True);
+        Assert.That(steps.Any(x => x.Implementation?.EndsWith("GetHttpRequestCondition", StringComparison.Ordinal) == true), Is.True);
+    }
+
+    [Test]
     public void Http_status_and_content_type_projections_bind_through_typed_sentences()
     {
         using ServiceProvider host = FluNetHost.Create();

@@ -129,6 +129,9 @@ public sealed class HttpModule : LanguageModule
         new("qualifier:http-headers", "HEADERS", typeof(HttpHeaders)),
         new("qualifier:http-body", "BODY", typeof(byte[])),
         new("qualifier:http-etag", "ETAG", typeof(ETag)),
+        new("qualifier:http-request-method", "METHOD", typeof(HttpMethodKind)),
+        new("qualifier:http-request-endpoint", "ENDPOINT", typeof(HttpEndpoint)),
+        new("qualifier:http-request-condition", "CONDITION", typeof(HttpCondition)),
         new("qualifier:http-status-code", "CODE", typeof(int)),
         new("qualifier:http-reason", "REASON", typeof(string)),
         new("qualifier:http-content-type", "CONTENTTYPE", typeof(string))
