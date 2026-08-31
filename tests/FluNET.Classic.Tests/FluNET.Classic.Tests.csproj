@@ -3,6 +3,7 @@
   <ItemGroup><PackageReference Include="Microsoft.NET.Test.Sdk" /><PackageReference Include="NUnit" /><PackageReference Include="NUnit3TestAdapter" /><PackageReference Include="NUnit.Analyzers" /><PackageReference Include="coverlet.collector" /><PackageReference Include="Microsoft.Extensions.DependencyInjection" /></ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../../src/Hosts/FluNET.Classic.Hosting/FluNET.Classic.Hosting.csproj" />
+    <ProjectReference Include="../../src/Hosts/FluNET.Classic.LanguageServer/FluNET.Classic.LanguageServer.csproj" />
     <ProjectReference Include="../../src/Tooling/FluNET.Classic.SDK/FluNET.Classic.SDK.csproj" />
     <ProjectReference Include="../../src/Tooling/FluNET.Classic.Tooling/FluNET.Classic.Tooling.csproj" />
     <ProjectReference Include="../../src/Modules/Ecosystem/FluNET.Classic.Ecosystem/FluNET.Classic.Ecosystem.csproj" />

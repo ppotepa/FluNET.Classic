@@ -75,7 +75,7 @@ Goal: make the public authoring and tooling surfaces stable enough for external 
 - [ ] Stabilize module dependency, discovery, validation, resolver/converter, predicate, and capability extension points.
 - [ ] Stabilize generated module manifest/documentation schemas for the 0.2 line.
 - [ ] Keep `ClassicDocumentService` as the single semantic source for editor integrations.
-- [ ] Harden language-server protocol behavior and keep it a thin adapter over production document services.
+- [x] Harden language-server protocol behavior and keep it a thin adapter over production document services.
 - [x] Make CLI introspection output sufficient for diagnosing module and language composition.
 - [ ] Document supported extension patterns and anti-patterns with executable examples.
 
