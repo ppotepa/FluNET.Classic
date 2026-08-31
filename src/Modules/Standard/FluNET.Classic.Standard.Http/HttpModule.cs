@@ -51,8 +51,27 @@ public sealed record HttpEndpoint
     }
 }
 
-public sealed record HttpStatus(int Code, string? ReasonPhrase) : IOkState
+public sealed record HttpStatus : IOkState
 {
+    public int Code
+    {
+        get;
+    }
+
+    public string? ReasonPhrase
+    {
+        get;
+    }
+
+    public HttpStatus(int code, string? reasonPhrase)
+    {
+        if (code is < 100 or > 599)
+            throw new ArgumentOutOfRangeException(nameof(code), code, "HTTP status codes must be between 100 and 599.");
+
+        Code = code;
+        ReasonPhrase = reasonPhrase;
+    }
+
     public bool IsOk => Code is >= 200 and <= 299;
     public override string ToString() => ReasonPhrase is { Length: > 0 } ? $"{Code} {ReasonPhrase}" : Code.ToString();
 }

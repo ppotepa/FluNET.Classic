@@ -21,8 +21,21 @@ public enum HttpConditionKind
 {
     IF_MATCH, IF_NONE_MATCH
 }
-public sealed record ETag(string Value)
+public sealed record ETag
 {
+    public string Value
+    {
+        get;
+    }
+
+    public ETag(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            throw new ArgumentException("An ETag value cannot be empty.", nameof(value));
+
+        Value = value;
+    }
+
     public override string ToString() => Value;
 }
 public sealed record HttpCondition(HttpConditionKind Kind, ETag Tag);
