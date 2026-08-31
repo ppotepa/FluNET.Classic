@@ -33,8 +33,63 @@ public sealed class StorageModule : LanguageModule
     {
         new("qualifier:storage-object", "OBJECT", typeof(StorageObject)),
         new("qualifier:storage-objects", "OBJECTS", typeof(StorageObject[])),
-        new("qualifier:storage-metadata", "METADATA", typeof(StorageMetadata))
+        new("qualifier:storage-metadata", "METADATA", typeof(StorageMetadata)),
+        new("qualifier:storage-key", "KEY", typeof(StorageKey)),
+        new("qualifier:storage-length", "LENGTH", typeof(long)),
+        new("qualifier:storage-last-modified", "LASTMODIFIED", typeof(DateTimeOffset?)),
+        new("qualifier:storage-content-type", "CONTENTTYPE", typeof(string)),
+        new("qualifier:storage-etag", "ETAG", typeof(string))
     };
+}
+
+[Verb("GET")]
+[Qualifier("KEY")]
+[ExecutionTrait(ExecutionTrait.Pure)]
+public sealed class GetStorageObjectKey : Get<StorageKey, StorageObject>
+{
+    public GetStorageObjectKey([From] StorageObject from) : base(from) { }
+
+    protected override ValueTask<StorageKey> ActAsync(StorageObject from, CancellationToken cancellationToken) => ValueTask.FromResult(from.Key);
+}
+
+[Verb("GET")]
+[Qualifier("LENGTH")]
+[ExecutionTrait(ExecutionTrait.Pure)]
+public sealed class GetStorageMetadataLength : Get<long, StorageMetadata>
+{
+    public GetStorageMetadataLength([From] StorageMetadata from) : base(from) { }
+
+    protected override ValueTask<long> ActAsync(StorageMetadata from, CancellationToken cancellationToken) => ValueTask.FromResult(from.Length);
+}
+
+[Verb("GET")]
+[Qualifier("LASTMODIFIED")]
+[ExecutionTrait(ExecutionTrait.Pure)]
+public sealed class GetStorageMetadataLastModified : Get<DateTimeOffset?, StorageMetadata>
+{
+    public GetStorageMetadataLastModified([From] StorageMetadata from) : base(from) { }
+
+    protected override ValueTask<DateTimeOffset?> ActAsync(StorageMetadata from, CancellationToken cancellationToken) => ValueTask.FromResult(from.LastModified);
+}
+
+[Verb("GET")]
+[Qualifier("CONTENTTYPE")]
+[ExecutionTrait(ExecutionTrait.Pure)]
+public sealed class GetStorageMetadataContentType : Get<string?, StorageMetadata>
+{
+    public GetStorageMetadataContentType([From] StorageMetadata from) : base(from) { }
+
+    protected override ValueTask<string?> ActAsync(StorageMetadata from, CancellationToken cancellationToken) => ValueTask.FromResult(from.ContentType);
+}
+
+[Verb("GET")]
+[Qualifier("ETAG")]
+[ExecutionTrait(ExecutionTrait.Pure)]
+public sealed class GetStorageMetadataETag : Get<string?, StorageMetadata>
+{
+    public GetStorageMetadataETag([From] StorageMetadata from) : base(from) { }
+
+    protected override ValueTask<string?> ActAsync(StorageMetadata from, CancellationToken cancellationToken) => ValueTask.FromResult(from.ETag);
 }
 
 [Verb("GET")]
