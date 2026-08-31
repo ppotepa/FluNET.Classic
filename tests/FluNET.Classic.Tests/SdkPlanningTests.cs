@@ -4,6 +4,7 @@ using FluNET.Classic.Runtime;
 using FluNET.Classic.SDK;
 using FluNET.Classic.Standard.Files;
 using FluNET.Classic.Standard.Http;
+using FluNET.Classic.Standard.OS;
 using FluNET.Classic.Standard.Text;
 using FluNET.Classic.Tooling;
 using Microsoft.Extensions.DependencyInjection;
@@ -101,6 +102,23 @@ public class SdkPlanningTests
         Assert.That(steps.Any(x => x.ResultType == typeof(int).FullName), Is.True);
         Assert.That(steps.Any(x => x.Implementation?.EndsWith("GetHttpStatusReason", StringComparison.Ordinal) == true), Is.True);
         Assert.That(steps.Any(x => x.Implementation?.EndsWith("GetHttpContentType", StringComparison.Ordinal) == true), Is.True);
+    }
+
+    [Test]
+    public void Context_queries_support_typed_field_projections()
+    {
+        using ServiceProvider host = FluNetHost.Create();
+        ClassicEngine engine = host.GetRequiredService<ClassicEngine>();
+        ExecutionPlan plan = engine.Plan("GET OS INTO [os], THEN GET DESCRIPTION FROM [os] INTO [description], THEN GET ARCHITECTURE FROM [os] INTO [architecture]. GET USER INTO [user], THEN GET USERNAME FROM [user] INTO [username]. GET CWD INTO [cwd], THEN GET PATH FROM [cwd] INTO [path].");
+
+        Assert.That(plan.Success, Is.True, string.Join("; ", plan.Diagnostics.Select(x => x.Message)));
+        ExecutionPlanStep[] steps = Flatten(plan.Steps).ToArray();
+        Assert.That(steps.Any(x => x.ResultType == typeof(OperatingSystemInfo).FullName), Is.True);
+        Assert.That(steps.Any(x => x.ResultType == typeof(CurrentUserInfo).FullName), Is.True);
+        Assert.That(steps.Any(x => x.ResultType == typeof(WorkingDirectory).FullName), Is.True);
+        Assert.That(steps.Any(x => x.Implementation?.EndsWith("GetOperatingSystemDescription", StringComparison.Ordinal) == true), Is.True);
+        Assert.That(steps.Any(x => x.Implementation?.EndsWith("GetCurrentUserName", StringComparison.Ordinal) == true), Is.True);
+        Assert.That(steps.Any(x => x.Implementation?.EndsWith("GetWorkingDirectoryPath", StringComparison.Ordinal) == true), Is.True);
     }
 
     [Test]

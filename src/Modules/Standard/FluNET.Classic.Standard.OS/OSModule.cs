@@ -15,7 +15,13 @@ public sealed class OSModule : LanguageModule
         new("qualifier:env", "ENV", typeof(string)),
         new("qualifier:os", "OS", typeof(OperatingSystemInfo)),
         new("qualifier:user", "USER", typeof(CurrentUserInfo)),
-        new("qualifier:cwd", "CWD", typeof(WorkingDirectory), new[] { "WORKDIR" })
+        new("qualifier:cwd", "CWD", typeof(WorkingDirectory), new[] { "WORKDIR" }),
+        new("qualifier:os-description", "DESCRIPTION", typeof(string)),
+        new("qualifier:os-architecture", "ARCHITECTURE", typeof(Architecture)),
+        new("qualifier:os-framework", "FRAMEWORK", typeof(string)),
+        new("qualifier:user-name", "USERNAME", typeof(string)),
+        new("qualifier:user-domain", "DOMAIN", typeof(string)),
+        new("qualifier:cwd-path", "PATH", typeof(string))
     };
 }
 
@@ -63,4 +69,52 @@ public sealed class GetWorkingDirectory : IQuery<WorkingDirectory>, IPipelinePro
 {
     public ValueTask<WorkingDirectory> ExecuteAsync(VerbExecutionContext context, CancellationToken cancellationToken = default) =>
         ValueTask.FromResult(new WorkingDirectory(Environment.CurrentDirectory));
+}
+
+[Qualifier("DESCRIPTION")]
+[ExecutionTrait(ExecutionTrait.Pure)]
+public sealed class GetOperatingSystemDescription : Get<string, OperatingSystemInfo>
+{
+    public GetOperatingSystemDescription([From] OperatingSystemInfo from) : base(from) { }
+    protected override ValueTask<string> ActAsync(OperatingSystemInfo from, CancellationToken cancellationToken) => ValueTask.FromResult(from.Description);
+}
+
+[Qualifier("ARCHITECTURE")]
+[ExecutionTrait(ExecutionTrait.Pure)]
+public sealed class GetOperatingSystemArchitecture : Get<Architecture, OperatingSystemInfo>
+{
+    public GetOperatingSystemArchitecture([From] OperatingSystemInfo from) : base(from) { }
+    protected override ValueTask<Architecture> ActAsync(OperatingSystemInfo from, CancellationToken cancellationToken) => ValueTask.FromResult(from.Architecture);
+}
+
+[Qualifier("FRAMEWORK")]
+[ExecutionTrait(ExecutionTrait.Pure)]
+public sealed class GetOperatingSystemFramework : Get<string, OperatingSystemInfo>
+{
+    public GetOperatingSystemFramework([From] OperatingSystemInfo from) : base(from) { }
+    protected override ValueTask<string> ActAsync(OperatingSystemInfo from, CancellationToken cancellationToken) => ValueTask.FromResult(from.FrameworkDescription);
+}
+
+[Qualifier("USERNAME")]
+[ExecutionTrait(ExecutionTrait.Pure)]
+public sealed class GetCurrentUserName : Get<string, CurrentUserInfo>
+{
+    public GetCurrentUserName([From] CurrentUserInfo from) : base(from) { }
+    protected override ValueTask<string> ActAsync(CurrentUserInfo from, CancellationToken cancellationToken) => ValueTask.FromResult(from.Name);
+}
+
+[Qualifier("DOMAIN")]
+[ExecutionTrait(ExecutionTrait.Pure)]
+public sealed class GetCurrentUserDomain : Get<string?, CurrentUserInfo>
+{
+    public GetCurrentUserDomain([From] CurrentUserInfo from) : base(from) { }
+    protected override ValueTask<string?> ActAsync(CurrentUserInfo from, CancellationToken cancellationToken) => ValueTask.FromResult(from.Domain);
+}
+
+[Qualifier("PATH")]
+[ExecutionTrait(ExecutionTrait.Pure)]
+public sealed class GetWorkingDirectoryPath : Get<string, WorkingDirectory>
+{
+    public GetWorkingDirectoryPath([From] WorkingDirectory from) : base(from) { }
+    protected override ValueTask<string> ActAsync(WorkingDirectory from, CancellationToken cancellationToken) => ValueTask.FromResult(from.Path);
 }

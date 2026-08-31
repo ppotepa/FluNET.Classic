@@ -38,6 +38,7 @@ The format follows the spirit of [Keep a Changelog](https://keepachangelog.com/e
 - Process specifications now validate file names/timeouts and snapshot argument/environment collections.
 - File metadata now supports typed `GET LENGTH`, `GET EXTENSION`, and `GET READONLY` projections.
 - Directory metadata now supports typed count/existence projections.
+- OS, current-user, and working-directory values now expose typed field projections.
 - Explicit qualifier surfaces no longer match unrelated verbs solely because their result types happen to be equal.
 - Typed HTTP status and ETag values now reject invalid CLR construction inputs.
 - HTTP responses and statuses now expose typed `CODE`, `REASON`, and `CONTENTTYPE` projections.
