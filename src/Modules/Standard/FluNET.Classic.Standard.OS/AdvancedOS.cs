@@ -4,6 +4,17 @@ namespace FluNET.Classic.Standard.OS;
 
 public sealed record EnvironmentVariableName(string Value)
 {
+    public static bool TryParse(string value, out EnvironmentVariableName? result)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            result = null;
+            return false;
+        }
+        result = new(value.Trim());
+        return true;
+    }
+
     public override string ToString() => Value;
 }
 public sealed record EnvironmentVariable(string Name, string? Value);

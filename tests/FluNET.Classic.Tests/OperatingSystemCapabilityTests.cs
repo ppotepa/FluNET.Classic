@@ -1,5 +1,6 @@
 using FluNET.Classic.Core;
 using FluNET.Classic.Hosting;
+using FluNET.Classic.Runtime;
 using FluNET.Classic.Standard.OS;
 using Microsoft.Extensions.DependencyInjection;
 using NUnit.Framework;
@@ -19,5 +20,15 @@ public sealed class OperatingSystemCapabilityTests
 
         Assert.That(implementation.Capabilities, Does.Contain(StandardCapabilities.SystemWrite));
         Assert.That(implementation.Capabilities, Does.Not.Contain(StandardCapabilities.SystemRead));
+    }
+
+    [TestCase(" ")]
+    [TestCase("\t")]
+    public void Empty_environment_variable_names_are_rejected_during_binding(string name)
+    {
+        using ServiceProvider host = FluNetHost.Create();
+        CheckResult result = host.GetRequiredService<ClassicEngine>().Check($"GET ENV {{{name}}} INTO [value].");
+
+        Assert.That(result.Success, Is.False);
     }
 }
