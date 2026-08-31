@@ -41,7 +41,8 @@ public sealed class ExecutionObserverTests
         RuntimeResult result = await host.GetRequiredService<ClassicEngine>().RunAsync("FOR EACH [item] IN [items], PARALLEL 4, DO\nCHECK IF true.\nEND FOR.", state);
 
         Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics.Select(x => x.Message)));
-        Assert.That(result.Trace!.Select(x => x.Sequence).Distinct().Count(), Is.EqualTo(result.Trace.Count));
+        IReadOnlyList<ExecutionTraceEntry> trace = result.Trace ?? Array.Empty<ExecutionTraceEntry>();
+        Assert.That(trace.Select(x => x.Sequence).Distinct().Count(), Is.EqualTo(trace.Count));
         Assert.That(observer.Events.Select(x => x.Sequence).Distinct().Count(), Is.EqualTo(observer.Events.Count));
     }
 

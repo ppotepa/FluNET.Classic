@@ -9,16 +9,35 @@ public enum HttpJsonRepresentation
     JSON
 }
 
-public sealed record HttpEndpoint(Uri Uri)
+public sealed record HttpEndpoint
 {
+    public HttpEndpoint(Uri uri)
+    {
+        Uri = Validate(uri);
+    }
+
     public HttpEndpoint(string value) : this(Parse(value)) { }
+
+    public Uri Uri
+    {
+        get;
+    }
+
     public override string ToString() => Uri.ToString();
 
     private static Uri Parse(string value)
     {
         Uri uri = new(value, UriKind.Absolute);
-        if (!uri.Scheme.Equals(Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase)
+        return Validate(uri);
+    }
+
+    private static Uri Validate(Uri uri)
+    {
+        ArgumentNullException.ThrowIfNull(uri);
+        if (!uri.IsAbsoluteUri
+            || (!uri.Scheme.Equals(Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase)
             && !uri.Scheme.Equals(Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
+            )
             throw new FormatException("HTTP endpoint must be an absolute HTTP or HTTPS URI.");
         return uri;
     }
