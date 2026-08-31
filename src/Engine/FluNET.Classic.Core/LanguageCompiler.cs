@@ -33,6 +33,7 @@ public sealed class LanguageCompiler
             .ToArray();
         ValidateNames(verbs, diagnostics);
         ValidatePatterns(implementations, diagnostics);
+        foreach (LanguageDiagnostic diagnostic in LanguageSurfaceValidation.Validate(implementations)) diagnostics.Add(diagnostic);
 
         QualifierDescriptor[] qualifierArray = StandardQualifiers.All.Concat(moduleArray.SelectMany(x => x.Qualifiers)).Concat(qualifiers ?? Array.Empty<QualifierDescriptor>()).GroupBy(x => x.Name, StringComparer.OrdinalIgnoreCase).Select(x => x.Last()).ToArray();
         PredicateDescriptor[] predicateArray = StandardLanguageSurface.Predicates.Concat(moduleArray.SelectMany(x => x.Predicates)).Concat(predicates ?? Array.Empty<PredicateDescriptor>()).GroupBy(x => x.Name, StringComparer.OrdinalIgnoreCase).Select(x => x.Last()).ToArray();
