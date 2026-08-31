@@ -37,7 +37,7 @@ public sealed class LanguageCompiler
         foreach (LanguageDiagnostic diagnostic in LanguageSurfaceValidation.Validate(implementations))
             diagnostics.Add(diagnostic);
 
-        QualifierDescriptor[] qualifierArray = StandardQualifiers.All.Concat(moduleArray.SelectMany(x => x.Qualifiers)).Concat(qualifiers ?? Array.Empty<QualifierDescriptor>()).GroupBy(x => x.Name, StringComparer.OrdinalIgnoreCase).Select(x => x.Last()).ToArray();
+        QualifierDescriptor[] qualifierArray = MergeQualifiers(StandardQualifiers.All.Concat(moduleArray.SelectMany(x => x.Qualifiers)).Concat(qualifiers ?? Array.Empty<QualifierDescriptor>()));
         PredicateDescriptor[] predicateArray = StandardLanguageSurface.Predicates.Concat(moduleArray.SelectMany(x => x.Predicates)).Concat(predicates ?? Array.Empty<PredicateDescriptor>()).GroupBy(x => x.Name, StringComparer.OrdinalIgnoreCase).Select(x => x.Last()).ToArray();
         OperatorDescriptor[] operatorArray = StandardLanguageSurface.Operators.Concat(moduleArray.SelectMany(x => x.Operators)).Concat(operators ?? Array.Empty<OperatorDescriptor>()).GroupBy(x => x.Name, StringComparer.OrdinalIgnoreCase).Select(x => x.Last()).ToArray();
         IntrinsicDescriptor[] intrinsicArray = moduleArray.SelectMany(x => x.Intrinsics).Concat(intrinsics ?? Array.Empty<IntrinsicDescriptor>()).GroupBy(x => x.Name, StringComparer.OrdinalIgnoreCase).Select(x => x.Last()).ToArray();
@@ -249,6 +249,18 @@ public sealed class LanguageCompiler
         if (typeof(IGet).IsAssignableFrom(type) || ImplementsGeneric(type, typeof(IQuery<>)) || typeof(ILoad).IsAssignableFrom(type) || typeof(IDownload).IsAssignableFrom(type))
             yield return ExecutionTrait.Retryable;
     }
+
+    private static QualifierDescriptor[] MergeQualifiers(IEnumerable<QualifierDescriptor> qualifiers) => qualifiers
+        .GroupBy(qualifier => qualifier.Name, StringComparer.OrdinalIgnoreCase)
+        .Select(group =>
+        {
+            QualifierDescriptor[] entries = group.OrderBy(qualifier => qualifier.StableId, StringComparer.Ordinal).ToArray();
+            Type? targetType = entries.Select(qualifier => qualifier.TargetType).Distinct().Count() == 1 ? entries[0].TargetType : null;
+            string[] aliases = entries.SelectMany(qualifier => qualifier.AllAliases).Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(alias => alias, StringComparer.OrdinalIgnoreCase).ToArray();
+            return new QualifierDescriptor(entries[0].StableId, entries[0].Name, targetType, aliases);
+        })
+        .OrderBy(qualifier => qualifier.Name, StringComparer.OrdinalIgnoreCase)
+        .ToArray();
 
     private static bool ConflictsWithExplicitTrait(ExecutionTrait inferred, IReadOnlyCollection<ExecutionTrait> explicitTraits) =>
         (inferred == ExecutionTrait.Pure && explicitTraits.Contains(ExecutionTrait.SideEffecting))
