@@ -19,7 +19,43 @@ public sealed record HashValue(byte[] Bytes, HashAlgorithmKind Algorithm) : IVal
 public sealed class CryptoModule : LanguageModule
 {
     public override string Name => "crypto";
-    public override IReadOnlyCollection<QualifierDescriptor> Qualifiers => new[] { new QualifierDescriptor("qualifier:hash", "HASH", typeof(HashValue)) };
+    public override IReadOnlyCollection<QualifierDescriptor> Qualifiers => new QualifierDescriptor[]
+    {
+        new("qualifier:hash", "HASH", typeof(HashValue)),
+        new("qualifier:hash-bytes", "BYTES", typeof(byte[])),
+        new("qualifier:hash-algorithm", "ALGORITHM", typeof(HashAlgorithmKind)),
+        new("qualifier:hash-valid", "VALID", typeof(bool))
+    };
+}
+
+[Verb("GET")]
+[Qualifier("BYTES")]
+[ExecutionTrait(ExecutionTrait.Pure)]
+public sealed class GetHashBytes : Get<byte[], HashValue>
+{
+    public GetHashBytes([From] HashValue from) : base(from) { }
+
+    protected override ValueTask<byte[]> ActAsync(HashValue from, CancellationToken cancellationToken) => ValueTask.FromResult(from.Bytes);
+}
+
+[Verb("GET")]
+[Qualifier("ALGORITHM")]
+[ExecutionTrait(ExecutionTrait.Pure)]
+public sealed class GetHashAlgorithm : Get<HashAlgorithmKind, HashValue>
+{
+    public GetHashAlgorithm([From] HashValue from) : base(from) { }
+
+    protected override ValueTask<HashAlgorithmKind> ActAsync(HashValue from, CancellationToken cancellationToken) => ValueTask.FromResult(from.Algorithm);
+}
+
+[Verb("GET")]
+[Qualifier("VALID")]
+[ExecutionTrait(ExecutionTrait.Pure)]
+public sealed class GetHashValidity : Get<bool, HashValue>
+{
+    public GetHashValidity([From] HashValue from) : base(from) { }
+
+    protected override ValueTask<bool> ActAsync(HashValue from, CancellationToken cancellationToken) => ValueTask.FromResult(from.IsValid);
 }
 
 [Verb("TRANSFORM")]

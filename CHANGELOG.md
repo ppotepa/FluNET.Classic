@@ -56,6 +56,7 @@ The format follows the spirit of [Keep a Changelog](https://keepachangelog.com/e
 - Module discovery is now deterministic and returns an immutable snapshot.
 - Module graph validation is now deterministic and returns an immutable diagnostic snapshot.
 - Identity principals now expose typed name, authentication, and claims projections.
+- Hash values now expose typed byte, algorithm, and validity projections.
 - Explicit qualifier surfaces no longer match unrelated verbs solely because their result types happen to be equal.
 - Typed HTTP status and ETag values now reject invalid CLR construction inputs.
 - HTTP responses and statuses now expose typed `CODE`, `REASON`, and `CONTENTTYPE` projections.
