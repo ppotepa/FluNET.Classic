@@ -62,10 +62,10 @@ public sealed class GetJsonTextAtPath : IVerb<string?>, IGet, IFrom<JsonNode>, I
 [Verb("LIST")]
 [Qualifier("PROPERTIES")]
 [ExecutionTrait(ExecutionTrait.Pure)]
-public sealed class ListJsonProperties : IVerb<JsonProperty[]>, IListVerb, IWhat<JsonProperty[]>, IFrom<JsonNode>, IPipelineConsumer<JsonNode>, IPipelineProducer<JsonProperty[]>
+public sealed class ListJsonProperties : IVerb<JsonProperty[]>, IListVerb, IFrom<JsonNode>, IPipelineConsumer<JsonNode>, IPipelineProducer<JsonProperty[]>
 {
     private readonly JsonNode _node;
-    public ListJsonProperties([What] JsonProperty[] what, [From] JsonNode node) => _node = node;
+    public ListJsonProperties([From] JsonNode node) => _node = node;
     public ValueTask<JsonProperty[]> ExecuteAsync(VerbExecutionContext context, CancellationToken cancellationToken = default)
     {
         JsonProperty[] result = _node is JsonObject obj ? obj.Select(x => new JsonProperty(x.Key, x.Value)).ToArray() : Array.Empty<JsonProperty>();
@@ -76,10 +76,10 @@ public sealed class ListJsonProperties : IVerb<JsonProperty[]>, IListVerb, IWhat
 [Verb("LIST")]
 [Qualifier("ITEMS")]
 [ExecutionTrait(ExecutionTrait.Pure)]
-public sealed class ListJsonItems : IVerb<JsonItem[]>, IListVerb, IWhat<JsonItem[]>, IFrom<JsonNode>, IPipelineConsumer<JsonNode>, IPipelineProducer<JsonItem[]>
+public sealed class ListJsonItems : IVerb<JsonItem[]>, IListVerb, IFrom<JsonNode>, IPipelineConsumer<JsonNode>, IPipelineProducer<JsonItem[]>
 {
     private readonly JsonNode _node;
-    public ListJsonItems([What] JsonItem[] what, [From] JsonNode node) => _node = node;
+    public ListJsonItems([From] JsonNode node) => _node = node;
     public ValueTask<JsonItem[]> ExecuteAsync(VerbExecutionContext context, CancellationToken cancellationToken = default)
     {
         JsonItem[] result = _node is JsonArray array ? array.Select((value, index) => new JsonItem(index, value)).ToArray() : Array.Empty<JsonItem>();

@@ -16,9 +16,9 @@ public abstract class Get<TResult, TFrom> : IVerb<TResult>, IGet, IFrom<TFrom>, 
 }
 
 [Verb("LOAD")]
-public abstract class Load<TResult, TFrom> : IVerb<TResult>, ILoad, IWhat<TResult>, IFrom<TFrom>, IPipelineProducer<TResult>
+public abstract class Load<TResult, TFrom> : IVerb<TResult>, ILoad, IFrom<TFrom>, IPipelineProducer<TResult>
 {
-    protected Load(TResult what, TFrom from) => From = from;
+    protected Load(TFrom from) => From = from;
     protected TFrom From
     {
         get;

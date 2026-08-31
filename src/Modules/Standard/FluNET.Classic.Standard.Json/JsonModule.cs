@@ -22,7 +22,7 @@ public sealed class JsonModule : LanguageModule
 [Qualifier("JSON")]
 public sealed class LoadJson : Load<JsonNode, FileInfo>
 {
-    public LoadJson([What] JsonNode what, [From] FileInfo from) : base(what, from) { }
+    public LoadJson([From] FileInfo from) : base(from) { }
     protected override async ValueTask<JsonNode> ActAsync(FileInfo from, CancellationToken cancellationToken)
     {
         string text = await File.ReadAllTextAsync(from.FullName, cancellationToken).ConfigureAwait(false);

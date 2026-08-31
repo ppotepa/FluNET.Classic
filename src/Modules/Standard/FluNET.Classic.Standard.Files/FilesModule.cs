@@ -91,7 +91,7 @@ public sealed class GetFileMetadata : Get<FileMetadata, FileInfo>
 [Qualifier("TEXT")]
 public sealed class LoadText : Load<string[], FileInfo>
 {
-    public LoadText([What] string[] what, [From] FileInfo from) : base(what, from) { }
+    public LoadText([From] FileInfo from) : base(from) { }
     protected override async ValueTask<string[]> ActAsync(FileInfo from, CancellationToken cancellationToken) => await File.ReadAllLinesAsync(from.FullName, cancellationToken).ConfigureAwait(false);
 }
 

@@ -160,12 +160,12 @@ public sealed class GetHttpJson : Get<JsonNode, HttpResponse>
 [Verb("DOWNLOAD")]
 [Qualifier("BINARY")]
 [ExecutionTrait(ExecutionTrait.LongRunning)]
-public sealed class DownloadFile : IVerb<byte[]>, IDownload, IWhat<byte[]>, IFrom<HttpEndpoint>, ITo<FileInfo>
+public sealed class DownloadFile : IVerb<byte[]>, IDownload, IFrom<HttpEndpoint>, ITo<FileInfo>
 {
     private readonly HttpEndpoint _from;
     private readonly FileInfo? _to;
     private readonly HttpClient _client;
-    public DownloadFile([What] byte[] what, [From] HttpEndpoint from, [To] FileInfo? to = null, [FromServices] HttpClient client = null!)
+    public DownloadFile([From] HttpEndpoint from, [To] FileInfo? to = null, [FromServices] HttpClient client = null!)
     {
         _from = from;
         _to = to;
