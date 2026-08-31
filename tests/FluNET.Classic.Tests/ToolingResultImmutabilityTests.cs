@@ -39,4 +39,24 @@ public sealed class ToolingResultImmutabilityTests
 
         Assert.That(help.Signatures, Has.Count.EqualTo(1));
     }
+
+    [Test]
+    public void Execution_plan_snapshots_top_level_collections()
+    {
+        var diagnostics = new List<ExecutionPlanDiagnostic>
+        {
+            new("test", "TEST", "message")
+        };
+        var plan = new ExecutionPlan(
+            false,
+            diagnostics,
+            new List<ExecutionPlanStep>(),
+            new List<string> { "test.capability" },
+            new List<ExecutionTrait> { ExecutionTrait.Pure },
+            null);
+
+        diagnostics.Clear();
+
+        Assert.That(plan.Diagnostics, Has.Count.EqualTo(1));
+    }
 }

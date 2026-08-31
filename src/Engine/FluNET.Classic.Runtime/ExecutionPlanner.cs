@@ -22,7 +22,54 @@ public sealed record ExecutionPlanRole(
     bool Sensitive = false,
     string? Projection = null);
 public sealed record ExecutionPlanStep(string Kind, string? Verb, string? Implementation, string? Pattern, string? ResultType, string? ResultAlias, int? BindingCost, string? ExecutionMode, IReadOnlyList<string> Capabilities, IReadOnlyList<ExecutionTrait> Traits, IReadOnlyList<ExecutionPlanRole> Roles, IReadOnlyList<ExecutionPlanStep> Children, bool Sensitive = false);
-public sealed record ExecutionPlan(bool Success, IReadOnlyList<ExecutionPlanDiagnostic> Diagnostics, IReadOnlyList<ExecutionPlanStep> Steps, IReadOnlyList<string> RequiredCapabilities, IReadOnlyList<ExecutionTrait> Traits, string? ResultType);
+public sealed record ExecutionPlan
+{
+    public bool Success
+    {
+        get;
+    }
+
+    public IReadOnlyList<ExecutionPlanDiagnostic> Diagnostics
+    {
+        get;
+    }
+
+    public IReadOnlyList<ExecutionPlanStep> Steps
+    {
+        get;
+    }
+
+    public IReadOnlyList<string> RequiredCapabilities
+    {
+        get;
+    }
+
+    public IReadOnlyList<ExecutionTrait> Traits
+    {
+        get;
+    }
+
+    public string? ResultType
+    {
+        get;
+    }
+
+    public ExecutionPlan(
+        bool Success,
+        IReadOnlyList<ExecutionPlanDiagnostic> Diagnostics,
+        IReadOnlyList<ExecutionPlanStep> Steps,
+        IReadOnlyList<string> RequiredCapabilities,
+        IReadOnlyList<ExecutionTrait> Traits,
+        string? ResultType)
+    {
+        this.Success = Success;
+        this.Diagnostics = (Diagnostics ?? throw new ArgumentNullException(nameof(Diagnostics))).ToArray();
+        this.Steps = (Steps ?? throw new ArgumentNullException(nameof(Steps))).ToArray();
+        this.RequiredCapabilities = (RequiredCapabilities ?? throw new ArgumentNullException(nameof(RequiredCapabilities))).ToArray();
+        this.Traits = (Traits ?? throw new ArgumentNullException(nameof(Traits))).ToArray();
+        this.ResultType = ResultType;
+    }
+}
 
 public sealed class ExecutionPlanner
 {
