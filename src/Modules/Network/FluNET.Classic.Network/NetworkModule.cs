@@ -21,7 +21,66 @@ public sealed record ConnectivityResult(NetworkEndpoint Endpoint, bool Connected
 public sealed class NetworkModule : LanguageModule
 {
     public override string Name => "network";
-    public override IReadOnlyCollection<QualifierDescriptor> Qualifiers => new QualifierDescriptor[] { new("qualifier:addresses", "ADDRESSES", typeof(IPAddress[])), new("qualifier:connectivity", "CONNECTIVITY", typeof(ConnectivityResult)) };
+    public override IReadOnlyCollection<QualifierDescriptor> Qualifiers => new QualifierDescriptor[]
+    {
+        new("qualifier:addresses", "ADDRESSES", typeof(IPAddress[])),
+        new("qualifier:connectivity", "CONNECTIVITY", typeof(ConnectivityResult)),
+        new("qualifier:connected", "CONNECTED", typeof(bool)),
+        new("qualifier:connectivity-duration", "DURATION", typeof(TimeSpan)),
+        new("qualifier:endpoint", "ENDPOINT", typeof(NetworkEndpoint)),
+        new("qualifier:host", "HOST", typeof(DnsName)),
+        new("qualifier:port", "PORT", typeof(NetworkPort))
+    };
+}
+
+[Verb("GET")]
+[Qualifier("CONNECTED")]
+[ExecutionTrait(ExecutionTrait.Pure)]
+public sealed class GetConnectivityState : Get<bool, ConnectivityResult>
+{
+    public GetConnectivityState([From] ConnectivityResult from) : base(from) { }
+
+    protected override ValueTask<bool> ActAsync(ConnectivityResult from, CancellationToken cancellationToken) => ValueTask.FromResult(from.Connected);
+}
+
+[Verb("GET")]
+[Qualifier("DURATION")]
+[ExecutionTrait(ExecutionTrait.Pure)]
+public sealed class GetConnectivityDuration : Get<TimeSpan, ConnectivityResult>
+{
+    public GetConnectivityDuration([From] ConnectivityResult from) : base(from) { }
+
+    protected override ValueTask<TimeSpan> ActAsync(ConnectivityResult from, CancellationToken cancellationToken) => ValueTask.FromResult(from.Duration);
+}
+
+[Verb("GET")]
+[Qualifier("ENDPOINT")]
+[ExecutionTrait(ExecutionTrait.Pure)]
+public sealed class GetConnectivityEndpoint : Get<NetworkEndpoint, ConnectivityResult>
+{
+    public GetConnectivityEndpoint([From] ConnectivityResult from) : base(from) { }
+
+    protected override ValueTask<NetworkEndpoint> ActAsync(ConnectivityResult from, CancellationToken cancellationToken) => ValueTask.FromResult(from.Endpoint);
+}
+
+[Verb("GET")]
+[Qualifier("HOST")]
+[ExecutionTrait(ExecutionTrait.Pure)]
+public sealed class GetEndpointHost : Get<DnsName, NetworkEndpoint>
+{
+    public GetEndpointHost([From] NetworkEndpoint from) : base(from) { }
+
+    protected override ValueTask<DnsName> ActAsync(NetworkEndpoint from, CancellationToken cancellationToken) => ValueTask.FromResult(from.Host);
+}
+
+[Verb("GET")]
+[Qualifier("PORT")]
+[ExecutionTrait(ExecutionTrait.Pure)]
+public sealed class GetEndpointPort : Get<NetworkPort, NetworkEndpoint>
+{
+    public GetEndpointPort([From] NetworkEndpoint from) : base(from) { }
+
+    protected override ValueTask<NetworkPort> ActAsync(NetworkEndpoint from, CancellationToken cancellationToken) => ValueTask.FromResult(from.Port);
 }
 
 [Verb("GET")]
