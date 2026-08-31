@@ -21,6 +21,20 @@ public sealed class ExecutionPolicy
         get; set;
     }
 
+    public void Validate()
+    {
+        if (RetryAttempts < 1)
+            throw new ArgumentOutOfRangeException(nameof(RetryAttempts), RetryAttempts, "RetryAttempts must be at least 1.");
+        if (RetryDelay < TimeSpan.Zero)
+            throw new ArgumentOutOfRangeException(nameof(RetryDelay), RetryDelay, "RetryDelay cannot be negative.");
+        if (DefaultTimeout is { } defaultTimeout && defaultTimeout <= TimeSpan.Zero)
+            throw new ArgumentOutOfRangeException(nameof(DefaultTimeout), DefaultTimeout, "DefaultTimeout must be greater than zero.");
+        if (LongRunningTimeout is { } longRunningTimeout && longRunningTimeout <= TimeSpan.Zero)
+            throw new ArgumentOutOfRangeException(nameof(LongRunningTimeout), LongRunningTimeout, "LongRunningTimeout must be greater than zero.");
+        if (MaxParallelism < 1)
+            throw new ArgumentOutOfRangeException(nameof(MaxParallelism), MaxParallelism, "MaxParallelism must be at least 1.");
+    }
+
     public int AttemptsFor(IReadOnlyList<ExecutionTrait> traits) => traits.Contains(ExecutionTrait.Retryable) ? Math.Max(1, RetryAttempts) : 1;
     public TimeSpan? TimeoutFor(IReadOnlyList<ExecutionTrait> traits) => traits.Contains(ExecutionTrait.LongRunning) ? LongRunningTimeout ?? DefaultTimeout : DefaultTimeout;
 }
