@@ -68,6 +68,7 @@ The format follows the spirit of [Keep a Changelog](https://keepachangelog.com/e
 - Predicate evaluator registration now supports priorities and stable IDs; equal-priority matches fail explicitly instead of depending on registration order.
 - Architecture and packaging audits now verify the document service/LSP boundary and exclude test-only projects from release output.
 - The SDK public-surface contract now explicitly excludes Syntax and Runtime implementation types from exported signatures and is enforced by reflection-based tests.
+- NuGet packages now share explicit product description, tags, license-acceptance, and README metadata; the SDK adds its module-authoring-specific description.
 - Explicit qualifier surfaces no longer match unrelated verbs solely because their result types happen to be equal.
 - Typed HTTP status and ETag values now reject invalid CLR construction inputs.
 - HTTP responses and statuses now expose typed `CODE`, `REASON`, and `CONTENTTYPE` projections.

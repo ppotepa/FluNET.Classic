@@ -6,6 +6,7 @@
     <LangVersion>latest</LangVersion>
     <RootNamespace>FluNET.Classic.SDK</RootNamespace>
     <AssemblyName>FluNET.Classic.SDK</AssemblyName>
+    <PackageDescription>SDK for authoring, validating, and documenting FluNET.Classic language modules.</PackageDescription>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../../Engine/FluNET.Classic.Core/FluNET.Classic.Core.csproj" />

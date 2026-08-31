@@ -10,6 +10,9 @@
     <RepositoryType>git</RepositoryType>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageDescription>Typed, sentence-oriented scripting language and runtime for .NET.</PackageDescription>
+    <PackageTags>flunet;language;scripting;dotnet;controlled-language</PackageTags>
+    <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
     <VersionPrefix>0.2.0</VersionPrefix>
     <VersionSuffix>alpha.2</VersionSuffix>
   </PropertyGroup>
