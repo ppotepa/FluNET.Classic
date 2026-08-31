@@ -118,7 +118,7 @@ public sealed class ListFiles : IVerb<FileInfo[]>, IListVerb, IIn<DirectoryInfo>
 {
     private readonly DirectoryInfo _directory;
     private readonly FilePattern? _pattern;
-    public ListFiles([In, RoleAlias("FROM")] DirectoryInfo directory, [With] FilePattern? pattern = null) { _directory = directory; _pattern = pattern; }
+    public ListFiles([In] DirectoryInfo directory, [With] FilePattern? pattern = null) { _directory = directory; _pattern = pattern; }
     public ValueTask<FileInfo[]> ExecuteAsync(VerbExecutionContext context, CancellationToken cancellationToken = default) =>
         ValueTask.FromResult(_directory.Exists ? _directory.GetFiles(_pattern?.Pattern ?? "*") : Array.Empty<FileInfo>());
 }
@@ -176,7 +176,7 @@ public sealed class MoveFile : IVerb<FileInfo>, IMove, IWhat<FileInfo>, ITo<File
 [ExecutionTrait(ExecutionTrait.Idempotent)]
 public sealed class DeleteFile : Delete<FileInfo>, IAt<FileInfo>
 {
-    public DeleteFile([At, RoleAlias("FROM")] FileInfo at) : base(at) { }
+    public DeleteFile([At] FileInfo at) : base(at) { }
     protected override ValueTask<bool> DeleteAsync(FileInfo from, CancellationToken cancellationToken)
     {
         bool existed = from.Exists;

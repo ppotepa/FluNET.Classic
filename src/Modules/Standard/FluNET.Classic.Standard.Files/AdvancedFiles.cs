@@ -9,7 +9,7 @@ public enum FileWriteMode { OVERWRITE, APPEND, ATOMIC }
 public sealed class ListFilesScoped : IVerb<FileInfo[]>, IListVerb, IIn<DirectoryInfo>, IUsing<SearchScope>, IWith<FilePattern>, IPipelineProducer<FileInfo[]>
 {
     private readonly DirectoryInfo _directory; private readonly SearchScope _scope; private readonly FilePattern? _pattern;
-    public ListFilesScoped([In, RoleAlias("FROM")] DirectoryInfo directory, [Using] SearchScope scope, [With] FilePattern? pattern = null) { _directory = directory; _scope = scope; _pattern = pattern; }
+    public ListFilesScoped([In] DirectoryInfo directory, [Using] SearchScope scope, [With] FilePattern? pattern = null) { _directory = directory; _scope = scope; _pattern = pattern; }
     public ValueTask<FileInfo[]> ExecuteAsync(VerbExecutionContext context, CancellationToken cancellationToken = default) => ValueTask.FromResult(_directory.Exists ? _directory.GetFiles(_pattern?.Pattern ?? "*", _scope == SearchScope.RECURSIVE ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly) : Array.Empty<FileInfo>());
 }
 
@@ -17,7 +17,7 @@ public sealed class ListFilesScoped : IVerb<FileInfo[]>, IListVerb, IIn<Director
 public sealed class ListDirectories : IVerb<DirectoryInfo[]>, IListVerb, IIn<DirectoryInfo>, IUsing<SearchScope>, IPipelineProducer<DirectoryInfo[]>
 {
     private readonly DirectoryInfo _directory; private readonly SearchScope _scope;
-    public ListDirectories([In, RoleAlias("FROM")] DirectoryInfo directory, [Using] SearchScope scope) { _directory = directory; _scope = scope; }
+    public ListDirectories([In] DirectoryInfo directory, [Using] SearchScope scope) { _directory = directory; _scope = scope; }
     public ValueTask<DirectoryInfo[]> ExecuteAsync(VerbExecutionContext context, CancellationToken cancellationToken = default) => ValueTask.FromResult(_directory.Exists ? _directory.GetDirectories("*", _scope == SearchScope.RECURSIVE ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly) : Array.Empty<DirectoryInfo>());
 }
 
@@ -65,6 +65,6 @@ public sealed class MoveDirectory : IVerb<DirectoryInfo>, IMove, IWhat<Directory
 [Verb("DELETE"), Qualifier("DIRECTORY"), RequiresCapability(StandardCapabilities.FileSystemWrite), ExecutionTrait(ExecutionTrait.SideEffecting)]
 public sealed class DeleteDirectory : IVerb<bool>, IDelete, IAt<DirectoryInfo>, IPipelineProducer<bool>
 {
-    private readonly DirectoryInfo _directory; public DeleteDirectory([At, RoleAlias("FROM")] DirectoryInfo directory) => _directory = directory;
+    private readonly DirectoryInfo _directory; public DeleteDirectory([At] DirectoryInfo directory) => _directory = directory;
     public ValueTask<bool> ExecuteAsync(VerbExecutionContext context, CancellationToken cancellationToken = default) { bool existed = _directory.Exists; if (existed) _directory.Delete(true); return ValueTask.FromResult(existed); }
 }

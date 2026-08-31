@@ -54,13 +54,14 @@ public sealed class HttpModule : LanguageModule
 }
 
 [Qualifier("JSON")]
-public sealed class GetJsonHttp : Get<JsonNode, Uri>, IAs<HttpJsonRepresentation>
+[RequiresCapability(StandardCapabilities.NetworkHttp)]
+public sealed class GetJsonHttp : Get<JsonNode, HttpEndpoint>, IAs<HttpJsonRepresentation>
 {
     private readonly HttpClient _client;
-    public GetJsonHttp([What] JsonNode what, [From, RoleAlias("AT")] Uri from, [As] HttpJsonRepresentation @as = HttpJsonRepresentation.JSON, [FromServices] HttpClient client = null!) : base(what, from) => _client = client;
-    protected override async ValueTask<JsonNode> ActAsync(Uri from, CancellationToken cancellationToken)
+    public GetJsonHttp([What] JsonNode what, [From, RoleAlias("AT")] HttpEndpoint from, [As] HttpJsonRepresentation @as = HttpJsonRepresentation.JSON, [FromServices] HttpClient client = null!) : base(what, from) => _client = client;
+    protected override async ValueTask<JsonNode> ActAsync(HttpEndpoint from, CancellationToken cancellationToken)
     {
-        string text = await _client.GetStringAsync(from, cancellationToken).ConfigureAwait(false);
+        string text = await _client.GetStringAsync(from.Uri, cancellationToken).ConfigureAwait(false);
         return JsonNode.Parse(text) ?? new JsonObject();
     }
 }
@@ -122,15 +123,15 @@ public sealed class GetHttpJson : Get<JsonNode, HttpResponse>
 [Verb("DOWNLOAD")]
 [Qualifier("BINARY")]
 [ExecutionTrait(ExecutionTrait.LongRunning)]
-public sealed class DownloadFile : IVerb<byte[]>, IDownload, IWhat<byte[]>, IFrom<Uri>, ITo<FileInfo>
+public sealed class DownloadFile : IVerb<byte[]>, IDownload, IWhat<byte[]>, IFrom<HttpEndpoint>, ITo<FileInfo>
 {
-    private readonly Uri _from;
+    private readonly HttpEndpoint _from;
     private readonly FileInfo? _to;
     private readonly HttpClient _client;
-    public DownloadFile([What] byte[] what, [From] Uri from, [To] FileInfo? to = null, [FromServices] HttpClient client = null!) { _from = from; _to = to; _client = client; }
+    public DownloadFile([What] byte[] what, [From] HttpEndpoint from, [To] FileInfo? to = null, [FromServices] HttpClient client = null!) { _from = from; _to = to; _client = client; }
     public async ValueTask<byte[]> ExecuteAsync(VerbExecutionContext context, CancellationToken cancellationToken = default)
     {
-        byte[] data = await _client.GetByteArrayAsync(_from, cancellationToken).ConfigureAwait(false);
+        byte[] data = await _client.GetByteArrayAsync(_from.Uri, cancellationToken).ConfigureAwait(false);
         if (_to is not null) await File.WriteAllBytesAsync(_to.FullName, data, cancellationToken).ConfigureAwait(false);
         return data;
     }
@@ -139,16 +140,16 @@ public sealed class DownloadFile : IVerb<byte[]>, IDownload, IWhat<byte[]>, IFro
 [Verb("POST")]
 [Qualifier("JSON")]
 [RequiresCapability(StandardCapabilities.Network)]
-public sealed class PostJson : IVerb<JsonNode>, IPost, IWhat<JsonNode>, ITo<Uri>
+public sealed class PostJson : IVerb<JsonNode>, IPost, IWhat<JsonNode>, ITo<HttpEndpoint>
 {
     private readonly JsonNode _body;
-    private readonly Uri _to;
+    private readonly HttpEndpoint _to;
     private readonly HttpClient _client;
-    public PostJson([What] JsonNode body, [To] Uri to, [FromServices] HttpClient client) { _body = body; _to = to; _client = client; }
+    public PostJson([What] JsonNode body, [To] HttpEndpoint to, [FromServices] HttpClient client) { _body = body; _to = to; _client = client; }
     public async ValueTask<JsonNode> ExecuteAsync(VerbExecutionContext context, CancellationToken cancellationToken = default)
     {
         using var content = new StringContent(_body.ToJsonString(), Encoding.UTF8, "application/json");
-        using HttpResponseMessage response = await _client.PostAsync(_to, content, cancellationToken).ConfigureAwait(false);
+        using HttpResponseMessage response = await _client.PostAsync(_to.Uri, content, cancellationToken).ConfigureAwait(false);
         response.EnsureSuccessStatusCode();
         string text = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
         return JsonNode.Parse(text) ?? new JsonObject { ["status"] = (int)response.StatusCode };

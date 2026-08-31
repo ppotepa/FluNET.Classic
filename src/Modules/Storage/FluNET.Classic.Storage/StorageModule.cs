@@ -48,7 +48,7 @@ public sealed class SaveStorageBinary : IVerb<byte[]>, ISave, IWhat<byte[]>, ITo
 public sealed class DeleteStorageObject : IVerb<bool>, IDelete, IAt<StorageKey>, IPipelineProducer<bool>
 {
     private readonly StorageKey _key; private readonly IStorageProvider _provider;
-    public DeleteStorageObject([At, RoleAlias("FROM")] StorageKey key, [FromServices] IStorageProvider provider) { _key = key; _provider = provider; }
+    public DeleteStorageObject([At] StorageKey key, [FromServices] IStorageProvider provider) { _key = key; _provider = provider; }
     public ValueTask<bool> ExecuteAsync(VerbExecutionContext context, CancellationToken cancellationToken = default) => _provider.DeleteAsync(_key, cancellationToken);
 }
 
@@ -56,7 +56,7 @@ public sealed class DeleteStorageObject : IVerb<bool>, IDelete, IAt<StorageKey>,
 public sealed class ListStorageObjects : IVerb<StorageObject[]>, IListVerb, IIn<StorageContainer>, IPipelineProducer<StorageObject[]>
 {
     private readonly StorageContainer _container; private readonly IStorageProvider _provider;
-    public ListStorageObjects([In, RoleAlias("FROM")] StorageContainer container, [FromServices] IStorageProvider provider) { _container = container; _provider = provider; }
+    public ListStorageObjects([In] StorageContainer container, [FromServices] IStorageProvider provider) { _container = container; _provider = provider; }
     public async ValueTask<StorageObject[]> ExecuteAsync(VerbExecutionContext context, CancellationToken cancellationToken = default) => (await _provider.ListAsync(_container, cancellationToken).ConfigureAwait(false)).ToArray();
 }
 

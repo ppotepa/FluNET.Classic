@@ -15,7 +15,7 @@ public sealed record DirectoryMetadata(
 public sealed class CreateDirectory : IVerb<DirectoryInfo>, ICreate, IAt<DirectoryInfo>, IPipelineProducer<DirectoryInfo>
 {
     private readonly DirectoryInfo _directory;
-    public CreateDirectory([At, RoleAlias("TO")] DirectoryInfo directory) => _directory = directory;
+    public CreateDirectory([At] DirectoryInfo directory) => _directory = directory;
     public ValueTask<DirectoryInfo> ExecuteAsync(VerbExecutionContext context, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
