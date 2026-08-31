@@ -679,7 +679,9 @@ public sealed class BoundExecutor
         throw new InvalidOperationException($"Output '{outputName}' projects index {index}, which is not available on {result.GetType().Name}.");
     }
 
-    private static object? Default(Type type) => type.IsValueType ? Activator.CreateInstance(type) : null;
+    private static object? Default(Type type) => type.IsArray
+        ? Array.CreateInstance(type.GetElementType()!, 0)
+        : type.IsValueType ? Activator.CreateInstance(type) : null;
     private static IEnumerable<string> CollectCapabilities(BoundScript script)
     {
         foreach (BoundStatement statement in script.Statements)

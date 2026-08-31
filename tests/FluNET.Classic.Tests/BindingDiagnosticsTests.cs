@@ -54,7 +54,7 @@ public class BindingDiagnosticsTests
         using ServiceProvider host = FluNetHost.Create();
         ClassicEngine engine = host.GetRequiredService<ClassicEngine>();
 
-        CheckResult result = engine.Check("RUN {dotnet} WITH \"--version\" WITH \"extra\".");
+        CheckResult result = engine.Check("RUN {dotnet} WITH [missing].");
 
         BindingDiagnostic diagnostic = result.Bound!.Diagnostics.Single(x => x.Code == "FLU-BIND-010");
         Assert.That(diagnostic.CandidateDetails, Is.Not.Null.And.Not.Empty);

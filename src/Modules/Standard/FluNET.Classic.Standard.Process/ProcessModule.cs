@@ -14,7 +14,7 @@ public sealed record CommandLine(string Value)
     public override string ToString() => Value;
 }
 
-public sealed record ProcessSpec(string FileName, string? Arguments = null, DirectoryInfo? WorkingDirectory = null, IReadOnlyDictionary<string, string?>? Environment = null, TimeSpan? Timeout = null)
+public sealed record ProcessSpec(string FileName, string? Arguments = null, DirectoryInfo? WorkingDirectory = null, IReadOnlyDictionary<string, string?>? Environment = null, TimeSpan? Timeout = null, IReadOnlyList<string>? ArgumentList = null)
 {
     public static bool TryParse(string value, out ProcessSpec? result)
     {
@@ -71,13 +71,19 @@ public sealed class ProcessModule : LanguageModule
 [ExecutionTrait(ExecutionTrait.Pure)]
 public sealed class CreateProcessSpec : IVerb<ProcessSpec>, ICreate, IFrom<string>, IWith<CommandLine>, IPipelineProducer<ProcessSpec>
 {
-    private readonly string _fileName; private readonly CommandLine? _arguments;
-    public CreateProcessSpec([From] string fileName, [With] CommandLine? arguments = null)
+    private readonly string _fileName;
+    private readonly CommandLine[] _arguments;
+
+    public CreateProcessSpec([From] string fileName, [With] params CommandLine[] arguments)
     {
         _fileName = fileName;
         _arguments = arguments;
     }
-    public ValueTask<ProcessSpec> ExecuteAsync(VerbExecutionContext context, CancellationToken cancellationToken = default) => ValueTask.FromResult(new ProcessSpec(_fileName, _arguments?.Value));
+    public ValueTask<ProcessSpec> ExecuteAsync(VerbExecutionContext context, CancellationToken cancellationToken = default) =>
+        ValueTask.FromResult(new ProcessSpec(
+            _fileName,
+            string.Join(" ", _arguments.Select(argument => argument.Value)),
+            ArgumentList: _arguments.Select(argument => argument.Value).ToArray()));
 }
 
 [Verb("RUN")]
@@ -86,9 +92,9 @@ public sealed class CreateProcessSpec : IVerb<ProcessSpec>, ICreate, IFrom<strin
 public sealed class RunProcess : IVerb<ProcessResult>, IRun, IWhat<ProcessSpec>, IWith<string>, IPipelineProducer<ProcessResult>
 {
     private readonly ProcessSpec _spec;
-    private readonly string? _arguments;
+    private readonly string[] _arguments;
 
-    public RunProcess([What] ProcessSpec spec, [With, RoleAlias("ARGUMENTS")] string? arguments = null)
+    public RunProcess([What] ProcessSpec spec, [With, RoleAlias("ARGUMENTS")] params string[] arguments)
     {
         _spec = spec;
         _arguments = arguments;
@@ -142,9 +148,15 @@ public sealed class RunProcess : IVerb<ProcessResult>, IRun, IWhat<ProcessSpec>,
             throw new ExecutionFailureException("FLU-PROC-002", $"Could not start executable '{fileName}'.");
         }
     }
-    internal static ProcessStartInfo BuildStartInfo(ProcessSpec spec, string? arguments, bool redirect)
+    internal static ProcessStartInfo BuildStartInfo(ProcessSpec spec, IReadOnlyList<string> arguments, bool redirect)
     {
-        var info = new ProcessStartInfo { FileName = spec.FileName, Arguments = arguments ?? spec.Arguments ?? string.Empty, UseShellExecute = false, RedirectStandardOutput = redirect, RedirectStandardError = redirect, CreateNoWindow = true };
+        var info = new ProcessStartInfo { FileName = spec.FileName, UseShellExecute = false, RedirectStandardOutput = redirect, RedirectStandardError = redirect, CreateNoWindow = true };
+        IReadOnlyList<string>? effectiveArguments = arguments.Count > 0 ? arguments : spec.ArgumentList;
+        if (effectiveArguments is { Count: > 0 })
+            foreach (string argument in effectiveArguments)
+                info.ArgumentList.Add(argument);
+        else
+            info.Arguments = spec.Arguments ?? string.Empty;
         if (spec.WorkingDirectory is not null)
             info.WorkingDirectory = spec.WorkingDirectory.FullName;
         if (spec.Environment is not null)
@@ -168,9 +180,9 @@ public sealed class RunBackgroundProcess : IVerb<ProcessHandle>, IRun, IWhat<Pro
 {
     private readonly ProcessSpec _spec;
     private readonly ProcessRunMode _mode;
-    private readonly string? _arguments;
+    private readonly string[] _arguments;
 
-    public RunBackgroundProcess([What] ProcessSpec spec, [Using] ProcessRunMode mode, [With, RoleAlias("ARGUMENTS")] string? arguments = null)
+    public RunBackgroundProcess([What] ProcessSpec spec, [Using] ProcessRunMode mode, [With, RoleAlias("ARGUMENTS")] params string[] arguments)
     {
         _spec = spec;
         _mode = mode;
