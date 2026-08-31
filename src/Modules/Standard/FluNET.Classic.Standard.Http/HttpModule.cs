@@ -108,6 +108,7 @@ public sealed class HttpModule : LanguageModule
         new("qualifier:http-response", "RESPONSE", typeof(HttpResponse)),
         new("qualifier:http-status", "STATUS", typeof(HttpStatus)),
         new("qualifier:http-headers", "HEADERS", typeof(HttpHeaders)),
+        new("qualifier:http-body", "BODY", typeof(byte[])),
         new("qualifier:http-etag", "ETAG", typeof(ETag))
     };
 }
@@ -162,6 +163,14 @@ public sealed class GetHttpHeaders : Get<HttpHeaders, HttpResponse>
 {
     public GetHttpHeaders([From] HttpResponse from) : base(from) { }
     protected override ValueTask<HttpHeaders> ActAsync(HttpResponse from, CancellationToken cancellationToken) => ValueTask.FromResult(from.Headers);
+}
+
+[Qualifier("BODY")]
+[ExecutionTrait(ExecutionTrait.Pure)]
+public sealed class GetHttpBody : Get<byte[], HttpResponse>
+{
+    public GetHttpBody([From] HttpResponse from) : base(from) { }
+    protected override ValueTask<byte[]> ActAsync(HttpResponse from, CancellationToken cancellationToken) => ValueTask.FromResult(from.Body);
 }
 
 [Qualifier("TEXT")]
