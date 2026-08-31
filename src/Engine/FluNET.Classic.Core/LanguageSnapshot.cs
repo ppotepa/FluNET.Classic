@@ -24,8 +24,14 @@ public sealed class LanguageSnapshot
         IEnumerable<OperatorDescriptor> operators,
         IEnumerable<IntrinsicDescriptor> intrinsics)
     {
+        VerbDescriptor[] frozenVerbs = verbs.Select(Freeze).ToArray();
+        QualifierDescriptor[] frozenQualifiers = qualifiers.Select(Freeze).ToArray();
+        ModuleDescriptor[] frozenModules = modules.Select(Freeze).ToArray();
+        PredicateDescriptor[] frozenPredicates = predicates.Select(Freeze).ToArray();
+        OperatorDescriptor[] frozenOperators = operators.Select(Freeze).ToArray();
+        IntrinsicDescriptor[] frozenIntrinsics = intrinsics.Select(Freeze).ToArray();
         Dictionary<string, VerbDescriptor> verbLookup = new(StringComparer.OrdinalIgnoreCase);
-        foreach (VerbDescriptor verb in verbs)
+        foreach (VerbDescriptor verb in frozenVerbs)
         {
             verbLookup.Add(verb.Name, verb);
             foreach (string alias in verb.Aliases)
@@ -33,7 +39,7 @@ public sealed class LanguageSnapshot
         }
 
         Dictionary<string, QualifierDescriptor> qualifierLookup = new(StringComparer.OrdinalIgnoreCase);
-        foreach (QualifierDescriptor qualifier in qualifiers)
+        foreach (QualifierDescriptor qualifier in frozenQualifiers)
         {
             qualifierLookup[qualifier.Name] = qualifier;
             foreach (string alias in qualifier.AllAliases)
@@ -42,16 +48,16 @@ public sealed class LanguageSnapshot
 
         _verbs = new ReadOnlyDictionary<string, VerbDescriptor>(verbLookup);
         _qualifiers = new ReadOnlyDictionary<string, QualifierDescriptor>(qualifierLookup);
-        _predicates = new ReadOnlyDictionary<string, PredicateDescriptor>(BuildSurfaceLookup(predicates, x => x.AllSurfaceNames));
-        _operators = new ReadOnlyDictionary<string, OperatorDescriptor>(BuildSurfaceLookup(operators, x => x.AllSurfaceNames));
-        _intrinsics = new ReadOnlyDictionary<string, IntrinsicDescriptor>(BuildSurfaceLookup(intrinsics, x => x.AllSurfaceNames));
+        _predicates = new ReadOnlyDictionary<string, PredicateDescriptor>(BuildSurfaceLookup(frozenPredicates, x => x.AllSurfaceNames));
+        _operators = new ReadOnlyDictionary<string, OperatorDescriptor>(BuildSurfaceLookup(frozenOperators, x => x.AllSurfaceNames));
+        _intrinsics = new ReadOnlyDictionary<string, IntrinsicDescriptor>(BuildSurfaceLookup(frozenIntrinsics, x => x.AllSurfaceNames));
 
         Verbs = ReadOnlyList(verbLookup.Values.Distinct().OrderBy(x => x.Name, StringComparer.OrdinalIgnoreCase));
         Qualifiers = ReadOnlyList(qualifierLookup.Values.Distinct().OrderBy(x => x.Name, StringComparer.OrdinalIgnoreCase));
         Predicates = ReadOnlyList(_predicates.Values.Distinct().OrderBy(x => x.Name, StringComparer.OrdinalIgnoreCase));
         Operators = ReadOnlyList(_operators.Values.Distinct().OrderBy(x => x.Precedence).ThenBy(x => x.Name, StringComparer.OrdinalIgnoreCase));
         Intrinsics = ReadOnlyList(_intrinsics.Values.Distinct().OrderBy(x => x.Name, StringComparer.OrdinalIgnoreCase));
-        Modules = ReadOnlyList(modules.OrderBy(x => x.Name, StringComparer.OrdinalIgnoreCase));
+        Modules = ReadOnlyList(frozenModules.OrderBy(x => x.Name, StringComparer.OrdinalIgnoreCase));
         StructuralSyntax = ReadOnlyList(StandardLanguageSurface.StructuralSyntax);
         LiteralWords = StandardLanguageSurface.LiteralWords.ToFrozenSet(StringComparer.OrdinalIgnoreCase);
         Capabilities = ReadOnlyList(Verbs.SelectMany(x => x.Implementations).SelectMany(x => x.Capabilities)
@@ -131,6 +137,71 @@ public sealed class LanguageSnapshot
     }
 
     private static IReadOnlyList<T> ReadOnlyList<T>(IEnumerable<T> items) => new ReadOnlyCollection<T>(items.ToArray());
+
+    private static VerbDescriptor Freeze(VerbDescriptor value) => new(
+        value.StableId,
+        value.Name,
+        ReadOnlyList(value.Aliases),
+        ReadOnlyList(value.Implementations.Select(Freeze)));
+
+    private static VerbImplementationDescriptor Freeze(VerbImplementationDescriptor value) => new(
+        value.StableId,
+        value.ImplementationType,
+        value.Name,
+        ReadOnlyList(value.Aliases),
+        ReadOnlyList(value.Qualifiers),
+        ReadOnlyList(value.Constructors.Select(Freeze)),
+        ReadOnlyList(value.Patterns.Select(Freeze)),
+        value.ResultType,
+        ReadOnlyList(value.Capabilities),
+        ReadOnlyList(value.Traits),
+        value.Invoker);
+
+    private static ConstructorDescriptor Freeze(ConstructorDescriptor value) => new(
+        value.StableId,
+        value.Constructor,
+        ReadOnlyList(value.Parameters.Select(Freeze)),
+        value.Activator);
+
+    private static ParameterDescriptor Freeze(ParameterDescriptor value) => new(
+        value.Parameter,
+        value.Name,
+        value.ParameterType,
+        value.TypeShape,
+        value.IsOptional,
+        value.DefaultValue,
+        value.IsParamArray,
+        value.IsService,
+        value.RoleName,
+        ReadOnlyList(value.SurfaceNames),
+        value.Direction,
+        value.Cardinality,
+        value.Position,
+        value.OutputProjection);
+
+    private static SentencePattern Freeze(SentencePattern value) => new(
+        value.StableId,
+        Freeze(value.Constructor),
+        ReadOnlyList(value.Roles.Select(Freeze)));
+
+    private static RoleSlotDescriptor Freeze(RoleSlotDescriptor value) => new(
+        value.StableId,
+        value.Name,
+        value.ValueType,
+        value.TypeShape,
+        value.Direction,
+        value.Cardinality,
+        value.Position,
+        value.ParameterName,
+        value.Required,
+        ReadOnlyList(value.SurfaceNames),
+        value.OutputProjection);
+
+    private static QualifierDescriptor Freeze(QualifierDescriptor value) => new(value.StableId, value.Name, value.TargetType, ReadOnlyList(value.AllAliases));
+    private static ModuleDescriptor Freeze(ModuleDescriptor value) => new(value.StableId, value.Name, value.Version, ReadOnlyList(value.Dependencies), ReadOnlyList(value.Assemblies));
+    private static PredicateDescriptor Freeze(PredicateDescriptor value) => new(value.StableId, value.Name, value.Syntax, ReadOnlyList(value.Aliases ?? Array.Empty<string>()), ReadOnlyList(value.SupportedOperandTypes), ReadOnlyList(value.CapabilityRequirements), value.ReferenceOperandType, value.Precedence);
+    private static OperatorDescriptor Freeze(OperatorDescriptor value) => new(value.StableId, value.Name, value.Precedence, value.Arity, value.Associativity, ReadOnlyList(value.Aliases ?? Array.Empty<string>()), value.Semantic, value.Compatibility, value.Evaluation, value.ResultType);
+    private static IntrinsicDescriptor Freeze(IntrinsicDescriptor value) => new(value.StableId, value.Name, value.Syntax, ReadOnlyList(value.Aliases ?? Array.Empty<string>()), value.Execution, value.StrategyType, value.StrategyRole, value.Semantic);
 
     private static IEnumerable<string> SplitSurface(string surface) => surface.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 }

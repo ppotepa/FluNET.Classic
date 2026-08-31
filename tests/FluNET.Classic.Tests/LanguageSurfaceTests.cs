@@ -81,4 +81,22 @@ public class LanguageSurfaceTests
         Assert.That(() => literalWords.Add("TEST"), Throws.TypeOf<NotSupportedException>());
         Assert.That(() => reservedWords.Add("TEST"), Throws.TypeOf<NotSupportedException>());
     }
+
+    [Test]
+    public void Language_snapshot_copies_mutable_descriptor_inputs()
+    {
+        var aliases = new List<string> { "READY" };
+        var predicate = new PredicateDescriptor("predicate:test:ready", "CHECKABLE", PredicateSyntaxKind.Postfix, aliases);
+        var snapshot = new LanguageSnapshot(
+            Array.Empty<VerbDescriptor>(),
+            StandardQualifiers.All,
+            Array.Empty<ModuleDescriptor>(),
+            new[] { predicate },
+            StandardLanguageSurface.Operators,
+            Array.Empty<IntrinsicDescriptor>());
+
+        aliases.Add("CHANGED");
+        Assert.That(snapshot.TryGetPredicate("READY", out _), Is.True);
+        Assert.That(snapshot.TryGetPredicate("CHANGED", out _), Is.False);
+    }
 }
