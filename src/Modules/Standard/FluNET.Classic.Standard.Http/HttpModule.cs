@@ -128,7 +128,10 @@ public sealed class HttpModule : LanguageModule
         new("qualifier:http-status", "STATUS", typeof(HttpStatus)),
         new("qualifier:http-headers", "HEADERS", typeof(HttpHeaders)),
         new("qualifier:http-body", "BODY", typeof(byte[])),
-        new("qualifier:http-etag", "ETAG", typeof(ETag))
+        new("qualifier:http-etag", "ETAG", typeof(ETag)),
+        new("qualifier:http-status-code", "CODE", typeof(int)),
+        new("qualifier:http-reason", "REASON", typeof(string)),
+        new("qualifier:http-content-type", "CONTENTTYPE", typeof(string))
     };
 }
 
@@ -192,6 +195,14 @@ public sealed class GetHttpBody : Get<byte[], HttpResponse>
     protected override ValueTask<byte[]> ActAsync(HttpResponse from, CancellationToken cancellationToken) => ValueTask.FromResult(from.Body);
 }
 
+[Qualifier("CONTENTTYPE")]
+[ExecutionTrait(ExecutionTrait.Pure)]
+public sealed class GetHttpContentType : Get<string?, HttpResponse>
+{
+    public GetHttpContentType([From] HttpResponse from) : base(from) { }
+    protected override ValueTask<string?> ActAsync(HttpResponse from, CancellationToken cancellationToken) => ValueTask.FromResult(from.ContentType);
+}
+
 [Qualifier("TEXT")]
 [ExecutionTrait(ExecutionTrait.Pure)]
 public sealed class GetHttpText : Get<string, HttpResponse>
@@ -207,6 +218,22 @@ public sealed class GetHttpJson : Get<JsonNode, HttpResponse>
     public GetHttpJson([From] HttpResponse from) : base(from) { }
     protected override ValueTask<JsonNode> ActAsync(HttpResponse from, CancellationToken cancellationToken) =>
         ValueTask.FromResult(JsonNode.Parse(from.Text) ?? new JsonObject());
+}
+
+[Qualifier("CODE")]
+[ExecutionTrait(ExecutionTrait.Pure)]
+public sealed class GetHttpStatusCode : Get<int, HttpStatus>
+{
+    public GetHttpStatusCode([From] HttpStatus from) : base(from) { }
+    protected override ValueTask<int> ActAsync(HttpStatus from, CancellationToken cancellationToken) => ValueTask.FromResult(from.Code);
+}
+
+[Qualifier("REASON")]
+[ExecutionTrait(ExecutionTrait.Pure)]
+public sealed class GetHttpStatusReason : Get<string?, HttpStatus>
+{
+    public GetHttpStatusReason([From] HttpStatus from) : base(from) { }
+    protected override ValueTask<string?> ActAsync(HttpStatus from, CancellationToken cancellationToken) => ValueTask.FromResult(from.ReasonPhrase);
 }
 
 [Verb("DOWNLOAD")]

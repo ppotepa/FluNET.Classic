@@ -40,6 +40,7 @@ The format follows the spirit of [Keep a Changelog](https://keepachangelog.com/e
 - Directory metadata now supports typed count/existence projections.
 - Explicit qualifier surfaces no longer match unrelated verbs solely because their result types happen to be equal.
 - Typed HTTP status and ETag values now reject invalid CLR construction inputs.
+- HTTP responses and statuses now expose typed `CODE`, `REASON`, and `CONTENTTYPE` projections.
 - Non-idempotent HTTP operations no longer opt into automatic retries that could duplicate side effects.
 - Previous-pipeline (`THEM`) and current-loop-item (`IT`) bindings.
 - Exact native-process argument lists backed by `ProcessStartInfo.ArgumentList`.

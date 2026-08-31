@@ -89,6 +89,21 @@ public class SdkPlanningTests
     }
 
     [Test]
+    public void Http_status_and_content_type_projections_bind_through_typed_sentences()
+    {
+        using ServiceProvider host = FluNetHost.Create();
+        ClassicEngine engine = host.GetRequiredService<ClassicEngine>();
+        ExecutionPlan plan = engine.Plan("GET RESPONSE FROM {https://example.com} INTO [response], THEN GET STATUS FROM [response] INTO [status], THEN GET CODE FROM [status] INTO [code], THEN GET REASON FROM [status] INTO [reason], THEN GET CONTENTTYPE FROM [response] INTO [content].");
+
+        Assert.That(plan.Success, Is.True, string.Join("; ", plan.Diagnostics.Select(x => x.Message)));
+        ExecutionPlanStep[] steps = Flatten(plan.Steps).ToArray();
+        Assert.That(steps.Any(x => x.ResultType == typeof(HttpStatus).FullName), Is.True);
+        Assert.That(steps.Any(x => x.ResultType == typeof(int).FullName), Is.True);
+        Assert.That(steps.Any(x => x.Implementation?.EndsWith("GetHttpStatusReason", StringComparison.Ordinal) == true), Is.True);
+        Assert.That(steps.Any(x => x.Implementation?.EndsWith("GetHttpContentType", StringComparison.Ordinal) == true), Is.True);
+    }
+
+    [Test]
     public void Directory_metadata_properties_bind_through_typed_sentence_projections()
     {
         using ServiceProvider host = FluNetHost.Create();
