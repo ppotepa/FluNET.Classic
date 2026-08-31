@@ -41,38 +41,26 @@ public sealed class SaveEnvironmentVariable : Save<string, EnvironmentVariableNa
     }
 }
 
-[Verb("GET")]
 [Qualifier("OS")]
 [RequiresCapability(StandardCapabilities.SystemRead)]
-public sealed class GetOperatingSystem : IVerb<OperatingSystemInfo>, IGet, IWhat<OperatingSystemInfo>, IPipelineProducer<OperatingSystemInfo>
+public sealed class GetOperatingSystem : IQuery<OperatingSystemInfo>, IPipelineProducer<OperatingSystemInfo>
 {
-    public GetOperatingSystem([What] OperatingSystemInfo what)
-    {
-    }
     public ValueTask<OperatingSystemInfo> ExecuteAsync(VerbExecutionContext context, CancellationToken cancellationToken = default) =>
         ValueTask.FromResult(new OperatingSystemInfo(RuntimeInformation.OSDescription, RuntimeInformation.OSArchitecture, RuntimeInformation.FrameworkDescription));
 }
 
-[Verb("GET")]
 [Qualifier("USER")]
 [RequiresCapability(StandardCapabilities.SystemRead)]
-public sealed class GetCurrentUser : IVerb<CurrentUserInfo>, IGet, IWhat<CurrentUserInfo>, IPipelineProducer<CurrentUserInfo>
+public sealed class GetCurrentUser : IQuery<CurrentUserInfo>, IPipelineProducer<CurrentUserInfo>
 {
-    public GetCurrentUser([What] CurrentUserInfo what)
-    {
-    }
     public ValueTask<CurrentUserInfo> ExecuteAsync(VerbExecutionContext context, CancellationToken cancellationToken = default) =>
         ValueTask.FromResult(new CurrentUserInfo(Environment.UserName, Environment.UserDomainName));
 }
 
-[Verb("GET")]
 [Qualifier("CWD")]
 [RequiresCapability(StandardCapabilities.SystemRead)]
-public sealed class GetWorkingDirectory : IVerb<WorkingDirectory>, IGet, IWhat<WorkingDirectory>, IPipelineProducer<WorkingDirectory>
+public sealed class GetWorkingDirectory : IQuery<WorkingDirectory>, IPipelineProducer<WorkingDirectory>
 {
-    public GetWorkingDirectory([What] WorkingDirectory what)
-    {
-    }
     public ValueTask<WorkingDirectory> ExecuteAsync(VerbExecutionContext context, CancellationToken cancellationToken = default) =>
         ValueTask.FromResult(new WorkingDirectory(Environment.CurrentDirectory));
 }

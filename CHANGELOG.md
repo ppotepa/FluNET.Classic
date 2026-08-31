@@ -27,6 +27,7 @@ The format follows the spirit of [Keep a Changelog](https://keepachangelog.com/e
 ### Changed
 
 - Explicit execution traits now override conflicting inferred traits.
+- Context-backed standard queries now use `IQuery<TResult>` without dummy `WHAT` parameters.
 - `READ` is accepted as a GET surface alias and formatter output uses the canonical GET form.
 - Native process arguments use the canonical `WITH` role while accepting `ARGUMENTS` as a surface alias.
 - The native-process demo now uses the production typed process contract and current result/property names.
