@@ -182,10 +182,18 @@ public sealed class BoundExecutor
     private async ValueTask ExecuteLoopItem(BoundForEach loop, RuntimeState state, object? item, CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
+        object? previousPipeline = state.PipelineValue;
         using IDisposable scope = state.PushScope();
         state.SetVariable(loop.Variable, item);
         state.SetVariable("it", item);
-        await ExecuteBlock(loop.Body, state, ct).ConfigureAwait(false);
+        try
+        {
+            await ExecuteBlock(loop.Body, state, ct).ConfigureAwait(false);
+        }
+        finally
+        {
+            state.PipelineValue = previousPipeline;
+        }
     }
     private async ValueTask ExecuteParallelLoop(BoundForEach loop, RuntimeState parent, IReadOnlyList<object?> items, CancellationToken ct)
     {
@@ -199,6 +207,7 @@ public sealed class BoundExecutor
                 var iteration = new RuntimeState();
                 foreach ((string name, object? value) in parent.Variables)
                     iteration.SetVariable(name, value);
+                iteration.PipelineValue = parent.PipelineValue;
                 iteration.SetVariable(loop.Variable, item);
                 iteration.SetVariable("it", item);
                 await ExecuteBlock(loop.Body, iteration, ct).ConfigureAwait(false);
