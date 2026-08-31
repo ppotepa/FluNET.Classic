@@ -222,11 +222,8 @@ public sealed class GetExitCode : Get<int, ProcessResult>
 [Verb("LIST")]
 [Qualifier("PROCESSES")]
 [RequiresCapability(StandardCapabilities.ProcessInspect)]
-public sealed class ListProcesses : IVerb<ProcessInfo[]>, IListVerb, IWhat<ProcessInfo[]>, IPipelineProducer<ProcessInfo[]>
+public sealed class ListProcesses : IContextQuery<ProcessInfo[]>, IListVerb, IPipelineProducer<ProcessInfo[]>
 {
-    public ListProcesses([What] ProcessInfo[] what)
-    {
-    }
     public ValueTask<ProcessInfo[]> ExecuteAsync(VerbExecutionContext context, CancellationToken cancellationToken = default) => ValueTask.FromResult(System.Diagnostics.Process.GetProcesses().Select(x => { try { return new ProcessInfo(x.Id, x.ProcessName); } finally { x.Dispose(); } }).ToArray());
 }
 

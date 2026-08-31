@@ -16,11 +16,8 @@ public enum WorkingDirectoryTarget
 [Qualifier("ENV")]
 [RequiresCapability(StandardCapabilities.EnvironmentRead)]
 [ExecutionTrait(ExecutionTrait.Idempotent)]
-public sealed class ListEnvironmentVariables : IVerb<EnvironmentVariable[]>, IListVerb, IWhat<EnvironmentVariable[]>, IPipelineProducer<EnvironmentVariable[]>
+public sealed class ListEnvironmentVariables : IContextQuery<EnvironmentVariable[]>, IListVerb, IPipelineProducer<EnvironmentVariable[]>
 {
-    public ListEnvironmentVariables([What] EnvironmentVariable[] what)
-    {
-    }
     public ValueTask<EnvironmentVariable[]> ExecuteAsync(VerbExecutionContext context, CancellationToken cancellationToken = default)
     {
         var result = new List<EnvironmentVariable>();

@@ -34,6 +34,11 @@ Not every query needs a source value. For operations that read host context, use
 family and idempotent/retryable traits, so no dummy `[What]` parameter or explicit
 `[Verb("GET")]` is required:
 
+For context-backed operations in another verb family, use `IContextQuery<TResult>`
+instead. For example, a zero-input `LIST` operation can implement both
+`IContextQuery<T>` and `IListVerb`; the list family remains `LIST` while the
+constructor stays free of dummy language roles.
+
 ```csharp
 [Qualifier("PRINCIPAL")]
 [RequiresCapability(StandardCapabilities.IdentityRead)]

@@ -13,7 +13,7 @@ public sealed class ModuleQualityAnalyzer
         foreach (VerbImplementationDescriptor implementation in snapshot.Verbs.SelectMany(x => x.Implementations))
         {
             bool contextQuery = implementation.ImplementationType.GetInterfaces()
-                .Any(type => type.IsGenericType && type.GetGenericTypeDefinition() == typeof(IQuery<>));
+                .Any(type => type.IsGenericType && type.GetGenericTypeDefinition() == typeof(IContextQuery<>));
             bool sideEffect = implementation.Traits.Contains(ExecutionTrait.SideEffecting);
             bool pure = implementation.Traits.Contains(ExecutionTrait.Pure);
             bool transactional = implementation.Traits.Contains(ExecutionTrait.Transactional);
