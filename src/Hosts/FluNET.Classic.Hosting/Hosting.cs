@@ -56,7 +56,7 @@ public static class FluNetHostingExtensions
         services.AddSingleton<ExecutionPlanner>();
         services.AddTransient(sp => new ClassicParser(sp.GetRequiredService<LanguageSnapshot>(), sp.GetRequiredService<ClassicLexer>()));
         services.AddTransient(sp => new SemanticBinder(sp.GetRequiredService<LanguageSnapshot>(), sp.GetRequiredService<ValueResolverRegistry>(), sp.GetRequiredService<ValueConversionRegistry>(), sp.GetRequiredService<PredicateRegistry>(), sp));
-        services.AddTransient(sp => new BoundExecutor(sp.GetRequiredService<ValueConversionRegistry>(), sp.GetRequiredService<PredicateRegistry>(), sp.GetRequiredService<ICapabilityPolicy>(), sp, sp.GetRequiredService<ExecutionPolicy>(), sp.GetRequiredService<OperatorEvaluatorRegistry>()));
+        services.AddTransient(sp => new BoundExecutor(sp.GetRequiredService<ValueConversionRegistry>(), sp.GetRequiredService<PredicateRegistry>(), sp.GetRequiredService<ICapabilityPolicy>(), sp, sp.GetRequiredService<ExecutionPolicy>(), sp.GetRequiredService<OperatorEvaluatorRegistry>(), sp.GetRequiredService<IExecutionObserver>()));
         services.AddTransient<ClassicEngine>();
         services.AddTransient<ClassicDocumentService>();
         return services;
