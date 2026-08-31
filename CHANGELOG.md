@@ -31,6 +31,7 @@ The format follows the spirit of [Keep a Changelog](https://keepachangelog.com/e
 - HTTP header values are normalized to case-insensitive, defensive snapshots.
 - HTTP responses expose raw body bytes through the typed `GET BODY` projection.
 - Process results expose elapsed execution time through the typed `GET DURATION` projection.
+- Typed HTTP status and ETag values now reject invalid CLR construction inputs.
 - Non-idempotent HTTP operations no longer opt into automatic retries that could duplicate side effects.
 - Previous-pipeline (`THEM`) and current-loop-item (`IT`) bindings.
 - Exact native-process argument lists backed by `ProcessStartInfo.ArgumentList`.
