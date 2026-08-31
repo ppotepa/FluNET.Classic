@@ -88,7 +88,7 @@ Goal: close correctness, documentation, packaging, and usability gaps before the
 - [x] Audit every public example against `check`, `format`, `plan`, and `run` where applicable.
 - [ ] Resolve known grammar ambiguities and high-impact diagnostic inconsistencies.
 - [ ] Review architecture boundaries and public package references for accidental coupling.
-- [ ] Review package metadata, installer behavior, demo projects, and first-run experience.
+- [x] Review package metadata, installer behavior, demo projects, and first-run experience.
 - [ ] Bring README, language, architecture, SDK, tooling, and generated module documentation into agreement with the code.
 - [ ] Classify remaining breaking changes as either required for 0.2 or explicitly deferred to 0.3.
 - [ ] Produce release notes from the accumulated `CHANGELOG.md` entries instead of reconstructing history at release time.
