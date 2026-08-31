@@ -103,18 +103,18 @@ public sealed class CheckJsonShape : IVerb<JsonValidationResult>, ICheck, IWhat<
         if (_node is not JsonObject obj)
             errors.Add("Root value is not an object.");
         else
-        foreach ((string name, JsonValueKind kind) in _shape.Properties)
-        {
-            if (!obj.TryGetPropertyValue(name, out JsonNode? value) || value is null)
+            foreach ((string name, JsonValueKind kind) in _shape.Properties)
             {
-                if (_shape.RequireAll)
-                    errors.Add($"Missing property '{name}'.");
-                continue;
+                if (!obj.TryGetPropertyValue(name, out JsonNode? value) || value is null)
+                {
+                    if (_shape.RequireAll)
+                        errors.Add($"Missing property '{name}'.");
+                    continue;
+                }
+                using JsonDocument doc = JsonDocument.Parse(value.ToJsonString());
+                if (doc.RootElement.ValueKind != kind)
+                    errors.Add($"Property '{name}' is {doc.RootElement.ValueKind}, expected {kind}.");
             }
-            using JsonDocument doc = JsonDocument.Parse(value.ToJsonString());
-            if (doc.RootElement.ValueKind != kind)
-                errors.Add($"Property '{name}' is {doc.RootElement.ValueKind}, expected {kind}.");
-        }
         return ValueTask.FromResult(new JsonValidationResult(errors.Count == 0, errors));
     }
 }

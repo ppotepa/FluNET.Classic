@@ -102,11 +102,11 @@ public sealed class SendHttpRequest : IVerb<HttpResponse>, ISend, IWhat<HttpRequ
                 message.Content.Headers.ContentType = MediaTypeHeaderValue.Parse(_request.Body.ContentType);
         }
         if (_request.Headers is not null)
-        foreach ((string name, string[] values) in _request.Headers.Values)
-        {
-            if (!message.Headers.TryAddWithoutValidation(name, values))
-                message.Content?.Headers.TryAddWithoutValidation(name, values);
-        }
+            foreach ((string name, string[] values) in _request.Headers.Values)
+            {
+                if (!message.Headers.TryAddWithoutValidation(name, values))
+                    message.Content?.Headers.TryAddWithoutValidation(name, values);
+            }
         if (_request.Condition is not null)
         {
             string header = _request.Condition.Kind == HttpConditionKind.IF_MATCH ? "If-Match" : "If-None-Match";

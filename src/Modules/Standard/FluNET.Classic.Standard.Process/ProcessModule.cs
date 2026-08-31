@@ -148,13 +148,13 @@ public sealed class RunProcess : IVerb<ProcessResult>, IRun, IWhat<ProcessSpec>,
         if (spec.WorkingDirectory is not null)
             info.WorkingDirectory = spec.WorkingDirectory.FullName;
         if (spec.Environment is not null)
-        foreach ((string key, string? value) in spec.Environment)
-        {
-            if (value is null)
-                info.Environment.Remove(key);
-            else
-                info.Environment[key] = value;
-        }
+            foreach ((string key, string? value) in spec.Environment)
+            {
+                if (value is null)
+                    info.Environment.Remove(key);
+                else
+                    info.Environment[key] = value;
+            }
         return info;
     }
 }

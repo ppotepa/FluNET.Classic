@@ -18,5 +18,6 @@ jobs:
         with:
           dotnet-version: '8.0.x'
       - run: dotnet restore FluNET.sln
+      - run: dotnet format FluNET.sln whitespace --no-restore --verify-no-changes
       - run: dotnet build FluNET.sln --configuration Release --no-restore
       - run: dotnet test FluNET.sln --configuration Release --no-build --verbosity normal

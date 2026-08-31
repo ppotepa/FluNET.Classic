@@ -9,5 +9,8 @@ public sealed class ExecutionFailureException : Exception
         Code = code;
     }
 
-    public string Code { get; }
+    public string Code
+    {
+        get;
+    }
 }
