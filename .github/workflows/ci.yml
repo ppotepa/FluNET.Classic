@@ -21,3 +21,4 @@ jobs:
       - run: dotnet format FluNET.sln whitespace --no-restore --verify-no-changes
       - run: dotnet build FluNET.sln --configuration Release --no-restore
       - run: dotnet test FluNET.sln --configuration Release --no-build --verbosity normal
+      - run: dotnet pack FluNET.sln --configuration Release --no-build --no-restore --output artifacts/packages
