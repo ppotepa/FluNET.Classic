@@ -27,6 +27,7 @@ The format follows the spirit of [Keep a Changelog](https://keepachangelog.com/e
 - `LOAD`, `DOWNLOAD`, and JSON list operations no longer force unused output-side `WHAT` parameters.
 - Language snapshots now expose immutable collection implementations and copy nested descriptor inputs for tooling consumers.
 - `HttpEndpoint` now accepts only absolute HTTP and HTTPS URIs and rejects invalid schemes during binding.
+- Invalid textual HTTP endpoints now expose a stable `FormatException` domain error.
 - Non-idempotent HTTP operations no longer opt into automatic retries that could duplicate side effects.
 - Previous-pipeline (`THEM`) and current-loop-item (`IT`) bindings.
 - Exact native-process argument lists backed by `ProcessStartInfo.ArgumentList`.

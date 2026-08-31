@@ -27,7 +27,15 @@ public sealed record HttpEndpoint
 
     private static Uri Parse(string value)
     {
-        Uri uri = new(value, UriKind.Absolute);
+        Uri uri;
+        try
+        {
+            uri = new(value, UriKind.Absolute);
+        }
+        catch (UriFormatException exception)
+        {
+            throw new FormatException("HTTP endpoint must be an absolute HTTP or HTTPS URI.", exception);
+        }
         return Validate(uri);
     }
 

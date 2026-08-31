@@ -17,6 +17,12 @@ public sealed class HttpEndpointValidationTests
         Assert.That(() => new HttpEndpoint(uri), Throws.TypeOf<FormatException>());
     }
 
+    [Test]
+    public void Direct_string_construction_reports_a_domain_format_error()
+    {
+        Assert.That(() => new HttpEndpoint("not a uri"), Throws.TypeOf<FormatException>());
+    }
+
     [TestCase("relative/path")]
     [TestCase("ftp://example.com/file")]
     public void Http_operations_reject_non_http_absolute_endpoints(string endpoint)
