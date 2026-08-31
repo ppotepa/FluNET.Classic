@@ -15,7 +15,7 @@ public sealed record RuntimeResult(RuntimeState State, IReadOnlyList<RuntimeDiag
 
 public sealed class BoundExecutor
 {
-    private readonly IServiceProvider? _services; private readonly ValueConversionRegistry _conversions; private readonly PredicateRegistry _predicates; private readonly ICapabilityPolicy _capabilities; private readonly ExecutionPolicy _policy; private readonly OperatorEvaluatorRegistry _operatorEvaluators; private readonly IExecutionObserver _observer; private readonly List<ExecutionTraceEntry> _trace = []; private int _sequence;
+    private readonly IServiceProvider? _services; private readonly ValueConversionRegistry _conversions; private readonly PredicateRegistry _predicates; private readonly ICapabilityPolicy _capabilities; private readonly ExecutionPolicy _policy; private readonly OperatorEvaluatorRegistry _operatorEvaluators; private readonly IExecutionObserver _observer; private readonly List<ExecutionTraceEntry> _trace = []; private readonly object _traceGate = new(); private readonly SemaphoreSlim _observerGate = new(1, 1); private int _sequence;
     public BoundExecutor(ValueConversionRegistry conversions, PredicateRegistry predicates, ICapabilityPolicy capabilities, IServiceProvider? services = null, ExecutionPolicy? policy = null, OperatorEvaluatorRegistry? operatorEvaluators = null, IExecutionObserver? observer = null)
     {
         _conversions = conversions;
@@ -40,7 +40,7 @@ public sealed class BoundExecutor
                 diagnostics.Add(new("FLU-RUN-010", $"Capability '{capability}' is required by the program."));
         if (diagnostics.Count > 0)
             return new(state, diagnostics, _trace.ToArray());
-        await PublishAsync(new ExecutionEvent(++_sequence, ExecutionEventKind.RunStarted));
+        await PublishAsync(new ExecutionEvent(NextSequence(), ExecutionEventKind.RunStarted));
         try
         {
             foreach (BoundStatement statement in script.Statements)
@@ -52,8 +52,11 @@ public sealed class BoundExecutor
         catch (KeyNotFoundException ex) { diagnostics.Add(new("FLU-RUN-031", ex.Message)); }
         catch (ExecutionFailureException ex) { diagnostics.Add(new(ex.Code, ex.Message)); }
         catch (Exception ex) { diagnostics.Add(new("FLU-RUN-001", ex.Message)); }
-        await PublishAsync(new ExecutionEvent(++_sequence, ExecutionEventKind.RunCompleted, Success: diagnostics.Count == 0, Duration: TimeSpan.Zero, Error: diagnostics.FirstOrDefault()?.Message));
-        return new(state, diagnostics, _trace.ToArray());
+        await PublishAsync(new ExecutionEvent(NextSequence(), ExecutionEventKind.RunCompleted, Success: diagnostics.Count == 0, Duration: TimeSpan.Zero, Error: diagnostics.FirstOrDefault()?.Message));
+        ExecutionTraceEntry[] trace;
+        lock (_traceGate)
+            trace = _trace.OrderBy(x => x.Sequence).ToArray();
+        return new(state, diagnostics, trace);
     }
     private async ValueTask ExecuteStatement(BoundStatement statement, RuntimeState state, CancellationToken ct)
     {
@@ -243,7 +246,7 @@ public sealed class BoundExecutor
         Exception? last = null;
         DateTimeOffset started = DateTimeOffset.UtcNow;
         var timer = System.Diagnostics.Stopwatch.StartNew();
-        await PublishAsync(new ExecutionEvent(++_sequence, ExecutionEventKind.StageStarted, Verb: sentence.Verb.Name, Implementation: sentence.Implementation.ImplementationType.FullName));
+        await PublishAsync(new ExecutionEvent(NextSequence(), ExecutionEventKind.StageStarted, Verb: sentence.Verb.Name, Implementation: sentence.Implementation.ImplementationType.FullName));
         for (int attempt = 1; attempt <= attempts; attempt++)
         {
             used = attempt;
@@ -257,8 +260,8 @@ public sealed class BoundExecutor
                 if (sentence.ResultAlias is { Length: > 0 } alias)
                     state.SetVariable(alias, result);
                 timer.Stop();
-                _trace.Add(new(++_sequence, "sentence", sentence.Verb.Name, sentence.Implementation.ImplementationType.FullName, started, timer.Elapsed, true, used, sentence.ResultType.FullName, sentence.Implementation.Capabilities, sentence.Implementation.Traits));
-                await PublishAsync(new ExecutionEvent(++_sequence, ExecutionEventKind.StageCompleted, Verb: sentence.Verb.Name, Implementation: sentence.Implementation.ImplementationType.FullName, Success: true, Attempts: used, Duration: timer.Elapsed, Detail: sentence.Verb.Name));
+                AddTrace(new(NextSequence(), "sentence", sentence.Verb.Name, sentence.Implementation.ImplementationType.FullName, started, timer.Elapsed, true, used, sentence.ResultType.FullName, sentence.Implementation.Capabilities, sentence.Implementation.Traits));
+                await PublishAsync(new ExecutionEvent(NextSequence(), ExecutionEventKind.StageCompleted, Verb: sentence.Verb.Name, Implementation: sentence.Implementation.ImplementationType.FullName, Success: true, Attempts: used, Duration: timer.Elapsed, Detail: sentence.Verb.Name));
                 return;
             }
             catch (OperationCanceledException) when (timeout is not null && timeout.IsCancellationRequested && !ct.IsCancellationRequested)
@@ -271,17 +274,25 @@ public sealed class BoundExecutor
             finally { timeout?.Dispose(); }
         }
         timer.Stop();
-        _trace.Add(new(++_sequence, "sentence", sentence.Verb.Name, sentence.Implementation.ImplementationType.FullName, started, timer.Elapsed, false, used, sentence.ResultType.FullName, sentence.Implementation.Capabilities, sentence.Implementation.Traits, last?.Message));
-        await PublishAsync(new ExecutionEvent(++_sequence, ExecutionEventKind.StageCompleted, Verb: sentence.Verb.Name, Implementation: sentence.Implementation.ImplementationType.FullName, Success: false, Attempts: used, Duration: timer.Elapsed, Detail: sentence.Verb.Name, Error: last?.Message));
+        AddTrace(new(NextSequence(), "sentence", sentence.Verb.Name, sentence.Implementation.ImplementationType.FullName, started, timer.Elapsed, false, used, sentence.ResultType.FullName, sentence.Implementation.Capabilities, sentence.Implementation.Traits, last?.Message));
+        await PublishAsync(new ExecutionEvent(NextSequence(), ExecutionEventKind.StageCompleted, Verb: sentence.Verb.Name, Implementation: sentence.Implementation.ImplementationType.FullName, Success: false, Attempts: used, Duration: timer.Elapsed, Detail: sentence.Verb.Name, Error: last?.Message));
         throw last ?? new InvalidOperationException("Execution failed.");
     }
     private async ValueTask PublishAsync(ExecutionEvent item)
     {
+        await _observerGate.WaitAsync().ConfigureAwait(false);
         try
         {
             await _observer.OnEventAsync(item).ConfigureAwait(false);
         }
         catch { }
+        finally { _observerGate.Release(); }
+    }
+    private int NextSequence() => Interlocked.Increment(ref _sequence);
+    private void AddTrace(ExecutionTraceEntry entry)
+    {
+        lock (_traceGate)
+            _trace.Add(entry);
     }
     private async ValueTask<object?> InvokeSentenceAttempt(BoundSentence sentence, object?[] args, RuntimeState state, CancellationToken token)
     {

@@ -16,6 +16,7 @@ The format follows the spirit of [Keep a Changelog](https://keepachangelog.com/e
 - Host execution policies now reject invalid retry, timeout, and concurrency settings at composition time.
 - Network-backed HTTP, DNS, SQL, storage, and email operations now participate in the long-running timeout policy.
 - Changing the process working directory now requires the dedicated `os.system.write` capability.
+- Parallel execution traces and observer callbacks now remain thread-safe and use unique sequence numbers.
 - Previous-pipeline (`THEM`) and current-loop-item (`IT`) bindings.
 - Exact native-process argument lists backed by `ProcessStartInfo.ArgumentList`.
 - All NuGet packages now include the repository README as package documentation.

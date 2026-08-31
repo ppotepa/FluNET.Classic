@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using FluNET.Classic.Hosting;
 using FluNET.Classic.Runtime;
 using Microsoft.Extensions.DependencyInjection;
@@ -29,12 +30,27 @@ public sealed class ExecutionObserverTests
         Assert.That(result.Success, Is.True);
     }
 
+    [Test]
+    public async Task Parallel_stages_publish_unique_trace_sequences()
+    {
+        var observer = new CapturingObserver();
+        using ServiceProvider host = FluNetHost.Create(new FluNetOptions { ExecutionObserver = observer });
+        var state = new RuntimeState();
+        state.SetVariable("items", Enumerable.Range(1, 32).ToArray());
+
+        RuntimeResult result = await host.GetRequiredService<ClassicEngine>().RunAsync("FOR EACH [item] IN [items], PARALLEL 4, DO\nCHECK IF true.\nEND FOR.", state);
+
+        Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics.Select(x => x.Message)));
+        Assert.That(result.Trace!.Select(x => x.Sequence).Distinct().Count(), Is.EqualTo(result.Trace.Count));
+        Assert.That(observer.Events.Select(x => x.Sequence).Distinct().Count(), Is.EqualTo(observer.Events.Count));
+    }
+
     private sealed class CapturingObserver : IExecutionObserver
     {
-        public List<ExecutionEvent> Events { get; } = [];
+        public ConcurrentQueue<ExecutionEvent> Events { get; } = new();
         public ValueTask OnEventAsync(ExecutionEvent executionEvent, CancellationToken cancellationToken = default)
         {
-            Events.Add(executionEvent);
+            Events.Enqueue(executionEvent);
             return ValueTask.CompletedTask;
         }
     }
