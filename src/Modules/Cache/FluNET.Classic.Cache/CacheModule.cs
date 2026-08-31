@@ -46,7 +46,54 @@ public sealed class MemoryCacheProvider : ICacheProvider
 public sealed class CacheModule : LanguageModule
 {
     public override string Name => "cache";
-    public override IReadOnlyCollection<QualifierDescriptor> Qualifiers => new[] { new QualifierDescriptor("qualifier:cache", "CACHE", typeof(CacheValue)) };
+    public override IReadOnlyCollection<QualifierDescriptor> Qualifiers => new QualifierDescriptor[]
+    {
+        new("qualifier:cache", "CACHE", typeof(CacheValue)),
+        new("qualifier:cache-content-type", "CONTENTTYPE", typeof(string)),
+        new("qualifier:cache-exists", "EXISTS", typeof(bool)),
+        new("qualifier:cache-data", "DATA", typeof(byte[])),
+        new("qualifier:cache-duration", "DURATION", typeof(TimeSpan))
+    };
+}
+
+[Verb("GET")]
+[Qualifier("CONTENTTYPE")]
+[ExecutionTrait(ExecutionTrait.Pure)]
+public sealed class GetCacheContentType : Get<string?, CacheValue>
+{
+    public GetCacheContentType([From] CacheValue from) : base(from) { }
+
+    protected override ValueTask<string?> ActAsync(CacheValue from, CancellationToken cancellationToken) => ValueTask.FromResult(from.ContentType);
+}
+
+[Verb("GET")]
+[Qualifier("EXISTS")]
+[ExecutionTrait(ExecutionTrait.Pure)]
+public sealed class GetCacheExistence : Get<bool, CacheValue>
+{
+    public GetCacheExistence([From] CacheValue from) : base(from) { }
+
+    protected override ValueTask<bool> ActAsync(CacheValue from, CancellationToken cancellationToken) => ValueTask.FromResult(from.Exists);
+}
+
+[Verb("GET")]
+[Qualifier("DATA")]
+[ExecutionTrait(ExecutionTrait.Pure)]
+public sealed class GetCacheData : Get<byte[], CacheValue>
+{
+    public GetCacheData([From] CacheValue from) : base(from) { }
+
+    protected override ValueTask<byte[]> ActAsync(CacheValue from, CancellationToken cancellationToken) => ValueTask.FromResult(from.Data);
+}
+
+[Verb("GET")]
+[Qualifier("DURATION")]
+[ExecutionTrait(ExecutionTrait.Pure)]
+public sealed class GetExpirationDuration : Get<TimeSpan, Expiration>
+{
+    public GetExpirationDuration([From] Expiration from) : base(from) { }
+
+    protected override ValueTask<TimeSpan> ActAsync(Expiration from, CancellationToken cancellationToken) => ValueTask.FromResult(from.Duration);
 }
 
 [Verb("GET")]
