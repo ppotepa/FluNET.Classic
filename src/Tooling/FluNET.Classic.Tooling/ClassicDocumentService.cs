@@ -5,7 +5,12 @@ using FluNET.Classic.Syntax;
 
 namespace FluNET.Classic.Tooling;
 
-public sealed record DocumentDiagnostic(string Source, string Code, string Message, TextSpan Span);
+public sealed record DocumentDiagnostic(
+    string Source,
+    string Code,
+    string Message,
+    TextSpan Span,
+    LanguageDiagnosticSeverity Severity = LanguageDiagnosticSeverity.Error);
 public sealed record DocumentAnalysis(bool Success, string? CanonicalSource, IReadOnlyList<DocumentDiagnostic> Diagnostics, ExecutionPlan Plan);
 public sealed record SemanticDocumentToken(string Kind, TextSpan Span);
 public sealed record DocumentSymbolInfo(string Name, string Kind, TextSpan Span);
@@ -48,8 +53,8 @@ public sealed class ClassicDocumentService
         BoundScript? bound = parse.Success ? _binder.Bind(parse.Script, variableTypes) : null;
         var check = new CheckResult(parse, bound);
         var diagnostics = new List<DocumentDiagnostic>();
-        diagnostics.AddRange(parse.Diagnostics.Select(x => new DocumentDiagnostic("syntax", x.Code, x.Message, x.Span)));
-        diagnostics.AddRange(bound?.Diagnostics.Select(x => new DocumentDiagnostic("binding", x.Code, x.Message, x.Span)) ?? Array.Empty<DocumentDiagnostic>());
+        diagnostics.AddRange(parse.Diagnostics.Select(x => new DocumentDiagnostic("syntax", x.Code, x.Message, x.Span, LanguageDiagnosticSeverity.Error)));
+        diagnostics.AddRange(bound?.AllDiagnostics.Select(x => new DocumentDiagnostic("binding", x.Code, x.Message, x.Span, ToLanguageSeverity(x.Severity))) ?? Array.Empty<DocumentDiagnostic>());
         return new(check.Success, parse.Success ? _formatter.Format(parse.Script) : null, diagnostics, _planner.Build(check));
     }
 
@@ -233,6 +238,13 @@ public sealed class ClassicDocumentService
             .Select(x => $"{(x.Required ? "" : "[")}{x.Name}:{Friendly(x.ValueType)}{(x.Required ? "" : "]")}"));
         return $"{verb.Name}{qualifier} {roles} -> {Friendly(implementation.ResultType)}".Trim();
     }
+
+    private static LanguageDiagnosticSeverity ToLanguageSeverity(BindingDiagnosticSeverity severity) => severity switch
+    {
+        BindingDiagnosticSeverity.Info => LanguageDiagnosticSeverity.Info,
+        BindingDiagnosticSeverity.Warning => LanguageDiagnosticSeverity.Warning,
+        _ => LanguageDiagnosticSeverity.Error
+    };
 
     private static string Friendly(Type type) => type.IsGenericType
         ? $"{type.Name[..type.Name.IndexOf('`')]}<{string.Join(',', type.GetGenericArguments().Select(Friendly))}>"

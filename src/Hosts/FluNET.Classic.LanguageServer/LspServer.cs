@@ -1,6 +1,7 @@
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using FluNET.Classic.Core;
 using FluNET.Classic.Syntax;
 using FluNET.Classic.Tooling;
 
@@ -53,7 +54,7 @@ public sealed class LspServer
     private async Task Rename(JsonNode? id, JsonObject? p, CancellationToken ct) { (string text, int offset, string uri) = ResolvePosition(p); string newName = p?["newName"]?.GetValue<string>() ?? throw new InvalidOperationException("newName is required."); JsonArray edits = new(); foreach (DocumentTextEdit edit in _documents.Rename(text, offset, newName)) edits.Add(JsonSerializer.SerializeToNode(new { range = Range(text, edit.Span), newText = edit.NewText })); var changes = new JsonObject { [uri] = edits }; await ReplyAsync(id, new JsonObject { ["changes"] = changes }, ct).ConfigureAwait(false); }
     private async Task SignatureHelp(JsonNode? id, JsonObject? p, CancellationToken ct) { (string text, int offset, _) = ResolvePosition(p); SignatureHelpInfo? help = _documents.SignatureHelp(text, offset); await ReplyAsync(id, help is null ? null : new { signatures = help.Signatures.Select(x => new { label = x.Label, documentation = x.Detail }).ToArray(), activeSignature = help.ActiveSignature, activeParameter = 0 }, ct).ConfigureAwait(false); }
 
-    private async Task PublishDiagnostics(string uri, string text, CancellationToken ct) { DocumentAnalysis analysis = _documents.Analyze(text); object[] diagnostics = analysis.Diagnostics.Select(x => new { range = Range(text, x.Span), severity = x.Source == "syntax" ? 1 : 2, code = x.Code, source = $"flunet-{x.Source}", message = x.Message }).Cast<object>().ToArray(); await NotifyAsync("textDocument/publishDiagnostics", new { uri, diagnostics }, ct).ConfigureAwait(false); }
+    private async Task PublishDiagnostics(string uri, string text, CancellationToken ct) { DocumentAnalysis analysis = _documents.Analyze(text); object[] diagnostics = analysis.Diagnostics.Select(x => new { range = Range(text, x.Span), severity = LspSeverity(x.Severity), code = x.Code, source = $"flunet-{x.Source}", message = x.Message }).Cast<object>().ToArray(); await NotifyAsync("textDocument/publishDiagnostics", new { uri, diagnostics }, ct).ConfigureAwait(false); }
     private (string Text, int Offset, string Uri) ResolvePosition(JsonObject? p) { string uri = RequiredString(RequiredObject(p, "textDocument"), "uri"); JsonObject position = RequiredObject(p, "position"); string text = GetDocument(uri); return (text, OffsetAt(text, position["line"]?.GetValue<int>() ?? 0, position["character"]?.GetValue<int>() ?? 0), uri); }
     private string GetDocument(string uri) => _open.TryGetValue(uri, out string? text) ? text : throw new KeyNotFoundException($"Document '{uri}' is not open.");
 
@@ -72,6 +73,7 @@ public sealed class LspServer
     private static string RequiredString(JsonObject source, string property) => source[property]?.GetValue<string>() ?? throw new InvalidOperationException($"{property} is required.");
     private static int CompletionKind(string kind) => kind switch { "variable" => 6, "qualifier" => 12, "verb" => 3, "role" or "syntax" => 14, _ => 1 };
     private static int SemanticTypeIndex(string kind) => kind switch { "keyword" or "role" => 0, "verb" => 1, "qualifier" => 2, "variable" => 3, "string" or "reference" => 4, "number" => 5, "operator" => 6, _ => 7 };
+    private static int LspSeverity(LanguageDiagnosticSeverity severity) => severity switch { LanguageDiagnosticSeverity.Error => 1, LanguageDiagnosticSeverity.Warning => 2, _ => 3 };
     private static object Range(string text, TextSpan span) => new { start = Position(text, span.Start), end = Position(text, span.End) };
     private static object Position(string text, int offset) { (int line, int character) = PositionTuple(text, offset); return new { line, character }; }
     private static (int Line, int Character) PositionTuple(string text, int offset) { offset = Math.Clamp(offset, 0, text.Length); int line = 0, column = 0; for (int i = 0; i < offset; i++) { if (text[i] == '\n') { line++; column = 0; } else if (text[i] != '\r') column++; } return (line, column); }
