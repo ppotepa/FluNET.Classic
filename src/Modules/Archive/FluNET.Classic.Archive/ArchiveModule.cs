@@ -13,7 +13,44 @@ public sealed record ArchiveEntry(string Name, byte[] Data, long Length);
 public sealed class ArchiveModule : LanguageModule
 {
     public override string Name => "archive";
-    public override IReadOnlyCollection<QualifierDescriptor> Qualifiers => new QualifierDescriptor[] { new("qualifier:archive", "ARCHIVE", typeof(ArchiveDocument)), new("qualifier:entries", "ENTRIES", typeof(ArchiveEntry[])) };
+    public override IReadOnlyCollection<QualifierDescriptor> Qualifiers => new QualifierDescriptor[]
+    {
+        new("qualifier:archive", "ARCHIVE", typeof(ArchiveDocument)),
+        new("qualifier:entries", "ENTRIES", typeof(ArchiveEntry[])),
+        new("qualifier:archive-format", "FORMAT", typeof(CompressionFormat)),
+        new("qualifier:archive-entry-name", "NAME", typeof(string)),
+        new("qualifier:archive-entry-length", "LENGTH", typeof(long))
+    };
+}
+
+[Verb("GET")]
+[Qualifier("FORMAT")]
+[ExecutionTrait(ExecutionTrait.Pure)]
+public sealed class GetArchiveFormat : Get<CompressionFormat, ArchiveDocument>
+{
+    public GetArchiveFormat([From] ArchiveDocument from) : base(from) { }
+
+    protected override ValueTask<CompressionFormat> ActAsync(ArchiveDocument from, CancellationToken cancellationToken) => ValueTask.FromResult(from.Format);
+}
+
+[Verb("GET")]
+[Qualifier("NAME")]
+[ExecutionTrait(ExecutionTrait.Pure)]
+public sealed class GetArchiveEntryName : Get<string, ArchiveEntry>
+{
+    public GetArchiveEntryName([From] ArchiveEntry from) : base(from) { }
+
+    protected override ValueTask<string> ActAsync(ArchiveEntry from, CancellationToken cancellationToken) => ValueTask.FromResult(from.Name);
+}
+
+[Verb("GET")]
+[Qualifier("LENGTH")]
+[ExecutionTrait(ExecutionTrait.Pure)]
+public sealed class GetArchiveEntryLength : Get<long, ArchiveEntry>
+{
+    public GetArchiveEntryLength([From] ArchiveEntry from) : base(from) { }
+
+    protected override ValueTask<long> ActAsync(ArchiveEntry from, CancellationToken cancellationToken) => ValueTask.FromResult(from.Length);
 }
 
 [Verb("CREATE")]
