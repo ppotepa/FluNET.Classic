@@ -1,141 +1,106 @@
 # FluNET.Classic
 
-FluNET.Classic is a typed, sentence-oriented scripting language and runtime for .NET. Its surface syntax is a controlled natural language: sentences are intentionally small and deterministic, but read in the same direction as ordinary English.
+FluNET.Classic is a typed, sentence-oriented scripting language and runtime for .NET. Its controlled natural-language surface is designed to stay readable while binding deterministically to typed CLR semantics.
 
-The repository is organized by responsibility:
+**Current development package version:** `0.2.0-alpha.1`
+
+FluNET.Classic is pre-1.0 and evolves directly on `main`. The project has one language contract (`flunet.classic`), one compiler/runtime path, and no compatibility-mode or legacy parser branch. Package versions describe releases; they do not select different language contracts.
+
+## Quick start
+
+The repository requires the .NET 8 SDK.
+
+Install the `fluc` tool from the current checkout:
+
+```powershell
+# Windows PowerShell
+.\install.ps1
+```
+
+```bash
+# macOS / Linux
+./install.sh
+```
+
+The installer creates or updates the separate `FluNET.Classic.Cli` global tool and does not replace an existing `flunet` installation.
+
+Run the demo project:
 
 ```text
-src/Engine    language contracts, lexer/parser, binding, and execution
-src/Modules   standard vocabulary, domain modules, providers, and bundles
-src/Tooling   SDK and editor/document services
-src/Hosts     dependency-injection composition, CLI, and language server
-tests         behavioral, integration, and architecture tests
-demo          runnable FluNET programs
+fluc check demo
+fluc plan demo
+fluc run demo
 ```
 
-The dependency direction is intentionally one-way: Engine does not know about
-modules or tools; Modules depend on Engine; Tooling depends on Engine; Hosts
-compose Engine, Modules, and Tooling.
-
-The language is compiled from CLR metadata: interfaces describe semantic roles, constructors describe binding/cardinality, attributes refine metadata, and reflection builds an immutable `LanguageSnapshot`. Source is parsed into an immutable AST, semantically bound to CLR overloads, and executed as a typed bound program.
-
-```text
-GET TEXT FROM {input.txt} INTO [lines],
-THEN TRANSFORM USING UPPER INTO [upper],
-THEN SAVE TO {output.txt}.
-
-GET {input.txt} AS TEXT INTO [content].
-PARSE [jsonText] AS JSON INTO [data].
-TRANSFORM [text] TO BINARY USING UTF8 INTO [bytes].
-
-CHECK IF [response.status] IS 200 INTO [ok].
-FILTER [users] WHERE Active IS true AND Age >= 18 INTO [activeUsers].
-
-IF [ok] IS true, THEN
-    SAY "ok".
-ELSE
-    SAY "failed".
-END IF.
-
-FOR EACH [user] IN [users], DO
-    SAY "Processing [user.name]".
-END FOR.
-```
-
-Sentence punctuation is deliberately small and strict: `.` ends every complete statement, while `, THEN` continues a typed pipeline. Commas also separate values within a role; newlines are formatting whitespace. Semicolons and `AND THEN` are not language constructs. `INTO [name]` binds a result; `TO`, `USING`, `AS`, `FROM`, `WITH`, `IN`, `AT`, `FOR`, and `UNTIL` are contextual roles selected by the verb pattern.
-
-Projects use a small `flu.json` manifest. It names an `entry` script, optional `sources`, module package versions, allowed `capabilities`, and execution defaults such as `timeout` and `parallelism`. Operational failure handling uses the same sentence-shaped style:
-
-```flu
-TRY, DO
-    SEND EMAIL TO {ops@example.com} WITH "report".
-ON FAILURE
-    SAY "Could not send report".
-FINALLY
-    SAY "Finished".
-END TRY.
-```
-
-Tasks and functions are declared with typed role contracts and called as ordinary verbs:
-
-```flu
-DEFINE FUNCTION NORMALIZE, WHAT [value] AS TEXT, RETURNING TEXT, DO
-    RETURN [value].
-END FUNCTION.
-
-NORMALIZE "hello" INTO [normalized].
-```
-
-Immutable records are declared and constructed with the same role-oriented surface:
-
-```flu
-DEFINE RECORD USER, NAME AS TEXT, AGE AS INTEGER.
-MAKE USER WITH "Ada", 42 INTO [user].
-```
-
-`FOR EACH` can opt into bounded concurrency explicitly with `, PARALLEL n, DO`; each iteration receives an isolated local state.
-
-The first standard wave includes `Text`, `Files`, `DateTime`, `OS`, `Process`, `Json`, `Http`, and typed collection filtering. Domain semantics increasingly live in CLR resource types instead of raw strings:
-
-```text
-LIST FILES IN {./logs} WITH "*.log" INTO [files].
-GET METADATA FROM {config.json} INTO [metadata].
-
-GET RESPONSE FROM {https://example.com} INTO [response],
-THEN GET STATUS FROM [response] INTO [status].
-CHECK IF [response] IS OK INTO [ok].
-```
-
-HTTP exposes `HttpEndpoint`, `HttpResponse`, `HttpStatus`, and `HttpHeaders`. A response can be projected as `STATUS`, `HEADERS`, `TEXT`, or `JSON` through ordinary typed `GET` overloads; no HTTP-specific parser syntax is required.
-
-```text
-CLR types + interfaces + constructors + attributes
-                    ↓
-             LanguageCompiler
-                    ↓
-             LanguageSnapshot
-                    ↓
-source → lexer → parser → AST → binder → bound program → runtime
-                    |                 ↓
-                    |           execution plan
-                    ↓
-              document tooling
-```
-
-The CLI exposes canonical formatting, static checking, planning and explanation:
+Or work with a single script:
 
 ```text
 fluc check script.flu
 fluc format script.flu
 fluc plan script.flu
 fluc explain script.flu
+fluc run script.flu
 ```
 
-## Install FluNET.Classic alongside the old `flunet`
+Useful introspection commands are also available:
 
-FluNET.Classic is distributed as the separate .NET tool package
-`FluNET.Classic.Cli` and installs the `fluc` command. The installer does not
-remove or overwrite an existing `flunet` installation.
-
-On Windows PowerShell:
-
-```powershell
-.\install.ps1
+```text
+fluc verbs
+fluc verb GET
+fluc qualifiers
+fluc modules
+fluc language
 ```
 
-On macOS or Linux:
+## Language at a glance
 
-```bash
-./install.sh
+```flu
+GET TEXT FROM {input.txt} INTO [text],
+THEN TRANSFORM TO BINARY USING UTF8 INTO [bytes].
+
+CHECK IF [response] IS OK INTO [ok].
+
+IF [ok] IS true, THEN
+    SAY "ok".
+ELSE
+    SAY "failed".
+END IF.
 ```
 
-The installer requires the .NET 8 SDK. After installation, run `fluc --help` or
-`fluc run demo` from the repository root.
+`INTO` binds results. Contextual roles such as `FROM`, `TO`, `USING`, `WITH`, `AS`, `IN`, `AT`, `FOR`, and `UNTIL` express sentence semantics. `, THEN` carries a typed pipeline result forward, and `.` terminates every complete statement.
 
-`fluc plan` does not execute the script. It exposes selected overloads, typed role bindings, resolution/conversion information, result types, required capabilities, and execution traits so a program can be inspected before runtime.
+The authoritative grammar is implemented by `ClassicGrammar` in `src/Engine/FluNET.Classic.Syntax`; the complete human-oriented language guide is in [`docs/LANGUAGE.md`](docs/LANGUAGE.md).
 
-Module authors should reference `FluNET.Classic.SDK`. `FluNetModuleTestHarness` validates modules and their example sentences, while `ModuleArtifactGenerator` generates module manifests and Markdown documentation directly from `LanguageSnapshot` metadata. See `docs/SDK.md`.
+## Repository structure
 
-Editor and IDE integrations should build on `FluNET.Classic.Tooling`. `ClassicDocumentService` provides diagnostics, completion, hover, formatting and planning by reusing the production compiler pipeline; a future LSP server can remain a thin protocol adapter. See `docs/TOOLING.md`.
+```text
+src/Engine    language contracts, syntax, binding, and runtime
+src/Modules   standard vocabulary, domain modules, providers, and bundles
+src/Tooling   module SDK and document/editor services
+src/Hosts     hosting, CLI, and language-server composition
+tests         behavioral, integration, and architecture tests
+demo          runnable FluNET programs
+```
 
-`main` is the only development line for FluNET.Classic. The project has one language contract: there is no legacy parser, compatibility mode, or second runtime. Breaking language improvements are made directly on `main` while the project is pre-1.0.
+The dependency direction is intentionally one-way: Engine is independent of modules and hosts; Modules and Tooling build on Engine; Hosts compose the runnable applications.
+
+## Documentation
+
+- [`docs/README.md`](docs/README.md) — documentation map and ownership rules.
+- [`docs/LANGUAGE.md`](docs/LANGUAGE.md) — language surface, roles, pipelines, conditions, definitions, and standard vocabulary.
+- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — compiler/runtime architecture and repository boundaries.
+- [`docs/SDK.md`](docs/SDK.md) — module authoring, extension points, validation, and generated artifacts.
+- [`docs/TOOLING.md`](docs/TOOLING.md) — document services and the current language-server surface.
+- [`ROADMAP.md`](ROADMAP.md) — planned milestones and exit criteria.
+- [`CHANGELOG.md`](CHANGELOG.md) — completed user-visible changes by package version.
+- [`demo/README.md`](demo/README.md) — runnable examples.
+
+## Development baseline
+
+`Directory.Build.props` is the source of truth for the current package version. `ROADMAP.md` records intended work; `CHANGELOG.md` records work that has actually landed. Planned items should not be copied into the changelog, and completed changes should not remain described only in the roadmap.
+
+The current documentation baseline was established on 2026-08-31 for the `0.2.0-alpha.1` development line.
+
+## License
+
+MIT. See [`LICENSE`](LICENSE).
