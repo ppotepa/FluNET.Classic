@@ -18,6 +18,7 @@ The format follows the spirit of [Keep a Changelog](https://keepachangelog.com/e
 - Changing the process working directory now requires the dedicated `os.system.write` capability.
 - Parallel execution traces and observer callbacks now remain thread-safe and use unique sequence numbers.
 - Parallel loop failures now cancel sibling iterations while preserving the original failure diagnostic.
+- `HttpEndpoint` now accepts only absolute HTTP and HTTPS URIs and rejects invalid schemes during binding.
 - Previous-pipeline (`THEM`) and current-loop-item (`IT`) bindings.
 - Exact native-process argument lists backed by `ProcessStartInfo.ArgumentList`.
 - All NuGet packages now include the repository README as package documentation.

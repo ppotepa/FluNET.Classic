@@ -220,7 +220,7 @@ GET RESPONSE FROM {https://example.com} INTO [response],
 THEN GET STATUS FROM [response] INTO [status].
 ```
 
-HTTP endpoint-oriented operations use the typed `HttpEndpoint` resource value rather than exposing raw `Uri` as the sentence-domain contract. More generally, domain semantics should live in typed CLR resource/value types whenever that improves binding, diagnostics, planning, or tooling.
+HTTP endpoint-oriented operations use the typed `HttpEndpoint` resource value rather than exposing raw `Uri` as the sentence-domain contract. `HttpEndpoint` requires an absolute `http` or `https` URI. More generally, domain semantics should live in typed CLR resource/value types whenever that improves binding, diagnostics, planning, or tooling.
 
 ## Executable documentation
 

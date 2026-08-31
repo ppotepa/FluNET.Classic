@@ -11,8 +11,17 @@ public enum HttpJsonRepresentation
 
 public sealed record HttpEndpoint(Uri Uri)
 {
-    public HttpEndpoint(string value) : this(new Uri(value, UriKind.RelativeOrAbsolute)) { }
+    public HttpEndpoint(string value) : this(Parse(value)) { }
     public override string ToString() => Uri.ToString();
+
+    private static Uri Parse(string value)
+    {
+        Uri uri = new(value, UriKind.Absolute);
+        if (!uri.Scheme.Equals(Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase)
+            && !uri.Scheme.Equals(Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
+            throw new FormatException("HTTP endpoint must be an absolute HTTP or HTTPS URI.");
+        return uri;
+    }
 }
 
 public sealed record HttpStatus(int Code, string? ReasonPhrase) : IOkState
