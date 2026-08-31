@@ -207,6 +207,7 @@ public static class StandardCapabilities
     public const string EnvironmentRead = "os.environment.read";
     public const string EnvironmentWrite = "os.environment.write";
     public const string SystemRead = "os.system.read";
+    public const string SystemWrite = "os.system.write";
     public const string StorageRead = "storage.read";
     public const string StorageWrite = "storage.write";
     public const string CacheRead = "cache.read";

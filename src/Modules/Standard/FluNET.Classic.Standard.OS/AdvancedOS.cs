@@ -32,7 +32,7 @@ public sealed class ListEnvironmentVariables : IVerb<EnvironmentVariable[]>, ILi
 
 [Verb("SAVE")]
 [Qualifier("CWD")]
-[RequiresCapability(StandardCapabilities.SystemRead)]
+[RequiresCapability(StandardCapabilities.SystemWrite)]
 [ExecutionTrait(ExecutionTrait.SideEffecting)]
 public sealed class SaveWorkingDirectory : IVerb<WorkingDirectory>, ISave, IWhat<DirectoryInfo>, ITo<WorkingDirectoryTarget>, IPipelineConsumer<DirectoryInfo>, IPipelineProducer<WorkingDirectory>
 {

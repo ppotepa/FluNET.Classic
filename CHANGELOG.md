@@ -15,6 +15,7 @@ The format follows the spirit of [Keep a Changelog](https://keepachangelog.com/e
 - Stable `FLU-RUN-021` diagnostics for stage execution timeouts, distinct from caller cancellation.
 - Host execution policies now reject invalid retry, timeout, and concurrency settings at composition time.
 - Network-backed HTTP, DNS, SQL, storage, and email operations now participate in the long-running timeout policy.
+- Changing the process working directory now requires the dedicated `os.system.write` capability.
 - Previous-pipeline (`THEM`) and current-loop-item (`IT`) bindings.
 - Exact native-process argument lists backed by `ProcessStartInfo.ArgumentList`.
 - All NuGet packages now include the repository README as package documentation.
