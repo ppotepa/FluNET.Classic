@@ -59,11 +59,11 @@ Goal: deepen the standard vocabulary without weakening the language model.
 
 - [ ] Complete typed semantics for the existing standard domains before adding unrelated domains.
 - [ ] Expand useful projections and operations through normal typed sentence overloads instead of dedicated parser syntax.
-- [ ] Review cross-domain conversions and resolution costs so overload selection remains deterministic and explainable.
-- [ ] Strengthen resource lifecycle, cancellation, timeout, and failure semantics across effectful operations.
-- [ ] Harden bounded concurrency and isolated execution-state behavior for loops, tasks, and nested execution.
-- [ ] Expand capability and execution-trait coverage for operations with external effects.
-- [ ] Increase semantic tests around edge cases, invalid programs, overload ambiguity, and typed failure behavior.
+- [x] Review cross-domain conversions and resolution costs so overload selection remains deterministic and explainable.
+- [x] Strengthen resource lifecycle, cancellation, timeout, and failure semantics across effectful operations.
+- [x] Harden bounded concurrency and isolated execution-state behavior for loops, tasks, and nested execution.
+- [x] Expand capability and execution-trait coverage for operations with external effects.
+- [x] Increase semantic tests around edge cases, invalid programs, overload ambiguity, and typed failure behavior.
 
 Exit criterion: the standard modules form a coherent reference implementation of how third-party FluNET modules should model domain semantics.
 
