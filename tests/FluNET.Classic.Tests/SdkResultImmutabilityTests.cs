@@ -1,5 +1,7 @@
 using FluNET.Classic.Core;
+using FluNET.Classic.Hosting;
 using FluNET.Classic.SDK;
+using Microsoft.Extensions.DependencyInjection;
 using NUnit.Framework;
 
 namespace FluNET.Classic.Tests;
@@ -19,6 +21,16 @@ public sealed class SdkResultImmutabilityTests
 
         Assert.That(report.Changes, Has.Count.EqualTo(1));
         Assert.That(() => ((IList<LanguageCompatibilityChange>)report.Changes).Add(new(CompatibilitySeverity.Info, "test", "test:two", "two")), Throws.TypeOf<NotSupportedException>());
+    }
+
+    [Test]
+    public void Module_quality_results_are_read_only()
+    {
+        using ServiceProvider host = FluNetHost.Create();
+        LanguageSnapshot snapshot = host.GetRequiredService<LanguageSnapshot>();
+        IReadOnlyList<ModuleQualityIssue> issues = new ModuleQualityAnalyzer().Analyze(snapshot);
+
+        Assert.That(() => ((IList<ModuleQualityIssue>)issues).Add(new(LanguageDiagnosticSeverity.Info, "TEST", "test")), Throws.TypeOf<NotSupportedException>());
     }
 
     [Test]

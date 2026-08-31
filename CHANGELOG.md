@@ -27,6 +27,7 @@ The format follows the spirit of [Keep a Changelog](https://keepachangelog.com/e
 - `LOAD`, `DOWNLOAD`, and JSON list operations no longer force unused output-side `WHAT` parameters.
 - Language snapshots now expose immutable collection implementations and copy nested descriptor inputs for tooling consumers.
 - SDK compatibility and module-validation reports now snapshot diagnostic collections defensively.
+- Module-quality analyzer results now return a true read-only collection.
 - Document-tooling analysis and signature-help results now snapshot returned collections defensively.
 - Execution-plan results now expose a read-only snapshot of their complete nested result tree.
 - Generated module manifests and documentation now use stable ordering for collections and overloads.

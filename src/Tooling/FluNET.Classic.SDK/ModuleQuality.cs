@@ -63,6 +63,6 @@ public sealed class ModuleQualityAnalyzer
                 }
             }
         }
-        return issues;
+        return Array.AsReadOnly(issues.ToArray());
     }
 }
